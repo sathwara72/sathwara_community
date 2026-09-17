@@ -685,6 +685,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 "email": userEmail,
                 "contact": userPhone
             },
+            "modal": {
+                "ondismiss": function() {
+                    // User cancelled modal, do not submit
+                }
+            },
             "theme": {
                 "color": "#2563EB"
             }
@@ -692,10 +697,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (window.Razorpay) {
             const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function (response) {
+                alert(response.error?.description || 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.');
+            });
             rzp.open();
         } else {
-            alert('Razorpay Payment Gateway failed to load. Submitting registration...');
-            form.submit();
+            alert('પેમેન્ટ ગેટવે લોડ થઈ શક્યો નથી. કૃપા કરીને ફરી પ્રયાસ કરો.');
         }
     });
 });

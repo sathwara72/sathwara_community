@@ -801,12 +801,22 @@ class PublicController extends Controller
             }
         }
 
+        $paymentId = $request->input('razorpay_payment_id');
+
+        // Check if payment was required but not completed
+        if (!empty($validated['amount']) && (float)$validated['amount'] > 0 && empty($paymentId)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', app()->getLocale() === 'gu'
+                    ? 'ઓનલાઇન પેમેન્ટ પૂર્ણ થયું નથી. સ્પોન્સરશિપ નોંધણી માટે પેમેન્ટ પૂર્ણ કરવું જરૂરી છે.'
+                    : 'Online payment was not completed. Payment is required to register sponsorship.');
+        }
+
         $logoPath = null;
         if ($request->hasFile('logo')) {
             $logoPath = $request->file('logo')->store('sponsors', 'public');
         }
 
-        $paymentId = $request->input('razorpay_payment_id');
         $paymentStatus = !empty($paymentId) ? 'received' : 'pending';
 
         $sponsor = EventSponsor::create([

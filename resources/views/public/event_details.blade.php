@@ -1066,23 +1066,44 @@ function submitSponsorFormWithRazorpay() {
         },
         "modal": {
             "ondismiss": function() {
-                if (confirm("{{ $isGu ? 'ઓનલાઇન પેમેન્ટ પૂર્ણ થયું નથી. શું તમે આ સ્પોન્સરશિપ વિગતો સાથે સબમિટ કરવા માંગો છો (Pending Payment)?' : 'Payment was not completed. Do you want to submit your sponsorship details with Pending payment status?' }}")) {
-                    sponsorForm.submit();
-                }
+                // User closed or cancelled the Razorpay payment modal.
+                // Do not submit the form and do not prompt to submit with pending status.
             }
         }
     };
 
     if (window.Razorpay) {
         const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+            alert(response.error?.description || "{{ $isGu ? 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment failed. Please try again.' }}");
+        });
         rzp.open();
     } else {
-        alert('Razorpay Payment Gateway is initializing. Submitting registration...');
-        sponsorForm.submit();
+        alert("{{ $isGu ? 'પેમેન્ટ ગેટવે લોડ થઈ શક્યો નથી. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment gateway failed to load. Please try again.' }}");
     }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    /* =================== SPONSOR REGISTRATION INTERCEPT =================== */
+    const sponsorForm = document.getElementById('publicSponsorRegisterForm');
+    if (sponsorForm) {
+        sponsorForm.addEventListener('submit', function (e) {
+            const paymentIdInput = document.getElementById('sponsor_razorpay_payment_id');
+            if (paymentIdInput && paymentIdInput.value) {
+                return true; // Already paid
+            }
+
+            const amountInput = sponsorForm.querySelector('[name="amount"]');
+            const sponsorAmount = amountInput ? parseFloat(amountInput.value) || 0 : 0;
+            if (sponsorAmount > 0) {
+                e.preventDefault();
+                submitSponsorFormWithRazorpay();
+                return false;
+            }
+            return true;
+        });
+    }
+
     /* =================== PASS REGISTRATION RAZORPAY =================== */
     const passForm = document.getElementById('publicEventRegisterForm');
     if (passForm) {
@@ -1121,6 +1142,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     passForm.submit();
                 },
+                "modal": {
+                    "ondismiss": function() {
+                        // User cancelled pass payment modal, do not submit
+                    }
+                },
                 "prefill": {
                     "name": userName,
                     "email": userEmail,
@@ -1133,10 +1159,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (window.Razorpay) {
                 const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                    alert(response.error?.description || "{{ $isGu ? 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment failed. Please try again.' }}");
+                });
                 rzp.open();
             } else {
-                alert('Razorpay Payment Gateway failed to load. Submitting registration...');
-                passForm.submit();
+                alert("{{ $isGu ? 'પેમેન્ટ ગેટવે લોડ થઈ શક્યો નથી. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment gateway failed to load. Please try again.' }}");
             }
         });
     }
