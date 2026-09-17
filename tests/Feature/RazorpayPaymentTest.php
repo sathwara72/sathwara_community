@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
 use App\Models\Area;
+use App\Models\EventSponsor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -125,5 +126,64 @@ class RazorpayPaymentTest extends TestCase
         $this->assertEquals('pay_event_pass_777', $registration->payment_id);
         $this->assertEquals('paid', $registration->payment_status);
         $this->assertEquals(450.00, (float)$registration->payment_amount);
+    }
+
+    public function test_event_sponsor_registration_rejected_if_payment_missing_when_amount_required()
+    {
+        $event = Event::create([
+            'title' => 'Annual Sammelan 2026',
+            'description' => 'Sponsorship Event',
+            'banner_path' => 'events/banner.jpg',
+            'date' => now()->addDays(10)->toDateString(),
+            'time' => '10:00:00',
+            'venue' => 'Sathwara Hall',
+            'event_type' => 'normal',
+            'status' => 'published',
+        ]);
+
+        $response = $this->from(route('event.details', $event->id))
+            ->post(route('events.sponsor.register', $event->id), [
+                'name' => 'Patel Enterprise',
+                'mobile' => '9876543210',
+                'amount' => 25000,
+                'razorpay_payment_id' => '',
+            ]);
+
+        $response->assertRedirect(route('event.details', $event->id));
+        $response->assertSessionHas('error');
+        $this->assertDatabaseMissing('event_sponsors', [
+            'name' => 'Patel Enterprise',
+            'event_id' => $event->id,
+        ]);
+    }
+
+    public function test_event_sponsor_registration_accepted_when_paid()
+    {
+        $event = Event::create([
+            'title' => 'Annual Sammelan 2026',
+            'description' => 'Sponsorship Event',
+            'banner_path' => 'events/banner.jpg',
+            'date' => now()->addDays(10)->toDateString(),
+            'time' => '10:00:00',
+            'venue' => 'Sathwara Hall',
+            'event_type' => 'normal',
+            'status' => 'published',
+        ]);
+
+        $response = $this->from(route('event.details', $event->id))
+            ->post(route('events.sponsor.register', $event->id), [
+                'name' => 'Patel Enterprise Paid',
+                'mobile' => '9876543210',
+                'amount' => 25000,
+                'razorpay_payment_id' => 'pay_sponsor_99999',
+            ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('event_sponsors', [
+            'name' => 'Patel Enterprise Paid',
+            'event_id' => $event->id,
+            'payment_id' => 'pay_sponsor_99999',
+            'payment_status' => 'received',
+        ]);
     }
 }

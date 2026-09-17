@@ -51,6 +51,20 @@
             vertical-align: middle;
             line-height: 1.0;
         }
+        .ack-box {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            border-left: 4px solid #b45309;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+        .ack-box strong {
+            color: #991b1b;
+        }
         .section-header {
             font-size: 12px;
             font-weight: bold;
@@ -196,10 +210,10 @@
             </tr>
         </table>
 
-        <!-- Left-Aligned Clean Receipt Title (No Background Box) -->
-        <div style="width: 100%; margin-top: 6px; margin-bottom: 8px; border-bottom: 2px solid #1e3a8a; padding-bottom: 4px; text-align: left;">
-            <span style="font-size: 14px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px;">
-                @yield('type_label')
+        <!-- Centered Clean Receipt Title -->
+        <div style="width: 100%; margin-top: 6px; margin-bottom: 8px; border-bottom: 2px solid #1e3a8a; padding-bottom: 4px; text-align: center;">
+            <span style="font-size: 15px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; letter-spacing: 1.5px;">
+                RECEIPT
             </span>
         </div>
 

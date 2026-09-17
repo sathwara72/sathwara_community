@@ -803,6 +803,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 "description": "Membership Registration Fee",
                 "handler": function (response) {
                     paymentIdInput.value = response.razorpay_payment_id;
+                    window.dispatchEvent(new CustomEvent('show-loader'));
                     form.submit();
                 },
                 "modal": {

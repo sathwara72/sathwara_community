@@ -10,8 +10,27 @@
         $formattedEventTitle = \App\Support\GujaratiText::reorderMatra($event->title ?? '');
         $formattedPackageTitle = \App\Support\GujaratiText::reorderMatra($packageTitle);
         $formattedSponsorName = \App\Support\GujaratiText::reorderMatra($sponsor->name ?? '');
+        $formattedContactPerson = !empty($sponsor->contact_person) ? \App\Support\GujaratiText::reorderMatra($sponsor->contact_person) : '';
+        $sponsorAddress = !empty($sponsor->address) ? $sponsor->address : ($sponsor->city ?? '');
+        $formattedAddress = !empty($sponsorAddress) ? \App\Support\GujaratiText::reorderMatra($sponsorAddress) : '';
         $formattedVenue = \App\Support\GujaratiText::reorderMatra($event->venue ?? '');
+        $amountInWords = \App\Support\NumberToWords::convert($amount);
     @endphp
+
+    <!-- Acknowledgement Box -->
+    <div class="ack-box">
+        Shree <strong>{{ $formattedSponsorName }}</strong>
+        @if(!empty($formattedContactPerson))
+            (Contact Person: <strong>{{ $formattedContactPerson }}</strong>),
+        @endif
+        @if(!empty($formattedAddress))
+            Address <strong>{{ $formattedAddress }}</strong>,
+        @endif
+        @if(!empty($sponsor->mobile))
+            Mobile <strong>{{ $sponsor->mobile }}</strong>,
+        @endif
+        we have received a sum of Rupees <strong>{{ number_format($amount, 2) }} ({{ $amountInWords }} INR)</strong> as per the details below:
+    </div>
 
     <!-- Event Details -->
     <div class="section-header">Event Details</div>
