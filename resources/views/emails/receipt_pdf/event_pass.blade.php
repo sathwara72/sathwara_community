@@ -11,7 +11,19 @@
         $formattedTitle = \App\Support\GujaratiText::reorderMatra($event->title ?? '');
         $formattedVenue = \App\Support\GujaratiText::reorderMatra($event->venue ?? 'Community Hall');
         $formattedAttendee = \App\Support\GujaratiText::reorderMatra($attendeeName);
+        $passUser = $registration->user ?? $user;
+        $attendeePhone = $registration->form_data['mobile'] ?? ($passUser?->phone ?? ($passUser?->memberProfile?->phone ?? ''));
+        $amountInWords = \App\Support\NumberToWords::convert($finalAmount);
     @endphp
+
+    <!-- Acknowledgement Box -->
+    <div class="ack-box">
+        Shree <strong>{{ $formattedAttendee }}</strong>
+        @if(!empty($attendeePhone))
+            , Mobile <strong>{{ $attendeePhone }}</strong>
+        @endif
+        , we have received a sum of Rupees <strong>{{ number_format($finalAmount, 2) }} ({{ $amountInWords }} INR)</strong> as per the details below:
+    </div>
 
     <!-- Event Details -->
     <div class="section-header">Event Information</div>

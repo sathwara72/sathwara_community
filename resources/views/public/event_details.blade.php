@@ -119,6 +119,7 @@
 
     <!-- Event Content & Registration -->
     <section class="py-12 md:py-16 bg-white event-details-content"
+             @close-all-modals.window="showSponsorModal = false"
              x-data="{
                  showSponsorModal: false,
                  selectedTypeId: '',
@@ -132,23 +133,6 @@
                  }
              }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            @if(session('success'))
-                <div class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl flex items-center gap-3 shadow-2xs">
-                    <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    </div>
-                    <span class="text-xs sm:text-sm font-bold">{{ session('success') }}</span>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl flex items-center gap-3 shadow-2xs">
-                    <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </div>
-                    <span class="text-xs sm:text-sm font-bold">{{ session('error') }}</span>
-                </div>
-            @endif
 
             @if($errors->any())
                 <div class="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl space-y-1.5 shadow-2xs">
@@ -480,9 +464,9 @@
                                                 {{ strtoupper(substr($sp->name, 0, 1)) }}
                                             </div>
                                         @endif
-                                        <div class="font-extrabold text-slate-900 text-xs line-clamp-1 w-full" title="{{ $sp->name }}">{{ $sp->name }}</div>
+                                        <div class="font-extrabold text-slate-900 text-xs w-full break-words leading-snug" title="{{ $sp->name }}">{{ $sp->name }}</div>
                                         @if($sp->sponsorshipType)
-                                            <span class="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded mt-1 border border-primary-100/60 line-clamp-1">
+                                            <span class="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded mt-1 border border-primary-100/60 text-center break-words">
                                                 {{ $sp->sponsorshipType->title }}
                                             </span>
                                         @endif
@@ -1054,6 +1038,11 @@ function submitSponsorFormWithRazorpay() {
         "description": "Event Sponsorship - {{ addslashes($event->title) }} (₹" + sponsorAmount.toLocaleString() + ")",
         "handler": function (response) {
             paymentIdInput.value = response.razorpay_payment_id;
+            window.dispatchEvent(new CustomEvent('close-all-modals'));
+            document.querySelectorAll('[x-show="showSponsorModal"]').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            window.dispatchEvent(new CustomEvent('show-loader'));
             sponsorForm.submit();
         },
         "prefill": {
@@ -1140,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.querySelectorAll('[x-show="showPassModal"], [x-show="showViewPassesModal"]').forEach(function(el) {
                         el.style.display = 'none';
                     });
+                    window.dispatchEvent(new CustomEvent('show-loader'));
                     passForm.submit();
                 },
                 "modal": {

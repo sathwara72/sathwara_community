@@ -678,6 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
             "handler": function (response) {
                 paymentIdInput.value = response.razorpay_payment_id;
                 window.dispatchEvent(new CustomEvent('close-all-modals'));
+                window.dispatchEvent(new CustomEvent('show-loader'));
                 form.submit();
             },
             "prefill": {
