@@ -49,7 +49,7 @@ class RazorpayPaymentTest extends TestCase
         Setting::set('member_signup_fee', '1000');
         $area = Area::first();
 
-        $response = $this->post(route('register.member.submit'), [
+        $response = $this->withSession(['reg_email_verified' => 'ramesh@test.com'])->post(route('register.member.submit'), [
             'first_name' => 'Ramesh',
             'middle_name' => 'K',
             'last_name' => 'Sathwara',
@@ -63,6 +63,11 @@ class RazorpayPaymentTest extends TestCase
         ]);
 
         $response->assertRedirect();
+        $response->assertSessionHas('purchase_receipt');
+        $receipt = session('purchase_receipt');
+        $this->assertEquals('membership', $receipt['type']);
+        $this->assertEquals('pay_member_98765', $receipt['payment_id']);
+        $this->assertNotEmpty($receipt['download_url']);
 
         $user = User::where('email', 'ramesh@test.com')->first();
         $this->assertNotNull($user);
@@ -88,6 +93,11 @@ class RazorpayPaymentTest extends TestCase
         ]);
 
         $response->assertRedirect();
+        $response->assertSessionHas('purchase_receipt');
+        $receipt = session('purchase_receipt');
+        $this->assertEquals('business', $receipt['type']);
+        $this->assertEquals('pay_biz_12345', $receipt['payment_id']);
+        $this->assertNotEmpty($receipt['download_url']);
 
         $business = Business::where('business_name', 'Sathwara Enterprise')->first();
         $this->assertNotNull($business);
@@ -185,5 +195,34 @@ class RazorpayPaymentTest extends TestCase
             'payment_id' => 'pay_sponsor_99999',
             'payment_status' => 'received',
         ]);
+    }
+
+    public function test_owner_can_view_pending_business_details_without_404()
+    {
+        $member = User::factory()->create(['status' => 'approved']);
+        $member->assignRole('Member');
+        $area = Area::first();
+
+        $business = Business::create([
+            'user_id' => $member->id,
+            'business_name' => 'Pending Cafe',
+            'owner_name' => 'Cafe Owner',
+            'address' => 'Near Lake',
+            'area_id' => $area->id,
+            'phone' => '9988776655',
+            'logo_path' => 'businesses/logos/default.jpg',
+            'status' => 'pending',
+            'payment_status' => 'paid',
+        ]);
+
+        // Guest / anonymous should get 404 on pending business
+        $guestResponse = $this->get(route('business.details', $business->id));
+        $guestResponse->assertStatus(404);
+
+        // Owner should see their business details with 200 OK
+        $ownerResponse = $this->actingAs($member)->get(route('business.details', $business->id));
+        $ownerResponse->assertStatus(200);
+        $ownerResponse->assertSee('Pending Cafe');
+        $ownerResponse->assertSee('PENDING');
     }
 }

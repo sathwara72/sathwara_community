@@ -85,9 +85,10 @@
                             $regPasses = [];
                             if ($rEvent) {
                                 $tokens = \App\Services\PassTokenService::getOrGenerateTokens($myReg);
-                                foreach ($tokens as $tk) {
+                                $basePassNo = (int) ($myReg->pass_number ?: ($myReg->form_data['registration_no'] ?? $myReg->id));
+                                foreach ($tokens as $idx => $tk) {
                                     $regPasses[] = [
-                                        'passNo' => sprintf('%03d', $tk->pass_index),
+                                        'passNo' => sprintf('%03d', $basePassNo + $idx),
                                         'tokenHash' => $tk->token_hash,
                                         'passCode' => $tk->pass_code,
                                         'qrUrl' => \App\Services\PassTokenService::getQrCodeImageUrl($tk->token_hash),
@@ -166,13 +167,42 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @forelse($events as $event)
                     @php
-                        $isRegistered = !empty($registrations[$event->id]);
-                        $thisReg = isset($myRegistrations) ? $myRegistrations->firstWhere('event_id', $event->id) : null;
-                        $pCount = $thisReg ? max(1, (int) ($thisReg->form_data['person_count'] ?? 1)) : 1;
+                        $thisReg = isset($myRegistrations) ? $myRegistrations->where('event_id', $event->id)->filter(function($r) use ($event) {
+                            if ($event->event_type === 'inam_vitaran' && !empty($r->form_data['student_name'])) {
+                                return false;
+                            }
+                            if ($event->event_type === 'yuva_melo' && (!empty($r->form_data['surname']) || !empty($r->form_data['qualification']))) {
+                                return false;
+                            }
+                            return true;
+                        })->first() : null;
+
+                        $isPassFeeRequired = (float)($event->pass_fee ?? 0) > 0;
+                        $hasPaidPass = $thisReg && (!$isPassFeeRequired || ($thisReg->payment_status === 'paid'));
+                        $isRegistered = $hasPaidPass;
+                        $pCount = $hasPaidPass ? max(1, (int) ($thisReg->form_data['person_count'] ?? 1)) : 1;
                         $cardPasses = [];
-                        if ($thisReg) {
-                            for ($pi = 1; $pi <= $pCount; $pi++) {
-                                $cardPasses[] = sprintf('%03d', $pi);
+                        if ($hasPaidPass) {
+                            $tokens = \App\Services\PassTokenService::getOrGenerateTokens($thisReg);
+                            $basePassNo = (int) ($thisReg->pass_number ?: ($thisReg->form_data['registration_no'] ?? $thisReg->id));
+                            if ($tokens->isNotEmpty()) {
+                                foreach ($tokens as $idx => $tk) {
+                                    $cardPasses[] = [
+                                        'passNo' => sprintf('%03d', $basePassNo + $idx),
+                                        'tokenHash' => $tk->token_hash,
+                                        'passCode' => $tk->pass_code,
+                                        'qrUrl' => \App\Services\PassTokenService::getQrCodeImageUrl($tk->token_hash),
+                                    ];
+                                }
+                            } else {
+                                for ($pi = 0; $pi < $pCount; $pi++) {
+                                    $cardPasses[] = [
+                                        'passNo' => sprintf('%03d', $basePassNo + $pi),
+                                        'tokenHash' => '',
+                                        'passCode' => '',
+                                        'qrUrl' => '',
+                                    ];
+                                }
                             }
                         }
                         $attendeeStr = $thisReg->form_data['full_name'] ?? $userName;
@@ -287,12 +317,19 @@
                                 <div class="flex items-center justify-between gap-1.5 flex-wrap">
                                     <!-- Registration Status Badge -->
                                     <div>
-                                        @if($isRegistered)
-                                            <span
-                                                class="inline-flex items-center gap-1 px-3 py-1 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-300 rounded-lg uppercase tracking-wide">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                {{ __('messages.registered') }} ({{ $pCount }})
-                                            </span>
+                                        @if($hasPaidPass)
+                                            <button type="button"
+                                                @click.stop="openPassModal({{ json_encode(['id' => $event->id, 'title' => $event->title, 'date' => date('d-M-Y', strtotime($event->date)), 'time' => $event->time ? date('h:i A', strtotime($event->time)) : '', 'venue' => $event->venue, 'url' => route('event.details', $event->id)]) }}, {{ json_encode($cardPasses) }}, '{{ addslashes($attendeeStr) }}')"
+                                                class="inline-flex items-center gap-1 px-3 py-1 text-xs font-black text-white bg-slate-900 hover:bg-slate-800 rounded-lg uppercase tracking-wide cursor-pointer transition-colors shadow-2xs">
+                                                <svg class="w-3.5 h-3.5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                                                <span>{{ $isGu ? 'પાસ જુઓ (' . count($cardPasses) . ')' : 'View Pass (' . count($cardPasses) . ')' }}</span>
+                                            </button>
+                                        @elseif($thisReg && !$hasPaidPass)
+                                            <a href="{{ route('event.details', $event->id) }}"
+                                                class="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-300 rounded-lg uppercase tracking-wide hover:bg-amber-100">
+                                                <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                                <span>{{ $isGu ? 'ચૂકવણી બાકી (પે કરો)' : 'Pay Now' }}</span>
+                                            </a>
                                         @elseif(($event->event_type ?? 'normal') === 'normal' || !($event->has_registration_form || $event->registration_option))
                                             <span
                                                 class="inline-flex items-center px-3 py-1 text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-lg uppercase tracking-wide">{{ __('messages.open_entry') }}</span>
@@ -355,7 +392,8 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button" @click="showPassModal = false"
-                                class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors text-xs font-bold cursor-pointer">
+                                class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors text-xs font-bold cursor-pointer"
+                                title="Close">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
@@ -438,7 +476,9 @@
                                         <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                         <span class="truncate"><strong>{{ $isGu ? 'સ્થળ / સરનામું:' : 'Venue:' }}</strong> <span x-text="activeEvent?.venue"></span></span>
                                     </span>
-                                    <span class="text-[10px] text-slate-400 font-mono font-semibold shrink-0 uppercase tracking-widest">GATE SCANNER VALID</span>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="text-[10px] text-slate-400 font-mono font-semibold uppercase tracking-widest">GATE SCANNER VALID</span>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -609,7 +649,8 @@
             let html = '';
             cards.forEach(card => {
                 const data = {
-                    passNo: card.dataset.passNo || card.querySelector('.text-xl')?.innerText.trim() || '001',
+                    passNo: card.dataset.passNo || card.querySelector('.text-2xl')?.innerText.trim() || card.querySelector('.text-xl')?.innerText.trim() || '001',
+                    qrUrl: card.dataset.qrUrl || '',
                     title: card.dataset.eventTitle || '',
                     mandal: card.dataset.mandal || 'Shree Satwara Gnati Mandal, Ahmedabad',
                     date: card.dataset.date || '',
@@ -627,7 +668,8 @@
             const card = document.getElementById(cardId);
             if (!card) { console.error('Pass card not found:', cardId); return; }
             const data = {
-                passNo: card.dataset.passNo || card.querySelector('.text-xl')?.innerText.trim() || '001',
+                passNo: card.dataset.passNo || card.querySelector('.text-2xl')?.innerText.trim() || card.querySelector('.text-xl')?.innerText.trim() || '001',
+                qrUrl: card.dataset.qrUrl || '',
                 title: card.dataset.eventTitle || '',
                 mandal: card.dataset.mandal || 'Shree Satwara Gnati Mandal, Ahmedabad',
                 date: card.dataset.date || '',

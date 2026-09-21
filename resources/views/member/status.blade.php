@@ -87,6 +87,7 @@
             </form>
         </div>
     </div>
+    @include('components.purchase_receipt_modal')
 </body>
 
 </html>

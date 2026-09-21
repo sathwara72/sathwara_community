@@ -131,7 +131,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     Route::delete('/sub-admins/{id}', [SubAdminController::class, 'destroy'])->name('sub_admins.destroy');
 
     // Members list, detail sheet, approvals, CSV export, print
-    Route::middleware(['permission_check:members_manage'])->group(function() {
+    Route::middleware(['permission_check:members_manage'])->group(function () {
         Route::get('/members', [AdminMember::class, 'index'])->name('members.index');
         Route::get('/members/export', [AdminMember::class, 'exportCsv'])->name('members.export');
         Route::get('/members/print', [AdminMember::class, 'printList'])->name('members.print');
@@ -147,7 +147,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Areas Management
-    Route::middleware(['permission_check:areas_manage'])->group(function() {
+    Route::middleware(['permission_check:areas_manage'])->group(function () {
         Route::get('/areas', [AdminArea::class, 'index'])->name('areas.index');
         Route::get('/areas/export', [AdminArea::class, 'exportCsv'])->name('areas.export');
         Route::get('/areas/sample-csv', [AdminArea::class, 'downloadSampleCsv'])->name('areas.sample_csv');
@@ -158,7 +158,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Businesses and Categories
-    Route::middleware(['permission_check:businesses_manage'])->group(function() {
+    Route::middleware(['permission_check:businesses_manage'])->group(function () {
         Route::get('/businesses', [AdminBusiness::class, 'index'])->name('businesses.index');
         Route::get('/businesses/export', [AdminBusiness::class, 'exportCsv'])->name('businesses.export');
         Route::get('/businesses/{id}', [AdminBusiness::class, 'show'])->name('businesses.show');
@@ -182,7 +182,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Events and Registrations
-    Route::middleware(['permission_check:events_manage'])->group(function() {
+    Route::middleware(['permission_check:events_manage'])->group(function () {
         Route::get('/events/export', [AdminEvent::class, 'exportCsv'])->name('events.export');
         Route::resource('events', AdminEvent::class);
         Route::get('/events/{id}/registrations/export', [AdminEvent::class, 'exportRegistrationsCsv'])->name('events.registrations.export');
@@ -225,7 +225,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // General Gallery
-    Route::middleware(['permission_check:gallery_manage'])->group(function() {
+    Route::middleware(['permission_check:gallery_manage'])->group(function () {
         Route::get('/gallery', [AdminGallery::class, 'index'])->name('gallery.index');
         Route::get('/gallery/export', [AdminGallery::class, 'exportCsv'])->name('gallery.export');
         Route::post('/gallery', [AdminGallery::class, 'store'])->name('gallery.store');
@@ -233,7 +233,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Content Management
-    Route::middleware(['permission_check:sliders_manage'])->group(function() {
+    Route::middleware(['permission_check:sliders_manage'])->group(function () {
         Route::get('/content/sliders', [AdminContent::class, 'sliders'])->name('content.sliders');
         Route::get('/content/sliders/export', [AdminContent::class, 'exportSlidersCsv'])->name('content.sliders.export');
         Route::post('/content/sliders', [AdminContent::class, 'storeSlider'])->name('content.sliders.store');
@@ -241,7 +241,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/sliders/{id}', [AdminContent::class, 'destroySlider'])->name('content.sliders.destroy');
     });
 
-    Route::middleware(['permission_check:agendas_manage'])->group(function() {
+    Route::middleware(['permission_check:agendas_manage'])->group(function () {
         Route::get('/content/agendas', [AdminContent::class, 'agendas'])->name('content.agendas');
         Route::get('/content/agendas/export', [AdminContent::class, 'exportAgendasCsv'])->name('content.agendas.export');
         Route::post('/content/agendas', [AdminContent::class, 'storeAgenda'])->name('content.agendas.store');
@@ -249,7 +249,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/agendas/{id}', [AdminContent::class, 'destroyAgenda'])->name('content.agendas.destroy');
     });
 
-    Route::middleware(['permission_check:desk_manage'])->group(function() {
+    Route::middleware(['permission_check:desk_manage'])->group(function () {
         Route::get('/content/management-desk', [AdminContent::class, 'managementDesk'])->name('content.desk');
         Route::get('/content/management-desk/export', [AdminContent::class, 'exportDeskCsv'])->name('content.desk.export');
         Route::post('/content/management-desk', [AdminContent::class, 'storeDesk'])->name('content.desk.store');
@@ -257,7 +257,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/management-desk/{id}', [AdminContent::class, 'destroyDesk'])->name('content.desk.destroy');
     });
 
-    Route::middleware(['permission_check:committee_manage'])->group(function() {
+    Route::middleware(['permission_check:committee_manage'])->group(function () {
         Route::get('/content/committee', [AdminContent::class, 'committee'])->name('content.committee');
         Route::get('/content/committee/export', [AdminContent::class, 'exportCommitteeCsv'])->name('content.committee.export');
         Route::post('/content/committee', [AdminContent::class, 'storeCommittee'])->name('content.committee.store');
@@ -265,7 +265,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/committee/{id}', [AdminContent::class, 'destroyCommittee'])->name('content.committee.destroy');
     });
 
-    Route::middleware(['permission_check:timelines_manage'])->group(function() {
+    Route::middleware(['permission_check:timelines_manage'])->group(function () {
         Route::get('/content/timelines', [AdminContent::class, 'timelines'])->name('content.timelines');
         Route::get('/content/timelines/export', [AdminContent::class, 'exportTimelinesCsv'])->name('content.timelines.export');
         Route::post('/content/timelines', [AdminContent::class, 'storeTimeline'])->name('content.timelines.store');
@@ -273,7 +273,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/timelines/{id}', [AdminContent::class, 'destroyTimeline'])->name('content.timelines.destroy');
     });
 
-    Route::middleware(['permission_check:announcements_manage'])->group(function() {
+    Route::middleware(['permission_check:announcements_manage'])->group(function () {
         Route::get('/content/updates', [AdminContent::class, 'updates'])->name('content.updates');
         Route::get('/content/updates/export', [AdminContent::class, 'exportUpdatesCsv'])->name('content.updates.export');
         Route::post('/content/updates', [AdminContent::class, 'storeUpdate'])->name('content.updates.store');
@@ -282,7 +282,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Site & Email Settings
-    Route::middleware(['permission_check:settings_manage'])->group(function() {
+    Route::middleware(['permission_check:settings_manage'])->group(function () {
         Route::get('/settings', [AdminSettings::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettings::class, 'update'])->name('settings.update');
 
@@ -295,12 +295,20 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Receipts Download Routes
-    Route::prefix('receipts')->name('receipts.')->group(function() {
+    Route::prefix('receipts')->name('receipts.')->group(function () {
         Route::get('/membership/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadMembership'])->name('membership');
         Route::get('/business/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadBusiness'])->name('business');
         Route::get('/event-pass/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadEventPass'])->name('event_pass');
         Route::get('/sponsorship/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadSponsorship'])->name('sponsorship');
     });
+});
+
+// Public / Member Receipt Download Routes
+Route::prefix('receipts')->name('receipts.')->group(function () {
+    Route::get('/event-pass/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadEventPass'])->name('event_pass');
+    Route::get('/sponsorship/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadSponsorship'])->name('sponsorship');
+    Route::get('/membership/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadMembership'])->name('membership');
+    Route::get('/business/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadBusiness'])->name('business');
 });
 
 // Sponsorship Preview Route

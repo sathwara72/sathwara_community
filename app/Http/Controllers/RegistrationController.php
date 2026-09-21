@@ -329,7 +329,29 @@ class RegistrationController extends Controller
         // Log the user in and redirect to account status page
         auth()->login($user);
 
-        return redirect()->route('account.status')->with('success', 'Your membership registration has been submitted successfully and is pending approval.');
+        $response = redirect()->route('account.status')
+            ->with('success', 'Your membership registration has been submitted successfully and is pending approval.');
+
+        if ($paymentStatus === 'paid') {
+            $receiptNo = $user->receipt_no ?: \App\Services\ReceiptNumberService::assign($user, 'receipt_no');
+            $response->with('purchase_receipt', [
+                'type' => 'membership',
+                'receipt_no' => $receiptNo,
+                'event_title' => 'Community Membership',
+                'event_date' => now()->format('d M, Y'),
+                'attendee_name' => $user->name,
+                'phone' => $user->phone,
+                'person_count' => 1,
+                'amount_paid' => (float) $signupFee,
+                'total_amount' => (float) $signupFee,
+                'payment_id' => $paymentId,
+                'payment_status' => $paymentStatus,
+                'created_at' => now()->format('d M, Y h:i A'),
+                'download_url' => route('receipts.membership', $user->id),
+            ]);
+        }
+
+        return $response;
     }
 
     /**
@@ -509,7 +531,29 @@ class RegistrationController extends Controller
             }
         }
 
-        return redirect()->route('business.directory')->with('success', 'Your business directory registration has been submitted successfully and is pending admin approval.');
+        $response = redirect()->route('business.directory')
+            ->with('success', 'Your business directory registration has been submitted successfully and is pending admin approval.');
+
+        if ($paymentStatus === 'paid') {
+            $receiptNo = $newBusiness->receipt_no ?: \App\Services\ReceiptNumberService::assign($newBusiness, 'receipt_no');
+            $response->with('purchase_receipt', [
+                'type' => 'business',
+                'receipt_no' => $receiptNo,
+                'event_title' => $newBusiness->business_name,
+                'event_date' => now()->format('d M, Y'),
+                'attendee_name' => $newBusiness->owner_name,
+                'phone' => $newBusiness->phone,
+                'person_count' => 1,
+                'amount_paid' => (float) $businessFee,
+                'total_amount' => (float) $businessFee,
+                'payment_id' => $paymentId,
+                'payment_status' => $paymentStatus,
+                'created_at' => now()->format('d M, Y h:i A'),
+                'download_url' => route('receipts.business', $newBusiness->id),
+            ]);
+        }
+
+        return $response;
     }
 
     /**
