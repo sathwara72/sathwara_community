@@ -37,8 +37,8 @@ class OtpPasswordResetController extends Controller
         $email = $request->email;
         $otp = (string) mt_rand(100000, 999999);
 
-        // Log OTP code for local debugging/testing
-        \Illuminate\Support\Facades\Log::info("OTP generated for {$email}: {$otp}");
+        // Safe logging without exposing OTP code
+        \Illuminate\Support\Facades\Log::info("Password reset OTP generated for {$email}");
 
         // Store OTP in database (password_reset_tokens table)
         DB::table('password_reset_tokens')->updateOrInsert(
@@ -53,7 +53,10 @@ class OtpPasswordResetController extends Controller
         Mail::to($email)->send(new ResetPasswordOtpMail($otp));
 
         // Save email in session to carry over to verification page
-        session(['reset_email' => $email]);
+        session([
+            'reset_email' => $email,
+            'password_reset_otp_attempts' => 0,
+        ]);
 
         return redirect()->route('password.otp.verify.form')
             ->with('status', 'We have emailed your password reset verification code.');
@@ -99,14 +102,25 @@ class OtpPasswordResetController extends Controller
             return back()->withErrors(['otp' => __('messages.otp_expired_error')]);
         }
 
+        // Track and enforce attempt limit
+        $attempts = (int) session('password_reset_otp_attempts', 0) + 1;
+        session(['password_reset_otp_attempts' => $attempts]);
+
+        if ($attempts > 5) {
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
+            session()->forget(['reset_email', 'password_reset_otp_attempts']);
+            return redirect()->route('password.request')
+                ->withErrors(['email' => 'Too many failed OTP attempts. Please request a new code.']);
+        }
+
         // Verify Code Hash
         if (!Hash::check($request->otp, $record->token)) {
             return back()->withErrors(['otp' => __('messages.otp_incorrect_error')]);
         }
 
-        // Mark as verified in session and clear reset_email
+        // Mark as verified in session and clear reset_email & attempts
         session(['otp_verified_email' => $email]);
-        session()->forget('reset_email');
+        session()->forget(['reset_email', 'password_reset_otp_attempts']);
 
         return redirect()->route('password.reset')
             ->with('status', 'Code verified. You can now reset your password.');

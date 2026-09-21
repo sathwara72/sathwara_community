@@ -300,7 +300,7 @@
 </section>
 
 <!-- Custom Alert Modal (warnings/errors) -->
-<div id="otpAlertModal" class="fixed inset-0 flex items-center justify-center hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999999 !important;" role="dialog" aria-modal="true" aria-labelledby="otpAlertTitle">
+<div id="otpAlertModal" class="fixed inset-0 items-center justify-center hidden" style="display: none !important; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999999 !important;" role="dialog" aria-modal="true" aria-labelledby="otpAlertTitle">
     <div id="otpModalBackdrop" style="position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);"></div>
     <div class="relative w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="otpModalPanel">
         <div id="otpModalAccent" class="h-1.5 w-full bg-rose-500"></div>
@@ -320,7 +320,7 @@
 </div>
 
 <!-- OTP Entry Popup Modal -->
-<div id="otpEntryModal" class="fixed inset-0 flex items-center justify-center hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999998 !important;" role="dialog" aria-modal="true">
+<div id="otpEntryModal" class="fixed inset-0 items-center justify-center hidden" style="display: none !important; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999998 !important;" role="dialog" aria-modal="true">
     <!-- Backdrop -->
     <div style="position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);"></div>
     <!-- Panel -->
@@ -431,6 +431,7 @@ document.addEventListener('DOMContentLoaded', function () {
         otpAlertTitle.textContent = title || cfg.title;
         otpAlertMessage.textContent = message;
         // Show
+        otpAlertModal.style.setProperty('display', 'flex', 'important');
         otpAlertModal.classList.remove('hidden');
         setTimeout(() => {
             otpModalPanel.classList.remove('scale-95', 'opacity-0');
@@ -441,7 +442,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeModal() {
         otpModalPanel.classList.remove('scale-100', 'opacity-100');
         otpModalPanel.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => otpAlertModal.classList.add('hidden'), 200);
+        setTimeout(() => {
+            otpAlertModal.classList.add('hidden');
+            otpAlertModal.style.setProperty('display', 'none', 'important');
+        }, 200);
     }
 
     if (otpModalCloseBtn) otpModalCloseBtn.addEventListener('click', closeModal);
@@ -462,10 +466,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const otpInput        = document.getElementById('otpInput');
     const verifyOtpBtn    = document.getElementById('verifyOtpBtn');
     const verifyOtpBtnText= document.getElementById('verifyOtpBtnText');
-    const otpStatusMsg    = document.getElementById('otpStatusMsg');
     const cancelOtpModalBtn = document.getElementById('cancelOtpModalBtn');
     const resendOtpBtn    = document.getElementById('resendOtpBtn');
     const otpResendTimer  = document.getElementById('otpResendTimer');
+    const otpStatusMsg    = document.getElementById('otpStatusMsg');
 
     let isEmailVerified = false;
     let resendInterval  = null;
@@ -476,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function openOtpModal(email) {
         if (otpTargetEmail) otpTargetEmail.textContent = email;
         if (otpInput) otpInput.value = '';
+        otpEntryModal.style.setProperty('display', 'flex', 'important');
         otpEntryModal.classList.remove('hidden');
         setTimeout(() => {
             otpEntryPanel.classList.remove('scale-95', 'opacity-0');
@@ -487,7 +492,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeOtpModal() {
         otpEntryPanel.classList.remove('scale-100', 'opacity-100');
         otpEntryPanel.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => otpEntryModal.classList.add('hidden'), 200);
+        setTimeout(() => {
+            otpEntryModal.classList.add('hidden');
+            otpEntryModal.style.setProperty('display', 'none', 'important');
+        }, 200);
     }
 
     if (cancelOtpModalBtn) cancelOtpModalBtn.addEventListener('click', closeOtpModal);
@@ -697,8 +705,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ── Prevent Razorpay re-opening on page refresh ──────────
+    sessionStorage.removeItem('mem_rzp_inprogress');
+
     // Form submit listener
     form.addEventListener('submit', async function (e) {
+        // Block if this is a browser-replayed POST (F5 after Razorpay opened)
+        if (sessionStorage.getItem('mem_rzp_inprogress') === '1') {
+            e.preventDefault();
+            sessionStorage.removeItem('mem_rzp_inprogress');
+            return false;
+        }
         // 1. HTML5 validation check
         if (!form.checkValidity()) {
             e.preventDefault();
@@ -802,12 +819,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 "name": "{{ config('app.name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}",
                 "description": "Membership Registration Fee",
                 "handler": function (response) {
+                    sessionStorage.removeItem('mem_rzp_inprogress');
                     paymentIdInput.value = response.razorpay_payment_id;
                     window.dispatchEvent(new CustomEvent('show-loader'));
                     form.submit();
                 },
                 "modal": {
                     "ondismiss": function() {
+                        sessionStorage.removeItem('mem_rzp_inprogress');
                         if (submitBtn) {
                             submitBtn.disabled = false;
                             submitBtn.innerHTML = originalBtnHtml;
@@ -825,8 +844,10 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             if (window.Razorpay) {
+                sessionStorage.setItem('mem_rzp_inprogress', '1');
                 const rzp = new Razorpay(options);
                 rzp.on('payment.failed', function (response) {
+                    sessionStorage.removeItem('mem_rzp_inprogress');
                     if (submitBtn) {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalBtnHtml;

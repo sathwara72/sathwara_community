@@ -38,6 +38,8 @@ class RazorpayPaymentLinkService
             'reminder_enable' => false,
             'expire_by' => $expiresAt->timestamp,
             'reference_id' => 'BIZ-' . $business->id . '-' . time(),
+            'callback_url' => route('business.renewal.callback'),
+            'callback_method' => 'get',
         ];
 
         $response = Http::withBasicAuth($keyId, $keySecret)

@@ -190,4 +190,77 @@ class BusinessRenewalPaymentTest extends TestCase
         $this->assertEquals('pay_webhook_confirmed_888', $business->payment_id);
         $this->assertFalse($business->isRenewalDue());
     }
+
+    public function test_business_can_renew_directly_from_business_panel()
+    {
+        Mail::fake();
+
+        $area = Area::first() ?? Area::create(['name' => 'Naroda', 'city' => 'Ahmedabad', 'state' => 'Gujarat']);
+        $category = BusinessCategory::first() ?? BusinessCategory::create(['name' => 'Retail', 'slug' => 'retail']);
+
+        $business = Business::create([
+            'business_name' => 'Direct Renewal Shop',
+            'owner_name' => 'Direct Owner',
+            'address' => 'Station Road',
+            'phone' => '9898989898',
+            'email' => 'directowner@test.com',
+            'password' => bcrypt('password123'),
+            'area_id' => $area->id,
+            'category_id' => $category->id,
+            'logo_path' => 'businesses/logos/test.jpg',
+            'status' => 'approved',
+            'approved_at' => now()->subYears(2),
+        ]);
+
+        $this->assertTrue($business->isRenewalDue());
+
+        $response = $this->actingAs($business, 'business')->post(route('business.renewal.pay'), [
+            'razorpay_payment_id' => 'pay_direct_panel_555',
+        ]);
+
+        $response->assertRedirect(route('business.renewal'));
+        $response->assertSessionHas('success');
+
+        $business->refresh();
+        $this->assertEquals('approved', $business->status);
+        $this->assertEquals('active', $business->membership_status);
+        $this->assertEquals('paid', $business->payment_status);
+        $this->assertEquals('pay_direct_panel_555', $business->payment_id);
+        $this->assertFalse($business->isRenewalDue());
+    }
+
+    public function test_active_business_cannot_renew_prematurely()
+    {
+        $area = Area::first() ?? Area::create(['name' => 'Naroda', 'city' => 'Ahmedabad', 'state' => 'Gujarat']);
+        $category = BusinessCategory::first() ?? BusinessCategory::create(['name' => 'Retail', 'slug' => 'retail']);
+
+        $business = Business::create([
+            'business_name' => 'Active Shop',
+            'owner_name' => 'Active Owner',
+            'address' => 'Station Road',
+            'phone' => '9898989898',
+            'email' => 'activeowner@test.com',
+            'password' => bcrypt('password123'),
+            'area_id' => $area->id,
+            'category_id' => $category->id,
+            'logo_path' => 'businesses/logos/test.jpg',
+            'status' => 'approved',
+            'approved_at' => now(), // Just approved today — active for 1 full year
+        ]);
+
+        $this->assertFalse($business->isRenewalDue());
+
+        $response = $this->actingAs($business, 'business')->post(route('business.renewal.pay'), [
+            'razorpay_payment_id' => 'pay_attempt_early',
+        ]);
+
+        $response->assertRedirect(route('business.renewal'));
+        $response->assertSessionHas('info');
+
+        // Verify no renewal was made
+        $this->assertDatabaseMissing('business_payment_links', [
+            'business_id' => $business->id,
+            'razorpay_payment_id' => 'pay_attempt_early',
+        ]);
+    }
 }

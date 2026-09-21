@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\AreaController as AdminArea;
 use App\Http\Controllers\Admin\SponsorshipController as AdminSponsorship;
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\SubAdminController;
+use App\Http\Controllers\Business\BusinessAuthController;
+use App\Http\Controllers\Business\DashboardController as BusinessDashboard;
 use App\Http\Controllers\Admin\NotificationController as AdminNotification;
 use Illuminate\Support\Facades\Route;
 
@@ -40,7 +42,7 @@ Route::get('/gallery', [PublicController::class, 'gallery'])->name('gallery');
 Route::get('/business-directory', [PublicController::class, 'businessDirectory'])->name('business.directory');
 Route::get('/business-directory/{id}', [PublicController::class, 'businessDetails'])->name('business.details');
 Route::get('/contact-us', [PublicController::class, 'contact'])->name('contact');
-Route::post('/contact-us', [PublicController::class, 'contactSubmit'])->name('contact.submit');
+Route::post('/contact-us', [PublicController::class, 'contactSubmit'])->name('contact.submit')->middleware('throttle:5,1');
 
 // ================= REGISTRATION FORMS =================
 Route::middleware('guest')->group(function () {
@@ -48,7 +50,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/register/member', [RegistrationController::class, 'showMemberRegister'])->name('register.member');
     Route::post('/register/member', [RegistrationController::class, 'submitMemberRegister'])->name('register.member.submit');
     Route::post('/register/member/pre-validate', [RegistrationController::class, 'preValidateMember'])->name('register.member.pre_validate');
-    Route::post('/register/member/send-otp', [RegistrationController::class, 'sendRegistrationOtp'])->name('register.member.send_otp');
+    Route::post('/register/member/send-otp', [RegistrationController::class, 'sendRegistrationOtp'])->name('register.member.send_otp')->middleware('throttle:5,10');
     Route::post('/register/member/verify-otp', [RegistrationController::class, 'verifyRegistrationOtp'])->name('register.member.verify_otp');
 });
 
@@ -56,8 +58,34 @@ Route::middleware('guest')->group(function () {
 // Business signup (Public - can be submitted by guests or logged-in members)
 Route::get('/register/business', [RegistrationController::class, 'showBusinessRegister'])->name('register.business');
 Route::post('/register/business', [RegistrationController::class, 'submitBusinessRegister'])->name('register.business.submit');
-Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id');
-Route::get('/api/lookup-father-member', [RegistrationController::class, 'lookupFatherMember'])->name('api.lookup_father_member');
+Route::post('/register/business/send-otp', [RegistrationController::class, 'sendBusinessRegistrationOtp'])->name('register.business.send_otp')->middleware('throttle:5,10');
+Route::post('/register/business/verify-otp', [RegistrationController::class, 'verifyBusinessRegistrationOtp'])->name('register.business.verify_otp');
+Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id')->middleware('throttle:30,1');
+Route::get('/api/lookup-father-member', [RegistrationController::class, 'lookupFatherMember'])->name('api.lookup_father_member')->middleware('throttle:30,1');
+
+// ================= BUSINESS PANEL AUTH =================
+Route::prefix('business')->name('business.')->group(function () {
+    Route::get('/login', [BusinessAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [BusinessAuthController::class, 'login'])->name('login.submit')->middleware('throttle:10,1');
+    Route::post('/logout', [BusinessAuthController::class, 'logout'])->name('logout');
+});
+
+// ================= BUSINESS PANEL (Protected) =================
+Route::middleware(['auth:business'])->prefix('business')->name('business.')->group(function () {
+    Route::get('/', function () {
+        return redirect()->route('business.profile.edit');
+    });
+    Route::get('/dashboard', [BusinessDashboard::class, 'index'])->name('dashboard');
+    Route::get('/profile', [BusinessDashboard::class, 'editProfile'])->name('profile.edit');
+    Route::post('/profile', [BusinessDashboard::class, 'updateProfile'])->name('profile.update');
+    Route::post('/profile/email/send-otp', [BusinessDashboard::class, 'sendProfileEmailOtp'])->name('profile.email.send_otp')->middleware('throttle:5,10');
+    Route::post('/profile/email/verify-otp', [BusinessDashboard::class, 'verifyProfileEmailOtp'])->name('profile.email.verify_otp');
+    Route::post('/password', [BusinessDashboard::class, 'updatePassword'])->name('password.update');
+    Route::get('/renewal', [BusinessDashboard::class, 'renewal'])->name('renewal');
+    Route::post('/renewal/pay', [BusinessDashboard::class, 'processRenewal'])->name('renewal.pay');
+    Route::post('/renewal/generate-link', [BusinessDashboard::class, 'generateRenewalLink'])->name('renewal.generateLink');
+    Route::get('/renewal/callback', [BusinessDashboard::class, 'renewalCallback'])->name('renewal.callback');
+});
 
 // ================= ACCOUNT STATUS PAGE & REDIRECT =================
 // Guarded by auth, but accessible even if NOT approved (so they see the pending/rejected status)
