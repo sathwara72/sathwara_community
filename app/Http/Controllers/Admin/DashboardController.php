@@ -9,6 +9,8 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\EventSponsor;
 
+use Illuminate\Support\Facades\DB;
+
 class DashboardController extends Controller
 {
     public function index()
@@ -22,13 +24,20 @@ class DashboardController extends Controller
         $eventRevenue = (float) EventRegistration::where('payment_status', 'paid')->sum('payment_amount');
         $sponsorshipRevenue = (float) EventSponsor::where('payment_status', 'received')->sum('amount');
 
+        $totalPassesSold = (int) EventRegistration::passes()
+            ->where(function ($q) {
+                $q->where('payment_status', 'paid')
+                  ->orWhere('status', 'approved');
+            })
+            ->sum(DB::raw("COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(form_data, '$.person_count')), ''), 1)"));
+
         $stats = [
             'total_members' => User::onlyMembers()->where('status', 'approved')->count(),
             'pending_members' => $pendingMembers,
             'total_businesses' => Business::count(),
             'pending_businesses' => $pendingBusinesses,
             'total_events' => Event::count(),
-            'passes_sold' => EventRegistration::passes()->where('payment_status', 'paid')->count(),
+            'passes_sold' => $totalPassesSold,
             'total_revenue' => $membershipRevenue + $businessRevenue + $eventRevenue + $sponsorshipRevenue,
             'sponsorship_revenue' => $sponsorshipRevenue,
             'pending_approvals' => $pendingMembers + $pendingBusinesses + $pendingSponsors,
@@ -60,14 +69,22 @@ class DashboardController extends Controller
         })->values();
 
         $passTrend = $months->map(function ($month) {
-            return EventRegistration::passes()
+            return (int) EventRegistration::passes()
+                ->where(function ($q) {
+                    $q->where('payment_status', 'paid')
+                      ->orWhere('status', 'approved');
+                })
                 ->whereBetween('created_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
-                ->count();
+                ->sum(DB::raw("COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(form_data, '$.person_count')), ''), 1)"));
         })->values();
 
         // Passes sold by event (top 6 events)
         $passesByEvent = EventRegistration::passes()
-            ->selectRaw('event_id, count(*) as total')
+            ->where(function ($q) {
+                $q->where('payment_status', 'paid')
+                  ->orWhere('status', 'approved');
+            })
+            ->selectRaw("event_id, CAST(SUM(COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(form_data, '$.person_count')), ''), 1)) AS UNSIGNED) as total")
             ->whereNotNull('event_id')
             ->groupBy('event_id')
             ->orderByDesc('total')

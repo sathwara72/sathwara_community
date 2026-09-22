@@ -243,35 +243,33 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-xs font-semibold text-slate-700">
                     
-                    <!-- COLUMN 1: SUBSCRIPTION & REGISTRATION DATES -->
+                    <!-- COLUMN 1: MEMBER ID -->
                     <div class="space-y-3">
-                        <div class="flex items-start gap-2.5">
-                            <svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                            <div>
-                                <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.registered_since') }}</h4>
-                                <p class="text-slate-800 font-bold mt-0.5">{{ $business->created_at->format('d M Y') }}</p>
-                            </div>
-                        </div>
-
-                        @if($business->member_id)
+                        @php
+                            $memberName = null;
+                            if ($business->user && $business->user->memberProfile) {
+                                $p = $business->user->memberProfile;
+                                $memberName = trim(collect([$p->first_name, $p->middle_name ?? null, $p->last_name])->filter()->implode(' '));
+                            } elseif ($business->user) {
+                                $memberName = $business->user->name;
+                            }
+                        @endphp
+                        @if($memberName)
                             <div class="flex items-start gap-2.5">
                                 <svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2H5z"></path>
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
                                 <div>
-                                    <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.member_id') }}</h4>
-                                    <p class="text-slate-800 font-bold mt-0.5">{{ $business->member_id }}</p>
+                                    <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.member') }}</h4>
+                                    <p class="text-slate-800 font-bold mt-0.5">{{ $memberName }}</p>
                                 </div>
                             </div>
                         @endif
                     </div>
+
+
 
                     <!-- COLUMN 2: LOCATION & ADDRESS DETAILS -->
                     <div class="space-y-3">

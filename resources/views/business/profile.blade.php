@@ -55,9 +55,10 @@
                 },
                 selectFiles(e) {
                     const files = Array.from(e.target.files || []);
+                    e.target.value = '';        // Clear FIRST so syncInput sets the final accumulated state
                     this.appendFiles(files);
-                    e.target.value = '';
                 },
+
                 dropFiles(e) {
                     this.isDragging = false;
                     const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
@@ -169,8 +170,14 @@
                 @csrf
 
                 <!-- Row 1: Member ID & Business Name -->
+                @php
+                    // Prefer the linked user's member_code (e.g. SSAM0123) over the raw stored member_id
+                    $displayMemberId = ($business->user && $business->user->member_code)
+                        ? $business->user->member_code
+                        : old('member_id', $business->member_id);
+                @endphp
                 <div class="space-y-1" x-data="{ 
-                         memberId: '{{ old('member_id', $business->member_id) }}', 
+                         memberId: '{{ old('member_id', $displayMemberId) }}', 
                          memberStatus: '', 
                          isFound: null, 
                          loading: false,
@@ -181,7 +188,7 @@
                                  return;
                              }
                              this.loading = true;
-                             fetch('{{ route('api.check_member_id') }}?member_id=' + encodeURIComponent(this.memberId))
+                             fetch('{{ route('api.check_member_id') }}?member_id=' + encodeURIComponent(this.memberId) + '&business_id={{ $business->id }}')
                                  .then(res => res.json())
                                  .then(data => {
                                      this.loading = false;
