@@ -42,6 +42,26 @@
     <section class="py-6 bg-slate-50/50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
             
+            @if($business->status !== 'approved')
+                <div class="p-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap {{ $business->status === 'pending' ? 'bg-amber-50 border border-amber-200 text-amber-900' : 'bg-rose-50 border border-rose-200 text-rose-900' }}">
+                    <div class="flex items-center gap-2.5 text-xs font-bold">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $business->status === 'pending' ? 'bg-amber-200 text-amber-900' : 'bg-rose-200 text-rose-900' }}">
+                            {{ strtoupper($business->status) }}
+                        </span>
+                        <span>
+                            @if($business->status === 'pending')
+                                {{ (app()->getLocale() === 'gu') ? 'આ વ્યવસાય એડમિન મંજૂરી માટે પેન્ડિંગ છે અને માત્ર તમને (માલિકને) પ્રિવ્યુ તરીકે દેખાય છે.' : 'This business listing is pending admin approval and is currently visible only to you in preview mode.' }}
+                            @else
+                                {{ (app()->getLocale() === 'gu') ? 'આ વ્યવસાય માન્ય કરેલ નથી.' : 'This business listing has not been approved.' }}
+                            @endif
+                        </span>
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/60">
+                        Owner Preview
+                    </span>
+                </div>
+            @endif
+
             <!-- SECTION 1: ABOUT THE BUSINESS -->
             <div class="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-xs space-y-3">
                 <h2

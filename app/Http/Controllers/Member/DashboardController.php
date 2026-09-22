@@ -41,7 +41,11 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $totalPersonsSum = $myRegistrations->sum(function($r) {
+        $totalPersonsSum = $myRegistrations->filter(function($r) {
+            $isPass = ($r->registration_type === 'pass') || (empty($r->form_data['student_name']) && empty($r->form_data['surname']));
+            $fee = (float)($r->event?->pass_fee ?? 0);
+            return $isPass && ($fee <= 0 || $r->payment_status === 'paid');
+        })->sum(function($r) {
             return (int) ($r->form_data['person_count'] ?? 1);
         });
         

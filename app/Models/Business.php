@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Business extends Model
+class Business extends Authenticatable
 {
     use HasFactory, SoftDeletes;
 
@@ -22,6 +22,8 @@ class Business extends Model
         'phone',
         'whatsapp',
         'email',
+        'password',
+        'email_verified_at',
         'website',
         'logo_path',
         'gallery_images',
@@ -37,7 +39,14 @@ class Business extends Model
         'payment_amount',
     ];
 
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
     protected $casts = [
+        'password' => 'hashed',
+        'email_verified_at' => 'datetime',
         'gallery_images' => 'array',
         'approved_at' => 'datetime',
     ];

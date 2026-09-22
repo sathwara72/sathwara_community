@@ -262,6 +262,7 @@
         button[class*="bg-rose"]:hover,
         button[class*="bg-indigo"]:hover {
             filter: brightness(1.05);
+            color: #ffffff !important;
         }
 
         button:not([disabled]):active,
@@ -907,6 +908,7 @@
     </footer>
     @include('partials.global_loader')
     @include('partials.delete_confirm_modal')
+    @include('components.purchase_receipt_modal')
 </body>
 
 </html>

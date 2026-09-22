@@ -94,39 +94,39 @@ class PublicController extends Controller
         $isGu = ($locale === 'gu');
 
         // Mission Title & Text
-        $missionTitle = Setting::get($isGu ? 'about_mission_title_gu' : 'about_mission_title_en') 
-            ?: Setting::get($isGu ? 'about_mission_title_en' : 'about_mission_title_gu') 
+        $missionTitle = Setting::get($isGu ? 'about_mission_title_gu' : 'about_mission_title_en')
+            ?: Setting::get($isGu ? 'about_mission_title_en' : 'about_mission_title_gu')
             ?: __('messages.empowering_people');
 
-        $mission = Setting::get($isGu ? 'about_mission_gu' : 'about_mission_en') 
-            ?: Setting::get($isGu ? 'about_mission_en' : 'about_mission_gu') 
+        $mission = Setting::get($isGu ? 'about_mission_gu' : 'about_mission_en')
+            ?: Setting::get($isGu ? 'about_mission_en' : 'about_mission_gu')
             ?: Setting::get('about_mission', 'To bring unity, support, and professional growth to all community members.');
 
         // Vision Title & Text
-        $visionTitle = Setting::get($isGu ? 'about_vision_title_gu' : 'about_vision_title_en') 
-            ?: Setting::get($isGu ? 'about_vision_title_en' : 'about_vision_title_gu') 
+        $visionTitle = Setting::get($isGu ? 'about_vision_title_gu' : 'about_vision_title_en')
+            ?: Setting::get($isGu ? 'about_vision_title_en' : 'about_vision_title_gu')
             ?: __('messages.future_prosperity');
 
-        $vision = Setting::get($isGu ? 'about_vision_gu' : 'about_vision_en') 
-            ?: Setting::get($isGu ? 'about_vision_en' : 'about_vision_gu') 
+        $vision = Setting::get($isGu ? 'about_vision_gu' : 'about_vision_en')
+            ?: Setting::get($isGu ? 'about_vision_en' : 'about_vision_gu')
             ?: Setting::get('about_vision', 'An empowered, educated, and well-connected community built on shared trust and values.');
 
         // Objectives Title & Text
-        $objectivesTitle = Setting::get($isGu ? 'about_objectives_title_gu' : 'about_objectives_title_en') 
-            ?: Setting::get($isGu ? 'about_objectives_title_en' : 'about_objectives_title_gu') 
+        $objectivesTitle = Setting::get($isGu ? 'about_objectives_title_gu' : 'about_objectives_title_en')
+            ?: Setting::get($isGu ? 'about_objectives_title_en' : 'about_objectives_title_gu')
             ?: __('messages.strategic_goals');
 
-        $objectives = Setting::get($isGu ? 'about_objectives_gu' : 'about_objectives_en') 
-            ?: Setting::get($isGu ? 'about_objectives_en' : 'about_objectives_gu') 
+        $objectives = Setting::get($isGu ? 'about_objectives_gu' : 'about_objectives_en')
+            ?: Setting::get($isGu ? 'about_objectives_en' : 'about_objectives_gu')
             ?: Setting::get('about_objectives', '1. Build strong integration among members.<br>2. Facilitate academic recognition and career growth.<br>3. Establish business directories to support local commerce.');
 
         // History Title & Text
-        $historyTitle = Setting::get($isGu ? 'about_history_title_gu' : 'about_history_title_en') 
-            ?: Setting::get($isGu ? 'about_history_title_en' : 'about_history_title_gu') 
+        $historyTitle = Setting::get($isGu ? 'about_history_title_gu' : 'about_history_title_en')
+            ?: Setting::get($isGu ? 'about_history_title_en' : 'about_history_title_gu')
             ?: __('messages.heritage_journey');
 
-        $history = Setting::get($isGu ? 'about_history_gu' : 'about_history_en') 
-            ?: Setting::get($isGu ? 'about_history_en' : 'about_history_gu') 
+        $history = Setting::get($isGu ? 'about_history_gu' : 'about_history_en')
+            ?: Setting::get($isGu ? 'about_history_en' : 'about_history_gu')
             ?: Setting::get('about_history', 'Formed in 1995, our community has grown from a handful of dedicated families to a vibrant network supporting thousands of members.');
 
         $committee = CommitteeMember::where('status', true)->orderBy('display_order')->get();
@@ -152,10 +152,10 @@ class PublicController extends Controller
         $query = Event::published();
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('venue', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('venue', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
         $events = $query->orderBy('date', 'desc')->paginate(6)->withQueryString();
@@ -169,17 +169,22 @@ class PublicController extends Controller
     {
         $event = Event::published()->findOrFail($id);
         $gallery = Gallery::where('event_id', $event->id)->get();
-        
+
         $registration = null;
         if (auth()->check()) {
             $registration = EventRegistration::where('event_id', $event->id)
                 ->where('user_id', auth()->id())
-                ->where(function($q) use ($event) {
+                ->where(function ($q) use ($event) {
                     if ($event->event_type === 'inam_vitaran') {
                         $q->whereNull('form_data->student_name');
                     } elseif ($event->event_type === 'yuva_melo') {
                         $q->whereNull('form_data->surname')
-                          ->whereNull('form_data->qualification');
+                            ->whereNull('form_data->qualification');
+                    }
+                })
+                ->where(function ($q) use ($event) {
+                    if ((float) ($event->pass_fee ?? 0) > 0) {
+                        $q->where('payment_status', 'paid');
                     }
                 })
                 ->latest()
@@ -213,7 +218,7 @@ class PublicController extends Controller
         if ($event->event_type !== 'normal' && !($event->has_registration_form || $event->registration_option)) {
             return redirect()->route('event.details', $event->id)->with('warning', 'Registration form is not enabled for this event.');
         }
-        
+
         if ($event->event_type !== 'yuva_melo' && !auth()->check()) {
             return redirect()->route('login')->with('warning', 'Please login to fill up this form.');
         }
@@ -225,7 +230,7 @@ class PublicController extends Controller
         $hasEventPass = $allUserRegistrations->isNotEmpty();
 
         // Filter registrations to show in the submitted cards list
-        $registrations = $allUserRegistrations->filter(function($r) use ($event) {
+        $registrations = $allUserRegistrations->filter(function ($r) use ($event) {
             if ($event->event_type === 'inam_vitaran') {
                 return !empty($r->form_data['student_name']);
             }
@@ -315,23 +320,68 @@ class PublicController extends Controller
                 'percentage' => $request->input('percentage'),
                 'marksheet_url' => $marksheetUrl,
                 'school_college' => $request->input('school_college'),
-                'person_count' => max(1, (int)$request->input('person_count', 1)),
+                'person_count' => max(1, (int) $request->input('person_count', 1)),
                 'submission_date' => now()->format('d-M-Y h:i A'),
                 'remarks' => $request->input('remarks'),
             ];
         } elseif ($isYuvaMeloCandidateForm) {
             $formData = $request->only([
-                'state', 'district', 'area_id', 'association', 'surname', 'first_name', 'gender',
-                'father_name', 'grandfather_name', 'father_gyanti', 'address', 'mobile_no', 'whatsapp',
-                'birth_date', 'age', 'height', 'weight', 'qualification', 'occupation',
-                'occupation_address', 'monthly_income', 'elder_brother', 'elder_brother_married', 'retired',
-                'younger_brother', 'younger_brother_married', 'elder_sister', 'elder_sister_married',
-                'younger_sister', 'younger_sister_married', 'siblings_json', 'father_occupation', 'father_occupation_address', 'father_mobile', 'father_age',
-                'father_income', 'native_place', 'mother_name', 'mother_gyanti', 'mother_occupation',
-                'maternal_uncle_name', 'maternal_grandfather_name', 'maternal_grandfather_address', 'maternal_grandfather_occupation',
-                'business', 'house', 'own_house', 'vehicle', 'divorce', 'special_need',
-                'physical_disability', 'disability_duration', 'special_info', 'other_info',
-                'member_number', 'payment_number'
+                'state',
+                'district',
+                'area_id',
+                'association',
+                'surname',
+                'first_name',
+                'gender',
+                'father_name',
+                'grandfather_name',
+                'father_gyanti',
+                'address',
+                'mobile_no',
+                'whatsapp',
+                'birth_date',
+                'age',
+                'height',
+                'weight',
+                'qualification',
+                'occupation',
+                'occupation_address',
+                'monthly_income',
+                'elder_brother',
+                'elder_brother_married',
+                'retired',
+                'younger_brother',
+                'younger_brother_married',
+                'elder_sister',
+                'elder_sister_married',
+                'younger_sister',
+                'younger_sister_married',
+                'siblings_json',
+                'father_occupation',
+                'father_occupation_address',
+                'father_mobile',
+                'father_age',
+                'father_income',
+                'native_place',
+                'mother_name',
+                'mother_gyanti',
+                'mother_occupation',
+                'maternal_uncle_name',
+                'maternal_grandfather_name',
+                'maternal_grandfather_address',
+                'maternal_grandfather_occupation',
+                'business',
+                'house',
+                'own_house',
+                'vehicle',
+                'divorce',
+                'special_need',
+                'physical_disability',
+                'disability_duration',
+                'special_info',
+                'other_info',
+                'member_number',
+                'payment_number'
             ]);
 
             if ($request->filled('area_id')) {
@@ -356,12 +406,12 @@ class PublicController extends Controller
             if (empty($formData['full_name'])) {
                 $formData['full_name'] = $user ? $user->name : 'Participant';
             }
-            $formData['person_count'] = max(1, (int)$request->input('person_count', 1));
+            $formData['person_count'] = max(1, (int) $request->input('person_count', 1));
             $formData['contact_number'] = $formData['mobile_no'] ?? '';
             $formData['submission_date'] = now()->format('d-M-Y h:i A');
         } else {
             // General Event Pass Registration
-            $personCount = max(1, (int)$request->input('person_count', 1));
+            $personCount = max(1, (int) $request->input('person_count', 1));
             $formData = [
                 'full_name' => $request->input('full_name', $user ? $user->name : 'Participant'),
                 'contact_number' => $request->input('contact_number', ($user && $user->memberProfile) ? $user->memberProfile->phone : ''),
@@ -378,7 +428,9 @@ class PublicController extends Controller
             $formData['contact_number'] = substr(preg_replace('/[^0-9]/', '', $formData['contact_number']), 0, 10);
         }
 
-        $redirectTarget = redirect()->route('event.details', $event->id);
+        $redirectTarget = $request->input('redirect_to') === 'dashboard'
+            ? redirect()->route('member.dashboard')
+            : redirect()->route('event.details', $event->id);
 
         // Check if matching registration exists for this specific student/participant or user
         $existingRegistration = null;
@@ -413,7 +465,7 @@ class PublicController extends Controller
         // Enforce event-wide total pass purchase limit (general pass registrations only)
         if (!$isStudentForm && !$isYuvaMeloCandidateForm && !empty($event->total_pass_limit)) {
             $totalSoldPasses = (int) $event->total_passes_count;
-            $requestedTotal = $totalSoldPasses + (int)($formData['person_count'] ?? 1);
+            $requestedTotal = $totalSoldPasses + (int) ($formData['person_count'] ?? 1);
 
             if ($requestedTotal > $event->total_pass_limit) {
                 $remaining = max(0, $event->total_pass_limit - $totalSoldPasses);
@@ -425,17 +477,22 @@ class PublicController extends Controller
         }
 
         if ($isYuvaMeloCandidateForm) {
-            $totalAmount = (float)($event->form_fee ?? 0);
+            $totalAmount = (float) ($event->form_fee ?? 0);
         } elseif ($isStudentForm) {
             $totalAmount = 0;
         } else {
-            $passFee = (float)($event->pass_fee ?? 0);
-            $personCount = max(1, (int)($formData['person_count'] ?? 1));
+            $passFee = (float) ($event->pass_fee ?? 0);
+            $personCount = max(1, (int) ($formData['person_count'] ?? 1));
             $totalAmount = $passFee * $personCount;
         }
 
         $paymentId = $request->input('razorpay_payment_id');
         $paymentStatus = (!empty($paymentId) || $totalAmount <= 0) ? 'paid' : 'unpaid';
+
+        // Enforce online payment for pass purchases when a fee is configured
+        if (!$isStudentForm && !$isYuvaMeloCandidateForm && $totalAmount > 0 && empty($paymentId)) {
+            return $redirectTarget->with('error', 'Payment is required to purchase event passes. Please complete the online payment.');
+        }
 
         if ($existingRegistration) {
             if (!empty($existingRegistration->form_data['registration_no'])) {
@@ -478,11 +535,11 @@ class PublicController extends Controller
             }
 
             // Accumulate person count and payment amount when buying passes
-            $currentPersons = (int)($existingRegistration->form_data['person_count'] ?? 1);
+            $currentPersons = (int) ($existingRegistration->form_data['person_count'] ?? 1);
             $newTotalPersons = $currentPersons + $personCount;
             $formData['person_count'] = $newTotalPersons;
 
-            $prevPaidAmount = (float)($existingRegistration->payment_amount ?? 0);
+            $prevPaidAmount = (float) ($existingRegistration->payment_amount ?? 0);
             $newTotalAmount = $prevPaidAmount + $totalAmount;
 
             $existingRegistration->update([
@@ -506,7 +563,11 @@ class PublicController extends Controller
                 }
             }
 
-            return $redirectTarget->with('success', 'Pass purchased successfully! Total registered persons: ' . $newTotalPersons . '. Pass details sent to your email.');
+            $receiptData = $this->buildPassPurchaseReceipt($event, $existingRegistration, $user, $personCount, $totalAmount);
+
+            return $redirectTarget
+                ->with('success', 'Pass purchased successfully! Total registered persons: ' . $newTotalPersons . '. Pass details sent to your email.')
+                ->with('purchase_receipt', $receiptData);
         }
 
         // Check capacity
@@ -576,10 +637,10 @@ class PublicController extends Controller
         }
 
         // Dispatch Pass Email for General Pass Registration
-        if (!$isStudentForm && !$isYuvaMeloCandidateForm) {
+        if (!$isStudentForm && !$isYuvaMeloCandidateForm && $paymentStatus === 'paid') {
             $recipientEmail = $formData['email'] ?? ($user ? $user->email : null);
             if (!empty($recipientEmail)) {
-                $finalPersons = max(1, (int)($formData['person_count'] ?? 1));
+                $finalPersons = max(1, (int) ($formData['person_count'] ?? 1));
                 $passes = [];
                 for ($i = 1; $i <= $finalPersons; $i++) {
                     $passes[] = sprintf('%03d', $i);
@@ -592,7 +653,16 @@ class PublicController extends Controller
             }
         }
 
-        return $redirectTarget->with('success', 'Registration submitted successfully! Entry passes have been generated.');
+        $receiptData = (!$isStudentForm && !$isYuvaMeloCandidateForm && $paymentStatus === 'paid')
+            ? $this->buildPassPurchaseReceipt($event, $newRegistration, $user, (int) ($formData['person_count'] ?? 1), $totalAmount)
+            : null;
+
+        $response = $redirectTarget->with('success', 'Registration submitted successfully! Entry passes have been generated.');
+        if ($receiptData) {
+            $response->with('purchase_receipt', $receiptData);
+        }
+
+        return $response;
     }
 
     /**
@@ -603,9 +673,9 @@ class PublicController extends Controller
         $query = Update::where('status', 'published');
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
         $updates = $query->orderBy('publish_date', 'desc')->paginate(6)->withQueryString();
@@ -629,9 +699,9 @@ class PublicController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $generalQuery->where('caption', 'like', "%{$search}%");
-            $eventQuery->where(function($q) use ($search) {
+            $eventQuery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('venue', 'like', "%{$search}%");
+                    ->orWhere('venue', 'like', "%{$search}%");
             });
         }
 
@@ -651,17 +721,19 @@ class PublicController extends Controller
      */
     public function businessDirectory(Request $request)
     {
-        $categories = BusinessCategory::withCount(['businesses' => function ($query) {
-            $query->where('status', 'approved');
-        }])->get();
+        $categories = BusinessCategory::withCount([
+            'businesses' => function ($query) {
+                $query->where('status', 'approved');
+            }
+        ])->get();
 
         $query = Business::where('status', 'approved');
 
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('business_name', 'like', '%' . $request->search . '%')
-                  ->orWhere('owner_name', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
+                    ->orWhere('owner_name', 'like', '%' . $request->search . '%')
+                    ->orWhere('description', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -682,7 +754,27 @@ class PublicController extends Controller
      */
     public function businessDetails($id)
     {
-        $business = Business::where('status', 'approved')->findOrFail($id);
+        $business = Business::findOrFail($id);
+
+        if ($business->status !== 'approved') {
+            $user = auth()->user();
+            $isOwner = $user && (
+                $user->id === $business->user_id ||
+                $user->hasRole('Administrator') ||
+                $user->hasRole('Sub Admin') ||
+                (!empty($business->member_id) && (
+                    $business->member_id == $user->id ||
+                    $business->member_id == $user->member_code ||
+                    $business->member_id == '#' . sprintf('%05d', $user->id) ||
+                    $business->member_id == ('SSAM' . sprintf('%04d', $user->id))
+                ))
+            );
+
+            if (!$isOwner) {
+                abort(404);
+            }
+        }
+
         return view('public.business_details', compact('business'));
     }
 
@@ -706,8 +798,8 @@ class PublicController extends Controller
     public function contactSubmit(Request $request)
     {
         $request->validate([
-            'name'    => 'required|string|max:255',
-            'email'   => 'required|email|max:255',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
         ]);
@@ -796,7 +888,7 @@ class PublicController extends Controller
                     ->withInput()
                     ->with('error', __('messages.sponsorship_slots_full') ?? 'Sorry, the slots for this sponsorship type are already full.');
             }
-            if (empty($validated['amount']) || (float)$validated['amount'] <= 0) {
+            if (empty($validated['amount']) || (float) $validated['amount'] <= 0) {
                 $validated['amount'] = $type->amount;
             }
         }
@@ -804,7 +896,7 @@ class PublicController extends Controller
         $paymentId = $request->input('razorpay_payment_id');
 
         // Check if payment was required but not completed
-        if (!empty($validated['amount']) && (float)$validated['amount'] > 0 && empty($paymentId)) {
+        if (!empty($validated['amount']) && (float) $validated['amount'] > 0 && empty($paymentId)) {
             return redirect()->back()
                 ->withInput()
                 ->with('error', app()->getLocale() === 'gu'
@@ -827,7 +919,7 @@ class PublicController extends Controller
             'contact_person' => $validated['contact_person'] ?? null,
             'mobile' => $validated['mobile'],
             'email' => $validated['email'] ?? null,
-            'amount' => !empty($validated['amount']) ? (float)$validated['amount'] : 0.00,
+            'amount' => !empty($validated['amount']) ? (float) $validated['amount'] : 0.00,
             'logo_path' => $logoPath,
             'city' => $validated['city'] ?? null,
             'address' => $validated['address'] ?? null,
@@ -858,8 +950,91 @@ class PublicController extends Controller
             }
         }
 
-        return redirect()->route('event.details', $event->id)
+        $response = redirect()->route('event.details', $event->id)
             ->with('success', __('messages.sponsor_registered_public_success') ?? 'Thank you for your sponsorship! We have received your details and will contact you shortly.');
+
+        if ($paymentStatus === 'received') {
+            $receiptNo = $sponsor->receipt_no ?: \App\Services\ReceiptNumberService::assign($sponsor, 'receipt_no');
+            $response->with('purchase_receipt', [
+                'type' => 'sponsorship',
+                'receipt_no' => $receiptNo,
+                'event_title' => $event->title,
+                'event_date' => date('d M, Y', strtotime($event->date)),
+                'event_venue' => $event->venue,
+                'attendee_name' => $sponsor->name,
+                'phone' => $sponsor->mobile,
+                'person_count' => 1,
+                'pass_fee' => (float) $sponsor->amount,
+                'amount_paid' => (float) $sponsor->amount,
+                'total_amount' => (float) $sponsor->amount,
+                'payment_id' => $sponsor->payment_id,
+                'payment_status' => 'paid',
+                'created_at' => now()->format('d M, Y h:i A'),
+                'download_url' => route('receipts.sponsorship', $sponsor->id),
+                'passes' => [],
+            ]);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Build receipt payload for purchase preview modal.
+     */
+    private function buildPassPurchaseReceipt($event, $registration, $user, $purchasedNow, $amountPaid)
+    {
+        $tokens = \App\Services\PassTokenService::getOrGenerateTokens($registration);
+        $passCards = [];
+        $basePassNo = (int) ($registration->pass_number ?: ($registration->form_data['registration_no'] ?? $registration->id));
+        $attendeeName = $registration->form_data['full_name'] ?? ($user ? $user->name : 'Participant');
+
+        if ($tokens->isNotEmpty()) {
+            foreach ($tokens as $idx => $tk) {
+                $passCards[] = [
+                    'passNo' => sprintf('%03d', $basePassNo + $idx),
+                    'passCode' => $tk->pass_code,
+                    'qrUrl' => \App\Services\PassTokenService::getQrCodeImageUrl($tk->token_hash),
+                    'attendee' => $attendeeName,
+                ];
+            }
+        } else {
+            $count = max(1, (int) ($registration->form_data['person_count'] ?? 1));
+            for ($i = 0; $i < $count; $i++) {
+                $passCards[] = [
+                    'passNo' => sprintf('%03d', $basePassNo + $i),
+                    'passCode' => '',
+                    'qrUrl' => '',
+                    'attendee' => $attendeeName,
+                ];
+            }
+        }
+
+        $receiptNo = $registration->receipt_no;
+        if (empty($receiptNo)) {
+            $receiptNo = \App\Services\ReceiptNumberService::assign($registration, 'receipt_no');
+        }
+
+        return [
+            'type' => 'event_pass',
+            'receipt_no' => $receiptNo,
+            'event_title' => $event->title,
+            'event_date' => date('d M, Y', strtotime($event->date)),
+            'event_time' => $event->time ? date('h:i A', strtotime($event->time)) : null,
+            'event_venue' => $event->venue,
+            'attendee_name' => $attendeeName,
+            'member_code' => $user ? ($user->member_code ?: sprintf('#%05d', $user->id)) : '-',
+            'phone' => $registration->form_data['contact_number'] ?? '',
+            'person_count' => (int) ($registration->form_data['person_count'] ?? 1),
+            'purchased_now' => $purchasedNow,
+            'pass_fee' => (float) ($event->pass_fee ?? 0),
+            'amount_paid' => $amountPaid,
+            'total_amount' => (float) ($registration->payment_amount ?? $amountPaid),
+            'payment_id' => $registration->payment_id,
+            'payment_status' => $registration->payment_status ?? 'paid',
+            'created_at' => now()->format('d M, Y h:i A'),
+            'download_url' => route('receipts.event_pass', $registration->id),
+            'passes' => $passCards,
+        ];
     }
 }
 
