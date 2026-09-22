@@ -23,13 +23,27 @@
         }
 
         function profileGalleryUploader(existingImages = []) {
+            let initialList = [];
+            try {
+                if (typeof existingImages === 'string') {
+                    initialList = JSON.parse(existingImages);
+                } else if (Array.isArray(existingImages)) {
+                    initialList = existingImages;
+                }
+            } catch (e) {
+                initialList = [];
+            }
+            if (!Array.isArray(initialList)) {
+                initialList = [];
+            }
+
             return {
-                existing: Array.isArray(existingImages) ? existingImages : [],
+                existing: initialList,
                 toDelete: [],
                 newFiles: [],
                 isDragging: false,
                 get totalCount() {
-                    return (this.existing.length - this.toDelete.length) + this.newFiles.length;
+                    return Math.max(0, (this.existing.length - this.toDelete.length)) + this.newFiles.length;
                 },
                 markDelete(img) {
                     if (!this.toDelete.includes(img)) {
@@ -50,9 +64,12 @@
                     this.appendFiles(files);
                 },
                 appendFiles(files) {
-                    const currentTotal = (this.existing.length - this.toDelete.length) + this.newFiles.length;
+                    const currentTotal = Math.max(0, (this.existing.length - this.toDelete.length)) + this.newFiles.length;
                     const allowed = 6 - currentTotal;
-                    if (allowed <= 0) return;
+                    if (allowed <= 0) {
+                        alert('મહત્તમ 6 ફોટા માન્ય છે. (Maximum 6 photos allowed)');
+                        return;
+                    }
                     const toAdd = files.slice(0, allowed);
                     toAdd.forEach(f => {
                         this.newFiles.push({
@@ -78,11 +95,18 @@
                 },
                 syncInput() {
                     const input = this.$refs.hiddenFileInput;
-                    if (input) {
+                    if (input && window.DataTransfer) {
                         const dt = new DataTransfer();
                         this.newFiles.forEach(f => dt.items.add(f.file));
                         input.files = dt.files;
                     }
+                },
+                imgSrc(img) {
+                    if (!img) return '';
+                    if (img.startsWith('http://') || img.startsWith('https://')) return img;
+                    if (img.startsWith('/storage/')) return img;
+                    if (img.startsWith('storage/')) return '/' + img;
+                    return '/storage/' + img;
                 }
             };
         }
@@ -412,24 +436,36 @@
                 </div>
 
                 <!-- Row 6: Showcase Photos (Gallery) with Drag-Drop & Delete Support -->
-                <div class="space-y-2 md:col-span-3 border border-slate-100 rounded-xl p-3.5 bg-slate-50/50"
-                    x-data="profileGalleryUploader(@json($business->gallery_images ?? []))">
-                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                @php
+                    $bizGallery = $business->gallery_images;
+                    if (is_string($bizGallery)) {
+                        $bizGallery = json_decode($bizGallery, true) ?? [];
+                    }
+                    if (!is_array($bizGallery)) {
+                        $bizGallery = [];
+                    }
+                @endphp
+                <div class="space-y-3 md:col-span-3 border border-slate-200/80 rounded-2xl p-4 sm:p-5 bg-slate-50/60 shadow-2xs"
+                    x-data="profileGalleryUploader({{ Js::from($bizGallery) }})">
+                    <div class="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200/60 pb-3">
                         <div>
-                            <label class="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                {{ __('messages.showcase_photos_label') }} <span
-                                    class="text-slate-500 font-normal">({{ __('messages.select_multiple_append') }})</span>
+                            <label class="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                                📸 {{ __('messages.showcase_photos_label') }}
+                                <span class="text-slate-500 font-normal">({{ __('messages.select_multiple_append') }})</span>
                             </label>
-                            <span class="text-[11px] text-slate-400 font-medium">{{ __('Max 6 photos allowed') }}</span>
+                            <span class="text-[11px] text-slate-500 font-medium">
+                                {{ __('Max 6 photos allowed') }} • 
+                                <span class="font-bold text-primary-600" x-text="totalCount + '/6 {{ __('messages.selected') }}'"></span>
+                            </span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button type="button" x-show="totalCount < 6" @click="$refs.hiddenFileInput.click()"
-                                class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
-                                x-cloak>
+                            <button type="button" @click="$refs.hiddenFileInput.click()" x-show="totalCount < 6"
+                                class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                 <span>{{ __('messages.select_files') }}</span>
                             </button>
-                            <button type="button" @click="clearNewFiles()" x-show="newFiles.length > 0" x-cloak
-                                class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs rounded-lg transition-all cursor-pointer">
+                            <button type="button" @click="clearNewFiles()" x-show="newFiles.length > 0"
+                                class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs rounded-xl transition-all cursor-pointer">
                                 <span>{{ __('messages.clear') }}</span>
                             </button>
                         </div>
@@ -446,31 +482,29 @@
 
                     <!-- Existing Gallery Images -->
                     <template x-if="existing.length > 0">
-                        <div class="space-y-1.5 pt-1">
-                            <div
-                                class="flex items-center justify-between text-xs font-bold text-slate-600 px-1 border-b border-slate-200/60 pb-1">
+                        <div class="space-y-2 pt-1">
+                            <div class="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
                                 <span>{{ __('Current Photos') }}</span>
-                                <span class="text-slate-500 text-[11px]"
-                                    x-text="(existing.length - toDelete.length) + ' {{ __('active') }}'"></span>
+                                <span class="text-slate-500 text-[11px]" x-text="(existing.length - toDelete.length) + ' {{ __('active') }}'"></span>
                             </div>
-                            <div class="flex flex-wrap items-center gap-3 pt-1">
+                            <div class="flex flex-wrap items-center gap-3">
                                 <template x-for="img in existing" :key="img">
                                     <div class="relative group w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs shrink-0 transition-all"
                                         :class="toDelete.includes(img) ? 'opacity-40 grayscale border-rose-300' : ''">
-                                        <img :src="'/storage/' + img" class="w-full h-full object-cover">
+                                        <img :src="imgSrc(img)" class="w-full h-full object-cover">
 
                                         <!-- If not marked to delete: show remove button -->
                                         <button type="button" x-show="!toDelete.includes(img)" @click="markDelete(img)"
-                                            class="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:bg-rose-700 transition-colors text-xs font-black cursor-pointer"
+                                            class="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:bg-rose-700 transition-colors text-xs font-black cursor-pointer"
                                             title="Delete photo">
                                             ✕
                                         </button>
 
                                         <!-- If marked to delete: show restore button -->
                                         <button type="button" x-show="toDelete.includes(img)" @click="unmarkDelete(img)"
-                                            class="absolute inset-0 bg-rose-900/75 text-white flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold cursor-pointer">
+                                            class="absolute inset-0 bg-rose-900/80 text-white flex flex-col items-center justify-center gap-1 text-[10px] font-extrabold cursor-pointer p-1 text-center">
                                             <span>{{ __('Marked to Delete') }}</span>
-                                            <span class="underline">{{ __('Undo') }}</span>
+                                            <span class="underline text-amber-300">{{ __('Undo') }}</span>
                                         </button>
                                     </div>
                                 </template>
@@ -478,49 +512,49 @@
                         </div>
                     </template>
 
-                    <!-- Drag & Drop Zone for New Photos -->
+                    <!-- Drag & Drop Zone for New Photos (When under 6 photos) -->
                     <div x-show="totalCount < 6" @dragover.prevent="isDragging = true"
                         @dragleave.prevent="isDragging = false" @drop.prevent="dropFiles($event)"
-                        :class="isDragging ? 'border-blue-500 bg-blue-50/60' : 'border-slate-300 bg-white'"
-                        class="border border-dashed rounded-xl p-4 text-center transition-all cursor-pointer mt-2"
+                        :class="isDragging ? 'border-blue-500 bg-blue-50/70' : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-blue-50/30'"
+                        class="border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer mt-2"
                         @click="$refs.hiddenFileInput.click()">
 
-                        <div x-show="newFiles.length === 0" class="py-2 space-y-1">
-                            <p class="text-xs font-bold text-slate-700">{{ __('messages.drop_files_here_or') }} <span
-                                    class="text-blue-600 underline">{{ __('messages.browse') }}</span></p>
-                            <p class="text-xs text-slate-400 font-medium">{{ __('messages.drop_files_subtitle') }}</p>
+                        <div x-show="newFiles.length === 0" class="py-2 space-y-1.5">
+                            <div class="w-10 h-10 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </div>
+                            <p class="text-xs font-bold text-slate-700">
+                                {{ __('messages.drop_files_here_or') }} <span class="text-blue-600 underline font-black">{{ __('messages.browse') }}</span>
+                            </p>
+                            <p class="text-[11px] text-slate-400 font-medium">{{ __('messages.drop_files_subtitle') }}</p>
                         </div>
 
-                        <div x-show="newFiles.length > 0" class="space-y-2" @click.stop x-cloak>
-                            <div
-                                class="flex items-center justify-between text-xs font-bold text-slate-600 px-1 border-b border-slate-100 pb-1.5">
+                        <div x-show="newFiles.length > 0" class="space-y-2" @click.stop>
+                            <div class="flex items-center justify-between text-xs font-bold text-slate-600 px-1 border-b border-slate-100 pb-1.5">
                                 <span>{{ __('messages.selected_showcase_photos') }}</span>
-                                <span
-                                    class="text-blue-600 font-extrabold bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200/80"
-                                    x-text="totalCount + '/6 {{ __('messages.selected') }}'"></span>
+                                <span class="text-blue-600 font-extrabold bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200/80"
+                                      x-text="totalCount + '/6 {{ __('messages.selected') }}'"></span>
                             </div>
                             <div class="flex flex-wrap items-center gap-3 pt-1">
                                 <template x-for="(f, idx) in newFiles" :key="f.id">
-                                    <div
-                                        class="relative group w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs shrink-0">
+                                    <div class="relative group w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs shrink-0">
                                         <img :src="f.url" class="w-full h-full object-cover">
-
-                                        <!-- Remove Button -->
                                         <button type="button" @click.stop="removeNewFile(idx)"
                                             class="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:bg-rose-700 transition-colors text-xs font-black cursor-pointer"
-                                            title="Remove photo">
-                                            ✕
-                                        </button>
-
-                                        <!-- File Name Bar -->
-                                        <div
-                                            class="absolute bottom-0 inset-x-0 bg-slate-900/80 text-white p-0.5 text-[9px] truncate font-semibold backdrop-blur-xs text-center">
+                                            title="Remove photo">✕</button>
+                                        <div class="absolute bottom-0 inset-x-0 bg-slate-900/80 text-white p-0.5 text-[9px] truncate font-semibold backdrop-blur-xs text-center">
                                             <span x-text="f.name"></span>
                                         </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Notice when 6 photos are reached -->
+                    <div x-show="totalCount >= 6" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800 flex items-center gap-2 mt-2">
+                        <span>ℹ️</span>
+                        <span>{{ __('messages.max_6_photos_limit_msg') ?? 'મહત્તમ 6 ફોટા અપલોડ થયેલ છે. નવા ફોટા ઉમેરવા માટે પહેલાં કોઈપણ જૂનો ફોટો ડિલીટ કરો.' }}</span>
                     </div>
                 </div>
 
