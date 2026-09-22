@@ -754,7 +754,8 @@ class PublicController extends Controller
      */
     public function businessDetails($id)
     {
-        $business = Business::findOrFail($id);
+        $business = Business::with('user.memberProfile')->findOrFail($id);
+
 
         if ($business->status !== 'approved') {
             $user = auth()->user();
@@ -776,6 +777,7 @@ class PublicController extends Controller
         }
 
         return view('public.business_details', compact('business'));
+
     }
 
     /**

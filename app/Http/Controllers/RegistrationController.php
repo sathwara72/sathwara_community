@@ -746,10 +746,18 @@ class RegistrationController extends Controller
 
         $numericId = (int) preg_replace('/[^0-9]/', '', $memberId);
         $memberUser = null;
-        if ($numericId > 0) {
+
+        // 1. Try by member_code (e.g. SSAM0123) – exact or case-insensitive match
+        $memberUser = User::where('member_code', $memberId)
+            ->orWhere('member_code', strtoupper($memberId))
+            ->first();
+
+        // 2. Try numeric ID lookup
+        if (!$memberUser && $numericId > 0) {
             $memberUser = User::find($numericId);
         }
 
+        // 3. Try MemberProfile by id or phone
         if (!$memberUser) {
             $profile = MemberProfile::where('id', $numericId)
                 ->orWhere('phone', $memberId)
@@ -760,14 +768,29 @@ class RegistrationController extends Controller
         }
 
         if ($memberUser) {
-            $name = $memberUser->memberProfile ? ($memberUser->memberProfile->first_name . ' ' . $memberUser->memberProfile->last_name) : $memberUser->name;
+            $memberUser->load('memberProfile');
+            $name = $memberUser->memberProfile
+                ? trim($memberUser->memberProfile->first_name . ' ' . $memberUser->memberProfile->last_name)
+                : $memberUser->name;
+            $memberCode        = $memberUser->member_code ?: ('#' . sprintf('%05d', $memberUser->id));
             $formattedMemberId = '#' . sprintf('%05d', $memberUser->id);
 
-            // Check if member already registered a business
-            $existingBusiness = Business::where('user_id', $memberUser->id)
-                ->orWhere('member_id', $memberId)
-                ->orWhere('member_id', (string) $memberUser->id)
-                ->orWhere('member_id', $formattedMemberId)
+            // Get the currently authenticated business ID (if on business profile page)
+            $currentBusinessId = $request->query('business_id');
+            if (!$currentBusinessId && auth()->guard('business')->check()) {
+                $currentBusinessId = auth()->guard('business')->id();
+            }
+
+
+            // Check if member already registered a business (skip own business)
+            $existingBusiness = Business::where(function ($q) use ($memberUser, $memberId, $formattedMemberId) {
+                    $q->where('user_id', $memberUser->id)
+                      ->orWhere('member_id', $memberId)
+                      ->orWhere('member_id', (string) $memberUser->id)
+                      ->orWhere('member_id', $formattedMemberId)
+                      ->orWhere('member_id', $memberUser->member_code);
+                })
+                ->when($currentBusinessId, fn($q) => $q->where('id', '!=', $currentBusinessId))
                 ->first();
 
             if ($existingBusiness) {
@@ -781,8 +804,8 @@ class RegistrationController extends Controller
             return response()->json([
                 'found' => true,
                 'name' => $name,
-                'member_id' => $formattedMemberId,
-                'message' => "Member Found: {$name} ({$formattedMemberId})"
+                'member_id' => $memberCode,
+                'message' => "✓ Member Found: {$name} ({$memberCode})"
             ]);
         }
 

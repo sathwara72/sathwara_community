@@ -41,7 +41,7 @@ class DashboardController extends Controller
      */
     public function editProfile()
     {
-        $business   = $this->business()->load('category', 'area');
+        $business   = $this->business()->load('category', 'area', 'user');
         $categories = BusinessCategory::orderBy('name')->get();
         $areas      = Area::orderBy('name')->get();
 
@@ -105,7 +105,7 @@ class DashboardController extends Controller
         }
 
         // Handle Gallery Image Deletion first
-        $gallery = $business->gallery_images ?? [];
+        $gallery = is_array($business->gallery_images) ? $business->gallery_images : [];
         if ($request->filled('delete_gallery')) {
             $toDelete = (array) $request->input('delete_gallery');
             foreach ($toDelete as $path) {
@@ -114,18 +114,20 @@ class DashboardController extends Controller
                     $gallery = array_values(array_filter($gallery, fn($g) => $g !== $path));
                 }
             }
-            $data['gallery_images'] = $gallery;
         }
 
         // Handle Gallery Upload
         if ($request->hasFile('gallery')) {
             $remainingSlots = max(0, 6 - count($gallery));
-            $files = array_slice($request->file('gallery'), 0, $remainingSlots);
+            $uploadedFiles  = array_filter((array) $request->file('gallery'), fn($f) => $f !== null && $f->isValid());
+            $files          = array_slice(array_values($uploadedFiles), 0, $remainingSlots);
             foreach ($files as $file) {
                 $gallery[] = $file->store('businesses/gallery', 'public');
             }
-            $data['gallery_images'] = $gallery;
         }
+
+        // Always persist the gallery state (even if unchanged, ensures cast/array consistency)
+        $data['gallery_images'] = array_values($gallery);
 
         // Handle optional password change
         $passwordChanged = false;
