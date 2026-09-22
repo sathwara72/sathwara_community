@@ -142,8 +142,16 @@
         }
 
         .renewal-cta .cta-btn:hover {
-            background: #fff;
-            color: var(--primary, #ef4444);
+            background: rgba(255, 255, 255, .3);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        #payOnlineBtn:hover {
+            background: #ffffff !important;
+            color: var(--primary-hex, #ef4444) !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+            transform: translateY(-1px);
         }
 
         .empty-state {

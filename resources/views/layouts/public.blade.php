@@ -262,6 +262,7 @@
         button[class*="bg-rose"]:hover,
         button[class*="bg-indigo"]:hover {
             filter: brightness(1.05);
+            color: #ffffff !important;
         }
 
         button:not([disabled]):active,

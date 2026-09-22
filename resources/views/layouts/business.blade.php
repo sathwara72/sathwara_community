@@ -62,13 +62,26 @@
             background-color: color-mix(in srgb, var(--primary-hex) 10%, transparent) !important;
         }
 
-        .bg-primary-500 {
+        .bg-primary-500,
+        .bg-primary-600 {
             background-color: var(--primary-hex) !important;
         }
 
-        .hover\:bg-primary-600:hover {
+        .hover\:bg-primary-600:hover,
+        .hover\:bg-primary-700:hover {
             background-color: var(--primary-hex) !important;
-            filter: brightness(90%);
+            filter: brightness(88%) !important;
+        }
+
+        button[class*="bg-primary"],
+        a[class*="bg-primary"] {
+            color: #ffffff !important;
+        }
+
+        button[class*="bg-primary"]:hover,
+        a[class*="bg-primary"]:hover {
+            color: #ffffff !important;
+            filter: brightness(88%) !important;
         }
 
         .border-primary-500 {

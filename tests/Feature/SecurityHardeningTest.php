@@ -127,4 +127,68 @@ class SecurityHardeningTest extends TestCase
             'email' => 'newuser@test.com',
         ]);
     }
+
+    public function test_business_login_page_renders_successfully_with_proper_layout()
+    {
+        $response = $this->get(route('business.login'));
+
+        $response->assertStatus(200);
+        $response->assertSee(route('business.login.submit'));
+        $response->assertSee(route('business.password.request'));
+        $response->assertSee('name="login"', false);
+        $response->assertSee('name="password"', false);
+    }
+
+    public function test_business_forgot_password_flow_works_properly()
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $area = Area::create(['name' => 'Naroda', 'city' => 'Ahmedabad', 'state' => 'Gujarat']);
+        $category = BusinessCategory::create(['name' => 'Retail', 'slug' => 'retail']);
+
+        $business = Business::create([
+            'business_name' => 'Password Reset Shop',
+            'owner_name' => 'Shop Owner',
+            'email' => 'resetbiz@test.com',
+            'phone' => '9898980000',
+            'password' => bcrypt('old-password-123'),
+            'address' => 'Shop 1, Main Road',
+            'logo_path' => 'businesses/logos/test.jpg',
+            'area_id' => $area->id,
+            'category_id' => $category->id,
+            'status' => 'approved',
+        ]);
+
+        // 1. Visit forgot password page
+        $this->get(route('business.password.request'))->assertStatus(200);
+
+        // 2. Request OTP
+        $response = $this->post(route('business.password.email'), [
+            'email' => 'resetbiz@test.com',
+        ]);
+        $response->assertRedirect(route('business.password.otp.verify.form'));
+        $this->assertDatabaseHas('password_reset_tokens', ['email' => 'resetbiz@test.com']);
+
+        // 3. Verify OTP
+        \Illuminate\Support\Facades\DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => 'resetbiz@test.com'],
+            ['token' => bcrypt('123456'), 'created_at' => now()]
+        );
+
+        $verifyResponse = $this->withSession(['business_reset_email' => 'resetbiz@test.com'])
+            ->post(route('business.password.otp.verify.submit'), ['otp' => '123456']);
+        $verifyResponse->assertRedirect(route('business.password.reset'));
+
+        // 4. Reset password
+        $resetResponse = $this->withSession(['business_otp_verified_email' => 'resetbiz@test.com'])
+            ->post(route('business.password.store'), [
+                'password' => 'NewSecurePassword123!',
+                'password_confirmation' => 'NewSecurePassword123!',
+            ]);
+        $resetResponse->assertRedirect(route('business.login'));
+
+        // Verify updated password works
+        $business->refresh();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewSecurePassword123!', $business->password));
+    }
 }

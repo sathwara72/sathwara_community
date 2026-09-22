@@ -68,6 +68,14 @@ Route::prefix('business')->name('business.')->group(function () {
     Route::get('/login', [BusinessAuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [BusinessAuthController::class, 'login'])->name('login.submit')->middleware('throttle:10,1');
     Route::post('/logout', [BusinessAuthController::class, 'logout'])->name('logout');
+
+    // Business Forgot / Reset Password
+    Route::get('/forgot-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showForgotPasswordForm'])->name('password.request');
+    Route::post('/forgot-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'sendOtp'])->name('password.email')->middleware('throttle:5,10');
+    Route::get('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showVerifyOtpForm'])->name('password.otp.verify.form');
+    Route::post('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'verifyOtp'])->name('password.otp.verify.submit');
+    Route::get('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showResetPasswordForm'])->name('password.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'resetPassword'])->name('password.store');
 });
 
 // ================= BUSINESS PANEL (Protected) =================

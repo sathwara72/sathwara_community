@@ -33,8 +33,8 @@ class BusinessAuthController extends Controller
             'login'    => 'required|string',
             'password' => 'required|string',
         ], [
-            'login.required'    => 'Please enter your Email or Phone number.',
-            'password.required' => 'Please enter your password.',
+            'login.required'    => __('Please enter your Email or Phone number.'),
+            'password.required' => __('Please enter your password.'),
         ]);
 
         $login    = trim($request->login);
