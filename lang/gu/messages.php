@@ -11,6 +11,8 @@ return [
     'register' => 'રજીસ્ટર',
     'member_registration' => 'સભ્ય પદ રજીસ્ટ્રેશન',
     'business_registration' => 'બિઝનેસ રજીસ્ટ્રેશન',
+    'business_login' => 'બિઝનેસ લોગિન',
+    'business_portal' => 'બિઝનેસ પોર્ટલ',
     'dashboard' => 'ડેશબોર્ડ',
     'profile' => 'પ્રોફાઇલ',
     'family_members' => 'પરિવારના સભ્યો',
@@ -1312,7 +1314,7 @@ return [
     'total_passes' => 'કુલ પાસ',
     'upload_photos' => 'ફોટો અપલોડ કરો',
     'choose_photo' => 'ફોટો પસંદ કરો',
-    
+
     // Sponsorship
     'sponsorship' => 'સ્પોન્સરશિપ',
     'sponsorships' => 'સ્પોન્સરશિપ',

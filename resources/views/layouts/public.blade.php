@@ -95,7 +95,12 @@
             line-height: 1.65;
         }
 
-        p, li, td, dd, dt, blockquote {
+        p,
+        li,
+        td,
+        dd,
+        dt,
+        blockquote {
             font-weight: 500 !important;
         }
 
@@ -161,7 +166,9 @@
         }
 
         /* --- Card Titles / h4 h5 h6 : weight 600–700 --- */
-        h4, h5, h6,
+        h4,
+        h5,
+        h6,
         [class*="card"] h4,
         [class*="card"] h5 {
             font-weight: 700 !important;
@@ -231,15 +238,16 @@
         }
 
         /* --- Global Button Hover & Elevation --- */
-        button:not([disabled]),
         input[type="submit"]:not([disabled]),
         input[type="button"]:not([disabled]),
-        a[class*="bg-primary"],
+        a[class*="bg-primary-500"],
+        a[class*="bg-primary-600"],
         a[class*="bg-slate-900"],
         a[class*="bg-emerald"],
         a[class*="bg-rose"],
         a[class*="bg-indigo"],
-        button[class*="bg-primary"],
+        button[class*="bg-primary-500"],
+        button[class*="bg-primary-600"],
         button[class*="bg-slate-900"],
         button[class*="bg-emerald"],
         button[class*="bg-rose"],
@@ -248,21 +256,32 @@
             cursor: pointer;
         }
 
-        button:not([disabled]):hover,
         input[type="submit"]:not([disabled]):hover,
         input[type="button"]:not([disabled]):hover,
-        a[class*="bg-primary"]:hover,
+        a[class*="bg-primary-500"]:hover,
+        a[class*="bg-primary-600"]:hover,
         a[class*="bg-slate-900"]:hover,
         a[class*="bg-emerald"]:hover,
         a[class*="bg-rose"]:hover,
         a[class*="bg-indigo"]:hover,
-        button[class*="bg-primary"]:hover,
+        button[class*="bg-primary-500"]:hover,
+        button[class*="bg-primary-600"]:hover,
         button[class*="bg-slate-900"]:hover,
         button[class*="bg-emerald"]:hover,
         button[class*="bg-rose"]:hover,
         button[class*="bg-indigo"]:hover {
             filter: brightness(1.05);
             color: #ffffff !important;
+        }
+
+        /* Language toggle button - ensure text remains dark slate on hover */
+        [x-data*="showLang"] button,
+        [x-data*="showLang"] button:hover {
+            color: #334155 !important;
+        }
+        [x-data*="showLang"] button span,
+        [x-data*="showLang"] button:hover span {
+            color: #334155 !important;
         }
 
         button:not([disabled]):active,
@@ -571,7 +590,8 @@
                 </div>
 
                 <div class="border-t border-slate-100 my-3 pt-3 px-2 flex justify-between items-center">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ __('messages.language') }}:</span>
+                    <span
+                        class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ __('messages.language') }}:</span>
                     <div class="flex space-x-2">
                         <a href="{{ route('locale.set', 'en') }}"
                             class="px-3 py-1.5 text-xs font-extrabold rounded-lg transition-colors {{ app()->getLocale() == 'en' ? 'bg-primary-500 text-white shadow-xs' : 'bg-slate-100 text-slate-700' }}">EN</a>
@@ -622,7 +642,11 @@
                     <div
                         class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             <span class="text-sm font-semibold">{{ session('success') }}</span>
                         </div>
                         <button @click="show = false"
@@ -633,7 +657,10 @@
                     <div
                         class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <svg class="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <svg class="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                             <span class="text-sm font-semibold">{{ session('error') }}</span>
                         </div>
                         <button @click="show = false"
@@ -644,7 +671,10 @@
                     <div
                         class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-between">
                         <div class="flex items-center space-x-2">
-                            <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
                             <span class="text-sm font-semibold">{{ session('warning') }}</span>
                         </div>
                         <button @click="show = false"
@@ -847,7 +877,8 @@
             <div
                 class="border-t border-slate-100 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 gap-4">
                 <span>
-                    © {{ date('Y') }} {{ App\Models\Setting::get('website_name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}.
+                    © {{ date('Y') }}
+                    {{ App\Models\Setting::get('website_name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}.
                     {{ __('messages.all_rights_reserved') }}
                 </span>
 

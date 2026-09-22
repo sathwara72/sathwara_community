@@ -11,11 +11,17 @@
             <span class="font-black text-primary-600">{{ $businesses->count() }}</span>
         </div>
 
-        @if($businesses->count() < 1)
-        <a href="{{ route('register.business') }}" target="_blank" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 shrink-0">
-            <span>+ {{ __('messages.register_new_business') }}</span>
-        </a>
-        @endif
+        <div class="flex items-center gap-2 flex-wrap">
+            @if($businesses->count() < 1)
+            <a href="{{ route('register.business') }}" target="_blank" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 shrink-0">
+                <span>+ {{ __('messages.register_new_business') }}</span>
+            </a>
+            @endif
+            <a href="{{ route('business.login') }}" target="_blank" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                <span>{{ __('messages.business_login') }}</span>
+            </a>
+        </div>
     </div>
 
     <!-- Businesses Grid -->
