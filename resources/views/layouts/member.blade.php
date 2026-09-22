@@ -69,6 +69,26 @@
         .to-primary-500 {
             --tw-gradient-to: var(--primary-hex) var(--tw-gradient-to-position, ) !important;
         }
+
+        /* Sidebar active navigation link item */
+        aside a[class*="bg-primary-50"],
+        aside a.active {
+            background-color: color-mix(in srgb, var(--primary-hex) 12%, white) !important;
+            color: var(--primary-hex) !important;
+            font-weight: 800 !important;
+        }
+
+        aside a[class*="bg-primary-50"] span,
+        aside a.active span {
+            color: var(--primary-hex) !important;
+            font-weight: 800 !important;
+        }
+
+        aside a[class*="bg-primary-50"] svg,
+        aside a.active svg {
+            color: var(--primary-hex) !important;
+            stroke: var(--primary-hex) !important;
+        }
     </style>
 
     <style>

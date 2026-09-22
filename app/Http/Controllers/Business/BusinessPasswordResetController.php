@@ -33,7 +33,7 @@ class BusinessPasswordResetController extends Controller
             'email' => ['required', 'email', 'exists:businesses,email'],
         ], [
             'email.required' => __('Please enter your Email or Phone number.'),
-            'email.exists'   => __('This email is not registered with any business.'),
+            'email.exists' => __('This email is not registered with any business.'),
         ]);
 
         $email = trim($request->email);

@@ -73,15 +73,40 @@
             filter: brightness(88%) !important;
         }
 
-        button[class*="bg-primary"],
-        a[class*="bg-primary"] {
+        /* Solid Primary Buttons only (exclude bg-primary-50 tints) */
+        button[class*="bg-primary-500"],
+        button[class*="bg-primary-600"],
+        a[class*="bg-primary-500"],
+        a[class*="bg-primary-600"] {
             color: #ffffff !important;
         }
 
-        button[class*="bg-primary"]:hover,
-        a[class*="bg-primary"]:hover {
+        button[class*="bg-primary-500"]:hover,
+        button[class*="bg-primary-600"]:hover,
+        a[class*="bg-primary-500"]:hover,
+        a[class*="bg-primary-600"]:hover {
             color: #ffffff !important;
             filter: brightness(88%) !important;
+        }
+
+        /* Sidebar Navigation Active State */
+        aside a[class*="bg-primary-50"],
+        aside a.active {
+            background-color: color-mix(in srgb, var(--primary-hex) 12%, white) !important;
+            color: var(--primary-hex) !important;
+            font-weight: 800 !important;
+        }
+
+        aside a[class*="bg-primary-50"] span,
+        aside a.active span {
+            color: var(--primary-hex) !important;
+            font-weight: 800 !important;
+        }
+
+        aside a[class*="bg-primary-50"] svg,
+        aside a.active svg {
+            color: var(--primary-hex) !important;
+            stroke: var(--primary-hex) !important;
         }
 
         .border-primary-500 {
@@ -233,8 +258,8 @@
 
             <!-- My Listing -->
             <a href="{{ route('business.profile.edit') }}"
-                class="flex items-center space-x-3 px-3.5 py-2.5 text-xs font-bold rounded-xl {{ Route::is('business.profile.*') ? 'bg-primary-50 text-primary-500' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} transition-colors">
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                class="flex items-center space-x-3 px-3.5 py-2.5 text-xs font-bold rounded-xl {{ Route::is('business.profile.*') ? 'bg-primary-50 text-primary-600 font-extrabold shadow-2xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} transition-colors">
+                <svg class="h-4 w-4 shrink-0 {{ Route::is('business.profile.*') ? 'text-primary-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
@@ -243,8 +268,8 @@
 
             <!-- Renewal & Invoices -->
             <a href="{{ route('business.renewal') }}"
-                class="flex items-center space-x-3 px-3.5 py-2.5 text-xs font-bold rounded-xl {{ Route::is('business.renewal*') ? 'bg-primary-50 text-primary-500' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} transition-colors">
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                class="flex items-center space-x-3 px-3.5 py-2.5 text-xs font-bold rounded-xl {{ Route::is('business.renewal*') ? 'bg-primary-50 text-primary-600 font-extrabold shadow-2xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }} transition-colors">
+                <svg class="h-4 w-4 shrink-0 {{ Route::is('business.renewal*') ? 'text-primary-600' : 'text-slate-400' }}" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
