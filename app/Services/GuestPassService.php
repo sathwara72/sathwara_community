@@ -6,6 +6,7 @@ use App\Mail\EventPassPurchasedMail;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -211,15 +212,19 @@ class GuestPassService
         ?string $paymentId,
         ?string $orderId
     ): array {
+        // The email was OTP-verified, so if it belongs to a member account the pass is attached to that
+        // account and shows up in their dashboard as well as in the email.
+        $memberId = User::whereRaw('LOWER(email) = ?', [strtolower($email)])->value('id');
+
         try {
-            $registration = DB::transaction(function () use ($event, $email, $mobile, $name, $personCount, $amount, $paymentId, $orderId) {
+            $registration = DB::transaction(function () use ($event, $email, $mobile, $name, $personCount, $amount, $paymentId, $orderId, $memberId) {
                 $passNumber = EventSequenceService::nextPassNumber($event->id);
 
                 return EventRegistration::create([
                     'event_id' => $event->id,
                     'pass_number' => $passNumber,
                     'registration_type' => 'pass',
-                    'user_id' => null,
+                    'user_id' => $memberId,
                     'status' => 'approved',
                     'form_data' => [
                         'full_name' => $name ?: 'Guest',
@@ -228,7 +233,7 @@ class GuestPassService
                         'mobile' => $mobile,
                         'person_count' => $personCount,
                         'registration_no' => $passNumber,
-                        'is_guest' => true,
+                        'is_guest' => $memberId === null,
                         'email_verified' => true,
                         'submission_date' => now()->format('d-M-Y h:i A'),
                     ],
@@ -250,7 +255,7 @@ class GuestPassService
         PassTokenService::getOrGenerateTokens($registration);
 
         $this->notifyAdmins($event, $registration, $name ?: 'Guest');
-        $this->sendPassEmail($event, $registration, $email, $personCount);
+        $this->sendPassEmail($event, $registration, $email, $personCount, $memberId ? $registration->user : null);
 
         return [$registration, true];
     }
@@ -272,7 +277,7 @@ class GuestPassService
         }
     }
 
-    private function sendPassEmail(Event $event, EventRegistration $registration, string $email, int $personCount): void
+    private function sendPassEmail(Event $event, EventRegistration $registration, string $email, int $personCount, ?User $user): void
     {
         $passes = [];
         for ($i = 1; $i <= $personCount; $i++) {
@@ -280,7 +285,7 @@ class GuestPassService
         }
 
         try {
-            Mail::to($email)->send(new EventPassPurchasedMail($event, $registration, null, $passes, $personCount));
+            Mail::to($email)->send(new EventPassPurchasedMail($event, $registration, $user, $passes, $personCount));
         } catch (\Throwable $e) {
             Log::error('Guest pass: pass email failed: ' . $e->getMessage(), ['registration_id' => $registration->id]);
         }

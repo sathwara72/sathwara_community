@@ -7,6 +7,7 @@ use App\Mail\RegisterEmailOtpMail;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Http;
@@ -318,5 +319,20 @@ class GuestPassPurchaseTest extends TestCase
 
         $this->get(route('event.details', $open->id))->assertOk()->assertSee(__('messages.guest_buy_pass'));
         $this->get(route('event.details', $closed->id))->assertOk()->assertDontSee(__('messages.guest_buy_pass'));
+    }
+
+    public function test_purchase_with_a_members_email_is_attached_to_the_member_account(): void
+    {
+        $member = User::factory()->create(['email' => 'Guest@Gmail.com', 'status' => 'approved']);
+        $event = $this->event();
+        $this->verifyEmail($event);
+        $this->fakeOrder($event);
+
+        $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())->assertOk();
+
+        $registration = EventRegistration::firstOrFail();
+        $this->assertSame($member->id, $registration->user_id);
+        $this->assertTrue($member->eventRegistrations()->where('event_id', $event->id)->exists());
+        Mail::assertSent(EventPassPurchasedMail::class, fn ($m) => $m->hasTo('guest@gmail.com'));
     }
 }
