@@ -8,11 +8,19 @@
 
     <title>Admin Portal Sign In - {{ config('app.name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}</title>
 
+    @if(App\Models\Setting::get('website_favicon'))
+        <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . App\Models\Setting::get('website_favicon')) }}">
+    @endif
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
+
+    <!-- Styles / Scripts -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;

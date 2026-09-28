@@ -228,103 +228,201 @@
 </div>
 
 <!-- Renewal Payment Links (Business Only) -->
-<div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4 mt-4">
-    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h4 class="text-sm font-black text-slate-900 flex items-center gap-2">
-            <span>💳</span>
-            <span>Renewal Payment Links</span>
-        </h4>
+<div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5 mt-6">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-4 flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center text-lg shadow-sm border border-primary-100">
+                💳
+            </div>
+            <div>
+                <h4 class="text-base font-black text-slate-900 leading-tight">
+                    Renewal Payment Links
+                </h4>
+                <p class="text-xs text-slate-500 font-medium mt-0.5">
+                    Generate and track annual renewal payment links for this business.
+                </p>
+            </div>
+        </div>
         @if($business->approved_at)
-            <span class="text-[11px] font-bold text-slate-400">
-                Approved until {{ $business->approved_at->copy()->addYear()->format('d-M-Y') }}
-            </span>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 shadow-sm">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>Current Approval Valid Until:</span>
+                <span class="font-extrabold text-primary-600 font-mono">{{ $business->approved_at->copy()->addYear()->format('d-M-Y') }}</span>
+            </div>
         @endif
     </div>
 
     @if($business->isRenewalDue())
-        <form method="POST" action="{{ route('admin.businesses.paymentLinks.generate', $business->id) }}" class="flex flex-wrap items-end gap-3">
-            @csrf
-            <div class="space-y-1">
-                <label class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">Amount (₹)</label>
-                <input type="number" name="amount" min="1" step="1"
-                       value="{{ old('amount', \App\Models\Setting::get('business_registration_fee', '500')) }}"
-                       required
-                       class="h-10 w-32 text-xs font-bold px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-primary-500 transition-colors">
-            </div>
-            <button type="submit" class="h-10 px-4 bg-primary-600 hover:bg-primary-700 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-colors flex items-center gap-1.5">
-                <span>Generate &amp; Email Payment Link</span>
-            </button>
-            <span class="text-[11px] text-slate-400 font-medium">Link is valid for 24 hours.</span>
-        </form>
+        <div class="bg-gradient-to-r from-primary-50/50 via-slate-50 to-emerald-50/40 rounded-2xl p-4 sm:p-5 border border-primary-100">
+            <form method="POST" action="{{ route('admin.businesses.paymentLinks.generate', $business->id) }}" class="flex flex-wrap items-end gap-3 sm:gap-4">
+                @csrf
+                <div class="space-y-1.5">
+                    <label class="text-xs font-black text-slate-700 uppercase tracking-wider block">
+                        Renewal Amount (₹) <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">₹</span>
+                        <input type="number" name="amount" min="1" step="1"
+                               value="{{ old('amount', \App\Models\Setting::get('business_registration_fee', '500')) }}"
+                               required
+                               class="h-10 w-40 text-sm font-black pl-8 pr-3 bg-white border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-primary-500 shadow-sm">
+                    </div>
+                </div>
+                <button type="submit" class="h-10 px-5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 active:scale-98 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <span>Generate &amp; Email Payment Link</span>
+                </button>
+                <span class="text-xs text-slate-500 font-medium inline-flex items-center gap-1.5 mb-2">
+                    <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Link expires automatically in 24 hours.</span>
+                </span>
+            </form>
+        </div>
     @else
-        <p class="text-xs font-medium text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-xl px-3.5 py-2.5">
-            This business's current 1-year approval is still active. A renewal payment link can be generated once it completes
-            @if($business->approved_at)
-                (on {{ $business->approved_at->copy()->addYear()->format('d-M-Y') }}).
-            @else
-                .
-            @endif
-        </p>
+        <div class="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600">
+            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>
+                This business's current 1-year approval is active. A renewal payment link can be generated once it completes on
+                <strong class="text-slate-900 font-bold font-mono">{{ $business->approved_at ? $business->approved_at->copy()->addYear()->format('d-M-Y') : '1 year from approval' }}</strong>.
+            </span>
+        </div>
     @endif
 
     @if($business->paymentLinks->isNotEmpty())
-        <div class="overflow-x-auto pt-2">
-            <table class="w-full text-xs">
-                <thead>
-                    <tr class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-left border-b border-slate-100">
-                        <th class="py-2 pr-3">Amount</th>
-                        <th class="py-2 pr-3">Status</th>
-                        <th class="py-2 pr-3">Created</th>
-                        <th class="py-2 pr-3">Expires</th>
-                        <th class="py-2 pr-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($business->paymentLinks as $link)
-                        @php
-                            $whatsappDigits = preg_replace('/[^0-9]/', '', $business->whatsapp ?: $business->phone ?: '');
-                            $waMessage = "Renew your business listing for {$business->business_name} - ₹" . number_format((float) $link->amount, 2) . ". Pay here: {$link->razorpay_link_url} (expires {$link->expires_at->format('d-M-Y h:i A')})";
-                        @endphp
-                        <tr class="border-b border-slate-50">
-                            <td class="py-2.5 pr-3 font-bold text-slate-900">₹{{ number_format((float) $link->amount, 2) }}</td>
-                            <td class="py-2.5 pr-3">
-                                @if($link->status === 'paid')
-                                    <span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-extrabold uppercase text-[10px]">Paid</span>
-                                @elseif($link->isExpired())
-                                    <span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200/60 font-extrabold uppercase text-[10px]">Expired</span>
-                                @else
-                                    <span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/60 font-extrabold uppercase text-[10px]">{{ $link->status }}</span>
-                                @endif
-                            </td>
-                            <td class="py-2.5 pr-3 text-slate-500 font-medium">{{ $link->created_at->format('d-M-Y h:i A') }}</td>
-                            <td class="py-2.5 pr-3 text-slate-500 font-medium">{{ $link->expires_at->format('d-M-Y h:i A') }}</td>
-                            <td class="py-2.5 pr-3">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <button type="button" onclick="navigator.clipboard.writeText('{{ $link->razorpay_link_url }}'); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 1500);"
-                                            class="px-2 py-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-[11px]">Copy</button>
+        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mt-4">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[820px]">
+                    <thead>
+                        <tr class="bg-slate-50 text-[11px] font-black uppercase text-slate-600 tracking-wider border-b border-slate-200 whitespace-nowrap">
+                            <th class="py-3.5 px-4">Amount</th>
+                            <th class="py-3.5 px-3 text-center">Status</th>
+                            <th class="py-3.5 px-4">Validity / Timeline</th>
+                            <th class="py-3.5 px-4 text-center">Share Link</th>
+                            <th class="py-3.5 px-5 text-right">Verification &amp; Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                        @foreach($business->paymentLinks as $link)
+                            @php
+                                $whatsappDigits = preg_replace('/[^0-9]/', '', $business->whatsapp ?: $business->phone ?: '');
+                                $waMessage = "Renew your business listing for {$business->business_name} - ₹" . number_format((float) $link->amount, 2) . ". Pay here: {$link->razorpay_link_url} (expires {$link->expires_at->format('d-M-Y h:i A')})";
+                            @endphp
+                            <tr class="hover:bg-slate-50/70 transition-colors">
+                                <!-- Col 1: Amount -->
+                                <td class="py-4 px-4 whitespace-nowrap align-middle">
+                                    <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200">
+                                        <span class="text-sm font-black text-slate-900 font-mono">₹{{ number_format((float) $link->amount, 2) }}</span>
+                                    </div>
+                                </td>
 
-                                    <a href="https://wa.me/{{ $whatsappDigits }}?text={{ urlencode($waMessage) }}" target="_blank"
-                                       class="px-2 py-1 border border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-bold rounded-lg text-[11px]">WhatsApp</a>
+                                <!-- Col 2: Status -->
+                                <td class="py-4 px-3 text-center whitespace-nowrap align-middle">
+                                    @if($link->status === 'paid')
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black uppercase tracking-wider shadow-xs">
+                                            <svg class="w-3 h-3 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                            <span>PAID</span>
+                                        </span>
+                                    @elseif($link->isExpired())
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200 text-[11px] font-bold uppercase tracking-wider">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                            <span>EXPIRED</span>
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-black uppercase tracking-wider shadow-xs">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                            <span>ACTIVE</span>
+                                        </span>
+                                    @endif
+                                </td>
 
-                                    @if($link->status !== 'paid')
-                                        <form method="POST" action="{{ route('admin.businesses.paymentLinks.resend', [$business->id, $link->id]) }}" class="inline">
+                                <!-- Col 3: Validity / Timeline -->
+                                <td class="py-4 px-4 whitespace-nowrap align-middle">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2 text-slate-800 font-bold text-xs">
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide w-14">Created:</span>
+                                            <span class="font-mono text-slate-700">{{ $link->created_at->format('d-M-Y h:i A') }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-xs {{ $link->isExpired() ? 'text-rose-600 font-bold' : 'text-slate-600 font-medium' }}">
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide w-14">Expires:</span>
+                                            <span class="font-mono">{{ $link->expires_at->format('d-M-Y h:i A') }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Col 4: Share Link -->
+                                <td class="py-4 px-4 text-center whitespace-nowrap align-middle">
+                                    <div class="inline-flex items-center justify-center gap-1.5">
+                                        <!-- Copy Button -->
+                                        <button type="button"
+                                                onclick="navigator.clipboard.writeText('{{ $link->razorpay_link_url }}'); const btn=this; const original=btn.innerHTML; btn.innerHTML='<span class=\'text-emerald-700 font-bold\'>✓ Copied</span>'; setTimeout(() => btn.innerHTML=original, 1800);"
+                                                class="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-lg text-xs shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                                                title="Copy Payment URL">
+                                            <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                                            <span>Copy</span>
+                                        </button>
+
+                                        <!-- WhatsApp Button -->
+                                        <a href="https://wa.me/{{ $whatsappDigits }}?text={{ urlencode($waMessage) }}" target="_blank"
+                                           class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold rounded-lg text-xs shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                                           title="Share via WhatsApp">
+                                            <svg class="w-3.5 h-3.5 text-emerald-600 fill-current shrink-0" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                                            <span>WhatsApp</span>
+                                        </a>
+
+                                        @if($link->status !== 'paid')
+                                            <!-- Resend Email Button -->
+                                            <form method="POST" action="{{ route('admin.businesses.paymentLinks.resend', [$business->id, $link->id]) }}" class="inline">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-lg text-xs shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                                                        title="Resend email to {{ $business->email }}">
+                                                    <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                                    <span>Resend</span>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
+
+                                <!-- Col 5: Verification & Actions -->
+                                <td class="py-4 px-5 text-right whitespace-nowrap align-middle">
+                                    @if($link->status === 'paid')
+                                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold shadow-xs">
+                                            <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            <span>Renewed Listing</span>
+                                            @if($link->razorpay_payment_id)
+                                                <span class="font-mono text-[11px] text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-200" title="Payment ID">
+                                                    {{ $link->razorpay_payment_id }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <form method="POST" action="{{ route('admin.businesses.paymentLinks.markPaid', [$business->id, $link->id]) }}"
+                                              class="inline-flex items-center gap-2 justify-end"
+                                              onsubmit="return confirm('Mark this payment link as paid? This will renew the business listing for 1 year.');">
                                             @csrf
-                                            <button type="submit" class="px-2 py-1 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-[11px]">Resend Email</button>
-                                        </form>
-
-                                        <form method="POST" action="{{ route('admin.businesses.paymentLinks.markPaid', [$business->id, $link->id]) }}" class="inline flex items-center gap-1"
-                                              onsubmit="return confirm('Mark this payment link as paid? This will renew the business membership for 1 year.');">
-                                            @csrf
-                                            <input type="text" name="razorpay_payment_id" placeholder="Payment ID (optional)" class="h-7 w-28 text-[10px] px-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:border-primary-500">
-                                            <button type="submit" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px]">Mark Paid</button>
+                                            <input type="text" name="razorpay_payment_id"
+                                                   placeholder="Txn ID (optional)"
+                                                   class="h-9 w-44 text-xs font-semibold px-3 bg-slate-50 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:border-primary-500 shadow-sm"
+                                                   title="Optional Razorpay Payment ID or Transaction Reference">
+                                            <button type="submit"
+                                                    class="h-9 px-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs rounded-lg shadow-sm hover:shadow transition-all inline-flex items-center gap-1.5 cursor-pointer">
+                                                <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                <span>Mark Paid</span>
+                                            </button>
                                         </form>
                                     @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @else
+        <div class="text-center py-8 px-4 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 text-slate-500 text-xs font-medium">
+            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            No renewal payment links have been generated yet for this business.
         </div>
     @endif
 </div>

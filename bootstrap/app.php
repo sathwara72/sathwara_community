@@ -14,11 +14,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('admin*')) {
                 return route('admin.login');
+            }
+            if ($request->is('business*')) {
+                return route('business.login');
             }
             return route('login');
         });

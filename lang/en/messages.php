@@ -11,6 +11,8 @@ return [
     'register' => 'Register',
     'member_registration' => 'Member Registration',
     'business_registration' => 'Business Registration',
+    'business_login' => 'Business Login',
+    'business_portal' => 'Business Portal',
     'dashboard' => 'Dashboard',
     'profile' => 'Profile',
     'family_members' => 'Family Members',
@@ -1312,7 +1314,7 @@ return [
     'total_passes' => 'Total Passes',
     'upload_photos' => 'Upload Photos',
     'choose_photo' => 'Choose Photo',
-    
+
     // Sponsorship
     'sponsorship' => 'Sponsorship',
     'sponsorships' => 'Sponsorships',

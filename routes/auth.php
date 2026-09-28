@@ -21,12 +21,14 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:10,1');
 
     Route::get('forgot-password', [OtpPasswordResetController::class, 'showForgotPasswordForm'])
         ->name('password.request');
 
     Route::post('forgot-password', [OtpPasswordResetController::class, 'sendOtp'])
+        ->middleware('throttle:5,10')
         ->name('password.email');
 
     Route::get('verify-otp', [OtpPasswordResetController::class, 'showVerifyOtpForm'])

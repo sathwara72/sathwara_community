@@ -42,7 +42,18 @@ class EventController extends Controller
     {
         $event = Event::published()->findOrFail($id);
         $user = auth()->user();
-        $registration = $user->eventRegistrations()->where('event_id', $id)->first();
+        $registration = $user ? $user->eventRegistrations()
+            ->where('event_id', $id)
+            ->where(function($q) use ($event) {
+                if ($event->event_type === 'inam_vitaran') {
+                    $q->whereNull('form_data->student_name');
+                } elseif ($event->event_type === 'yuva_melo') {
+                    $q->whereNull('form_data->surname')
+                      ->whereNull('form_data->qualification');
+                }
+            })
+            ->latest()
+            ->first() : null;
         $gallery = $event->galleries()->get();
 
         return view('member.event.show', compact('event', 'registration', 'gallery'));

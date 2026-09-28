@@ -155,10 +155,70 @@
                             <input type="text" name="whatsapp" x-model="whatsappNum" :readonly="sameWhatsapp" :class="sameWhatsapp ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white border-emerald-400 focus:border-emerald-500'" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" placeholder="{{ __('messages.ten_digit_whatsapp_placeholder') }}" class="w-full text-sm font-semibold px-3 py-2 rounded-lg focus:ring-0">
                         </div>
 
-                        <!-- Email Field -->
+                        <!-- Email Field with OTP Verification (Modal-based) -->
                         <div class="space-y-1">
-                            <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">{{ __('messages.email_address_label') }}</label>
-                            <input type="email" name="email" value="{{ old('email') }}" placeholder="{{ __('messages.email_placeholder') }}" class="w-full text-sm font-semibold px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-primary-500 focus:ring-0">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                    {{ __('messages.email_address_label') }} <span class="text-rose-500">*</span>
+                                </label>
+                                <span id="bizEmailVerifiedBadge" class="hidden text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                    ✓ Email Verified
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <input type="email" id="bizEmailInput" name="email"
+                                       value="{{ old('email') }}"
+                                       required
+                                       placeholder="{{ __('messages.email_placeholder') }}"
+                                       class="w-full text-sm font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition @error('email') border-rose-400 @enderror">
+                                <button type="button" id="bizSendOtpBtn"
+                                        class="shrink-0 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs rounded-lg shadow transition-all active:scale-95 cursor-pointer">
+                                    <span id="bizSendOtpBtnText">Send OTP</span>
+                                </button>
+                                <button type="button" id="bizChangeEmailBtn"
+                                        class="hidden shrink-0 px-2.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-lg transition-all cursor-pointer">
+                                    Change
+                                </button>
+                            </div>
+                            @error('email')
+                                <p class="text-xs text-rose-600 font-bold mt-0.5">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Password & Confirm Password (for Business Panel Login) -->
+                    <div class="mt-3 pt-3 border-t border-slate-200/60">
+                        <p class="text-xs font-bold text-slate-600 mb-2.5">🔐 Set a password to access your <strong>Business Panel</strong> after registration.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1" x-data="{ show: false }">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Password <span class="text-rose-500">*</span></label>
+                                <div class="relative">
+                                    <input :type="show ? 'text' : 'password'" name="password"
+                                           placeholder="Min 6 characters"
+                                           class="w-full text-sm font-semibold px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-0 @error('password') border-rose-400 @enderror"
+                                           required minlength="6">
+                                    <button type="button" @click="show = !show"
+                                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm">
+                                        <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="show" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                    </button>
+                                </div>
+                                @error('password') <p class="text-xs text-rose-600 font-bold mt-0.5">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="space-y-1" x-data="{ show: false }">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Confirm Password <span class="text-rose-500">*</span></label>
+                                <div class="relative">
+                                    <input :type="show ? 'text' : 'password'" name="password_confirmation"
+                                           placeholder="Repeat password"
+                                           class="w-full text-sm font-semibold px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-0"
+                                           required minlength="6">
+                                    <button type="button" @click="show = !show"
+                                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm">
+                                        <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="show" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -311,6 +371,82 @@
     </div>
 </section>
 
+<!-- ══ Business OTP Alert Modal (warnings/errors) ══ -->
+<div id="bizOtpAlertModal" class="fixed inset-0 items-center justify-center hidden" style="display:none !important;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999999 !important;" role="dialog" aria-modal="true">
+    <div id="bizOtpModalBackdrop" style="position:absolute;inset:0;background-color:rgba(0,0,0,0.65);backdrop-filter:blur(4px);"></div>
+    <div class="relative w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="bizOtpModalPanel">
+        <div id="bizOtpModalAccent" class="h-1.5 w-full bg-rose-500"></div>
+        <div class="p-6">
+            <div class="flex items-start gap-3 mb-3">
+                <div id="bizOtpModalIcon" class="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-rose-100 text-rose-600">⚠️</div>
+                <div>
+                    <h3 id="bizOtpAlertTitle" class="text-sm font-extrabold text-slate-900 leading-tight">Notice</h3>
+                    <p id="bizOtpAlertMessage" class="text-xs text-slate-600 mt-1 leading-relaxed"></p>
+                </div>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button id="bizOtpModalCloseBtn" type="button" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-all active:scale-95 shadow cursor-pointer">OK, Got It</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Business OTP Entry Popup Modal ══ -->
+<div id="bizOtpEntryModal" class="fixed inset-0 items-center justify-center hidden" style="display:none !important;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999998 !important;" role="dialog" aria-modal="true">
+    <div style="position:absolute;inset:0;background-color:rgba(0,0,0,0.65);backdrop-filter:blur(4px);"></div>
+    <div class="relative w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="bizOtpEntryPanel">
+
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);padding:20px 24px;">
+            <div class="flex items-center gap-3">
+                <div style="width:44px;height:44px;background:rgba(255,255,255,0.18);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📧</div>
+                <div>
+                    <h3 style="color:#fff;font-size:15px;font-weight:800;margin:0;">Email Verification</h3>
+                    <p style="color:#c7d2fe;font-size:11px;margin:3px 0 0 0;">We sent a 6-digit OTP to your inbox</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 space-y-4">
+            <!-- Target email -->
+            <div class="text-center">
+                <p class="text-xs text-slate-500">Verification code sent to</p>
+                <p id="bizOtpTargetEmail" class="text-sm font-extrabold break-all mt-0.5" style="color:#6366f1;"></p>
+            </div>
+
+            <!-- OTP Input -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-600 uppercase tracking-widest block">Enter OTP <span class="text-rose-500">*</span></label>
+                <input type="text" id="bizOtpInput" inputmode="numeric" maxlength="6" placeholder="0  0  0  0  0  0"
+                    style="width:100%;font-size:22px;font-weight:900;letter-spacing:0.35em;text-align:center;padding:12px 16px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;box-sizing:border-box;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,0.15)'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                <div id="bizOtpStatusMsg" class="text-xs font-semibold min-h-[18px] text-center"></div>
+            </div>
+
+            <!-- Resend -->
+            <p class="text-center" style="font-size:11px;color:#94a3b8;margin:0;">
+                Didn't receive the code? &nbsp;
+                <button type="button" id="bizResendOtpBtn" style="font-weight:700;color:#6366f1;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;outline:none;">Resend OTP</button>
+                <span id="bizOtpResendTimer" style="color:#94a3b8;font-weight:600;"></span>
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="display:flex;gap:10px;padding:0 20px 20px;">
+            <button type="button" id="bizCancelOtpModalBtn"
+                style="flex:1;padding:10px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;font-weight:700;font-size:12px;border-radius:10px;cursor:pointer;transition:background 0.15s;"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">Cancel</button>
+            <button type="button" id="bizVerifyOtpBtn"
+                style="flex:1;padding:10px;background:#16a34a;color:#fff;font-weight:800;font-size:12px;border-radius:10px;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(22,163,74,0.3);transition:background 0.15s;"
+                onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                <span id="bizVerifyOtpBtnText">Verify OTP</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 function multiShowcaseUploader() {
     return {
@@ -386,65 +522,391 @@ function multiShowcaseUploader() {
 }
 </script>
 
+
+<script>
+// ════════════════════════════════════════════════
+// Business Registration – OTP Email Verification
+// ════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ── DOM refs ─────────────────────────────────
+    const emailInput        = document.getElementById('bizEmailInput');
+    const sendOtpBtn        = document.getElementById('bizSendOtpBtn');
+    const sendOtpBtnText    = document.getElementById('bizSendOtpBtnText');
+    const changeEmailBtn    = document.getElementById('bizChangeEmailBtn');
+    const emailVerifiedBadge= document.getElementById('bizEmailVerifiedBadge');
+
+    // OTP Entry Modal
+    const otpEntryModal  = document.getElementById('bizOtpEntryModal');
+    const otpEntryPanel  = document.getElementById('bizOtpEntryPanel');
+    const otpTargetEmail = document.getElementById('bizOtpTargetEmail');
+    const otpInput       = document.getElementById('bizOtpInput');
+    const verifyOtpBtn   = document.getElementById('bizVerifyOtpBtn');
+    const verifyOtpBtnText = document.getElementById('bizVerifyOtpBtnText');
+    const otpStatusMsg   = document.getElementById('bizOtpStatusMsg');
+    const cancelOtpBtn   = document.getElementById('bizCancelOtpModalBtn');
+    const resendOtpBtn   = document.getElementById('bizResendOtpBtn');
+    const otpResendTimer = document.getElementById('bizOtpResendTimer');
+
+    // Alert Modal
+    const alertModal     = document.getElementById('bizOtpAlertModal');
+    const alertPanel     = document.getElementById('bizOtpModalPanel');
+    const alertAccent    = document.getElementById('bizOtpModalAccent');
+    const alertIcon      = document.getElementById('bizOtpModalIcon');
+    const alertTitle     = document.getElementById('bizOtpAlertTitle');
+    const alertMessage   = document.getElementById('bizOtpAlertMessage');
+    const alertCloseBtn  = document.getElementById('bizOtpModalCloseBtn');
+    const alertBackdrop  = document.getElementById('bizOtpModalBackdrop');
+
+    // Move modals to <body> so they sit above everything
+    [alertModal, otpEntryModal].forEach(el => {
+        if (el && el.parentElement !== document.body) document.body.appendChild(el);
+    });
+
+    let isEmailVerified = false;
+    let resendInterval  = null;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    // ── Alert Modal ───────────────────────────────
+    const alertConfig = {
+        warning: { accent:'bg-amber-500',   icon:'⚠️',  iconBg:'bg-amber-100 text-amber-600',   btnBg:'bg-amber-500 hover:bg-amber-600' },
+        error:   { accent:'bg-rose-500',    icon:'❌',  iconBg:'bg-rose-100 text-rose-600',     btnBg:'bg-rose-600 hover:bg-rose-700' },
+        success: { accent:'bg-emerald-500', icon:'✅',  iconBg:'bg-emerald-100 text-emerald-600',btnBg:'bg-emerald-600 hover:bg-emerald-700' },
+        info:    { accent:'bg-indigo-500',  icon:'ℹ️', iconBg:'bg-indigo-100 text-indigo-600', btnBg:'bg-indigo-600 hover:bg-indigo-700' },
+    };
+    function showAlert(message, type = 'warning', title = null) {
+        const cfg = alertConfig[type] || alertConfig.warning;
+        alertAccent.className  = 'h-1.5 w-full ' + cfg.accent;
+        alertIcon.className    = 'shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl ' + cfg.iconBg;
+        alertIcon.textContent  = cfg.icon;
+        alertCloseBtn.className= 'px-5 py-2 font-extrabold text-xs text-white rounded-xl transition-all active:scale-95 shadow cursor-pointer ' + cfg.btnBg;
+        alertTitle.textContent = title || type.charAt(0).toUpperCase() + type.slice(1);
+        alertMessage.textContent = message;
+        alertModal.style.setProperty('display', 'flex', 'important');
+        alertModal.classList.remove('hidden');
+        setTimeout(() => { alertPanel.classList.remove('scale-95','opacity-0'); alertPanel.classList.add('scale-100','opacity-100'); }, 10);
+    }
+    function closeAlert() {
+        alertPanel.classList.remove('scale-100','opacity-100'); alertPanel.classList.add('scale-95','opacity-0');
+        setTimeout(() => {
+            alertModal.classList.add('hidden');
+            alertModal.style.setProperty('display', 'none', 'important');
+        }, 200);
+    }
+    if (alertCloseBtn)  alertCloseBtn.addEventListener('click', closeAlert);
+    if (alertBackdrop)  alertBackdrop.addEventListener('click', closeAlert);
+
+    // ── OTP Entry Modal ───────────────────────────
+    function openOtpModal(email) {
+        if (otpTargetEmail) otpTargetEmail.textContent = email;
+        if (otpInput)       otpInput.value = '';
+        if (otpStatusMsg)   otpStatusMsg.innerHTML = '';
+        otpEntryModal.style.setProperty('display', 'flex', 'important');
+        otpEntryModal.classList.remove('hidden');
+        setTimeout(() => {
+            otpEntryPanel.classList.remove('scale-95','opacity-0');
+            otpEntryPanel.classList.add('scale-100','opacity-100');
+            if (otpInput) otpInput.focus();
+        }, 10);
+    }
+    function closeOtpModal() {
+        otpEntryPanel.classList.remove('scale-100','opacity-100'); otpEntryPanel.classList.add('scale-95','opacity-0');
+        setTimeout(() => {
+            otpEntryModal.classList.add('hidden');
+            otpEntryModal.style.setProperty('display', 'none', 'important');
+        }, 200);
+    }
+    if (cancelOtpBtn) cancelOtpBtn.addEventListener('click', closeOtpModal);
+
+    // ── Resend timer ──────────────────────────────
+    function setResendState(enabled, t = 0) {
+        if (!resendOtpBtn) return;
+        resendOtpBtn.disabled = !enabled;
+        resendOtpBtn.style.color       = enabled ? '#6366f1' : '#94a3b8';
+        resendOtpBtn.style.cursor      = enabled ? 'pointer' : 'not-allowed';
+        resendOtpBtn.style.textDecoration = enabled ? 'underline' : 'none';
+        resendOtpBtn.style.opacity     = enabled ? '1' : '0.7';
+        if (otpResendTimer) otpResendTimer.textContent = (!enabled && t > 0) ? ` (${t}s)` : '';
+    }
+    function startResendTimer(sec = 30) {
+        let t = sec;
+        clearInterval(resendInterval);
+        setResendState(false, t);
+        resendInterval = setInterval(() => {
+            t--;
+            if (t <= 0) { clearInterval(resendInterval); setResendState(true); }
+            else        { setResendState(false, t); }
+        }, 1000);
+    }
+
+    // ── Send OTP ──────────────────────────────────
+    function doSendOtp(email) {
+        sendOtpBtn.disabled = true;
+        sendOtpBtnText.textContent = 'Sending...';
+        fetch('{{ route('register.business.send_otp') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            body: JSON.stringify({ email })
+        })
+        .then(r => r.json())
+        .then(data => {
+            sendOtpBtnText.textContent = 'Send OTP';
+            sendOtpBtn.disabled = false;
+            if (data.success) {
+                openOtpModal(email);
+                if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#16a34a;font-weight:600;">✓ ' + (data.message || 'OTP sent successfully.') + '</span>';
+                startResendTimer(30);
+            } else {
+                showAlert(data.message || 'Failed to send OTP.', 'error', 'Error');
+            }
+        })
+        .catch(() => {
+            sendOtpBtnText.textContent = 'Send OTP';
+            sendOtpBtn.disabled = false;
+            showAlert('Network error. Please try again.', 'error', 'Connection Error');
+        });
+    }
+
+    if (sendOtpBtn) {
+        sendOtpBtn.addEventListener('click', function () {
+            const email = emailInput?.value.trim() || '';
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showAlert('Please enter a valid email address.', 'warning', 'Email Required');
+                emailInput?.focus();
+                return;
+            }
+            doSendOtp(email);
+        });
+    }
+
+    // ── Resend inside modal ───────────────────────
+    if (resendOtpBtn) {
+        resendOtpBtn.addEventListener('click', function () {
+            if (resendOtpBtn.disabled) return;
+            const email = emailInput?.value.trim() || '';
+            if (!email) return;
+            setResendState(false, 0);
+            if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#6366f1;font-weight:600;">Sending new OTP...</span>';
+            fetch('{{ route('register.business.send_otp') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: JSON.stringify({ email })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (otpInput) { otpInput.value = ''; otpInput.focus(); }
+                    if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#16a34a;font-weight:700;">✓ New OTP sent!</span>';
+                    startResendTimer(30);
+                } else {
+                    setResendState(true);
+                    if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#dc2626;font-weight:700;">❌ ' + (data.message || 'Failed') + '</span>';
+                }
+            })
+            .catch(() => {
+                setResendState(true);
+                if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#dc2626;">Network error.</span>';
+            });
+        });
+    }
+
+    // ── Verify OTP ────────────────────────────────
+    if (verifyOtpBtn) {
+        verifyOtpBtn.addEventListener('click', function () {
+            const email = emailInput?.value.trim() || '';
+            const otp   = otpInput?.value.trim() || '';
+            if (!otp || otp.length !== 6) {
+                if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#dc2626;font-weight:700;">Please enter the 6-digit OTP.</span>';
+                otpInput?.focus();
+                return;
+            }
+            verifyOtpBtn.disabled = true;
+            verifyOtpBtnText.textContent = '...';
+            fetch('{{ route('register.business.verify_otp') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: JSON.stringify({ email, otp })
+            })
+            .then(r => r.json())
+            .then(data => {
+                verifyOtpBtn.disabled = false;
+                verifyOtpBtnText.textContent = 'Verify OTP';
+                if (data.success) {
+                    isEmailVerified = true;
+                    closeOtpModal();
+                    clearInterval(resendInterval);
+                    // Update email field UI
+                    emailVerifiedBadge.classList.remove('hidden');
+                    changeEmailBtn.classList.remove('hidden');
+                    sendOtpBtn.classList.add('hidden');
+                    emailInput.readOnly = true;
+                    emailInput.classList.add('bg-slate-100','text-slate-600','cursor-not-allowed');
+                } else {
+                    if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#dc2626;font-weight:700;">' + (data.message || 'Invalid OTP.') + '</span>';
+                }
+            })
+            .catch(() => {
+                verifyOtpBtn.disabled = false;
+                verifyOtpBtnText.textContent = 'Verify OTP';
+                if (otpStatusMsg) otpStatusMsg.innerHTML = '<span style="color:#dc2626;">Network error. Try again.</span>';
+            });
+        });
+    }
+
+    // Enter key in OTP input
+    if (otpInput) {
+        otpInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); verifyOtpBtn?.click(); } });
+        otpInput.addEventListener('input', function () { this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6); });
+    }
+
+    // Change email button
+    if (changeEmailBtn) {
+        changeEmailBtn.addEventListener('click', function () {
+            isEmailVerified = false;
+            emailInput.readOnly = false;
+            emailInput.classList.remove('bg-slate-100','text-slate-600','cursor-not-allowed');
+            emailVerifiedBadge.classList.add('hidden');
+            changeEmailBtn.classList.add('hidden');
+            sendOtpBtn.classList.remove('hidden');
+            sendOtpBtn.disabled = false;
+            if (otpResendTimer) otpResendTimer.textContent = '';
+        });
+    }
+
+    // Escape key closes modals
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeOtpModal(); closeAlert(); } });
+
+    // ── Block form submit if email not verified ───
+    const bizForm = document.querySelector('form[action="{{ route('register.business.submit') }}"]');
+    if (bizForm) {
+        bizForm.addEventListener('submit', function (e) {
+            // Allow if payment already done
+            const paymentIdInput = document.getElementById('razorpay_payment_id');
+            if (paymentIdInput && paymentIdInput.value) return true;
+
+            if (!isEmailVerified) {
+                e.preventDefault();
+                showAlert('Please verify your email address using OTP before submitting.', 'warning', 'Email Verification Required');
+                sendOtpBtn?.focus();
+                return false;
+            }
+        }, true); // capture phase so it fires before the Razorpay listener
+    }
+});
+</script>
+
 @if(($businessFee ?? 500) > 0)
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.querySelector('form[action="{{ route('register.business.submit') }}"]');
     if (!form) return;
 
+    // ── Prevent Razorpay re-opening on page refresh ──────────────
+    // If sessionStorage shows a payment was already initiated, do NOT
+    // re-trigger Razorpay when the page is refreshed (F5 / browser back).
+    sessionStorage.removeItem('biz_rzp_inprogress');
+
+    const submitBtn = document.getElementById('submitBusinessBtn');
+
     form.addEventListener('submit', function (e) {
         const paymentIdInput = document.getElementById('razorpay_payment_id');
+
+        // Already captured payment_id — allow normal form submit to server
         if (paymentIdInput && paymentIdInput.value) {
-            return true; // Already paid, allow normal submit
+            return true;
+        }
+
+        // If browser is replaying a cached POST (refresh), just abort silently
+        if (sessionStorage.getItem('biz_rzp_inprogress') === '1') {
+            e.preventDefault();
+            sessionStorage.removeItem('biz_rzp_inprogress');
+            return false;
         }
 
         e.preventDefault();
 
-        // Trigger HTML5 validation check
+        // HTML5 validation
         if (!form.checkValidity()) {
             form.reportValidity();
             return;
         }
 
-        const razorpayKey = "{{ $razorpayKeyId ?? '' }}";
+        const razorpayKey    = "{{ $razorpayKeyId ?? '' }}";
         const feeAmountPaise = {{ ($businessFee ?? 500) * 100 }};
-        const businessName = form.querySelector('[name="business_name"]')?.value || '';
-        const ownerName = form.querySelector('[name="owner_name"]')?.value || '';
-        const email = form.querySelector('[name="email"]')?.value || '';
-        const phone = form.querySelector('[name="phone"]')?.value.trim() || '';
+        const businessName   = form.querySelector('[name="business_name"]')?.value || '';
+        const ownerName      = form.querySelector('[name="owner_name"]')?.value || '';
+        const email          = form.querySelector('[name="email"]')?.value || '';
+        const phone          = (form.querySelector('[name="phone"]')?.value || '').trim();
+
         if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
             alert("{{ __('messages.mobile_10_digits_required') ?? 'મોબાઈલ નંબર બરાબર ૧૦ અંકનો હોવો જરૂરી છે.' }}");
             form.querySelector('[name="phone"]')?.focus();
             return;
         }
 
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Opening payment...</span>';
+        }
+
         const options = {
-            "key": razorpayKey || "rzp_test_key",
-            "amount": feeAmountPaise,
-            "currency": "INR",
-            "name": "{{ config('app.name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}",
+            "key":         razorpayKey || "rzp_test_key",
+            "amount":      feeAmountPaise,
+            "currency":    "INR",
+            "name":        "{{ config('app.name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}",
             "description": "Business Registration Fee - " + businessName,
             "handler": function (response) {
+                // Mark payment done — clear session flag
+                sessionStorage.removeItem('biz_rzp_inprogress');
                 paymentIdInput.value = response.razorpay_payment_id;
                 form.submit();
             },
+            "modal": {
+                "ondismiss": function () {
+                    // User closed Razorpay without paying — reset button
+                    sessionStorage.removeItem('biz_rzp_inprogress');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
+                    }
+                }
+            },
             "prefill": {
-                "name": ownerName,
-                "email": email,
+                "name":    ownerName,
+                "email":   email,
                 "contact": phone
             },
-            "theme": {
-                "color": "#2563EB"
-            }
+            "theme": { "color": "#2563EB" }
         };
 
-        if (window.Razorpay) {
+        function launchRazorpay() {
+            sessionStorage.setItem('biz_rzp_inprogress', '1');
             const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function () {
+                sessionStorage.removeItem('biz_rzp_inprogress');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
+                }
+            });
             rzp.open();
+        }
+
+        if (window.Razorpay) {
+            launchRazorpay();
         } else {
-            alert('Razorpay Payment Gateway failed to load. Submitting application...');
-            form.submit();
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = launchRazorpay;
+            script.onerror = function () {
+                sessionStorage.removeItem('biz_rzp_inprogress');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
+                }
+                alert('Razorpay Payment Gateway failed to load. Please check your internet connection.');
+            };
+            document.head.appendChild(script);
         }
     });
 });

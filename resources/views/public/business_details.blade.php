@@ -42,6 +42,26 @@
     <section class="py-6 bg-slate-50/50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
             
+            @if($business->status !== 'approved')
+                <div class="p-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap {{ $business->status === 'pending' ? 'bg-amber-50 border border-amber-200 text-amber-900' : 'bg-rose-50 border border-rose-200 text-rose-900' }}">
+                    <div class="flex items-center gap-2.5 text-xs font-bold">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $business->status === 'pending' ? 'bg-amber-200 text-amber-900' : 'bg-rose-200 text-rose-900' }}">
+                            {{ strtoupper($business->status) }}
+                        </span>
+                        <span>
+                            @if($business->status === 'pending')
+                                {{ (app()->getLocale() === 'gu') ? 'આ વ્યવસાય એડમિન મંજૂરી માટે પેન્ડિંગ છે અને માત્ર તમને (માલિકને) પ્રિવ્યુ તરીકે દેખાય છે.' : 'This business listing is pending admin approval and is currently visible only to you in preview mode.' }}
+                            @else
+                                {{ (app()->getLocale() === 'gu') ? 'આ વ્યવસાય માન્ય કરેલ નથી.' : 'This business listing has not been approved.' }}
+                            @endif
+                        </span>
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-white/70 px-2 py-0.5 rounded-md border border-slate-200/60">
+                        Owner Preview
+                    </span>
+                </div>
+            @endif
+
             <!-- SECTION 1: ABOUT THE BUSINESS -->
             <div class="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-xs space-y-3">
                 <h2
@@ -223,66 +243,33 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-xs font-semibold text-slate-700">
                     
-                    <!-- COLUMN 1: SUBSCRIPTION & REGISTRATION DATES -->
+                    <!-- COLUMN 1: MEMBER ID -->
                     <div class="space-y-3">
-                        <div class="flex items-start gap-2.5">
-                            <svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                </path>
-                            </svg>
-                            <div>
-                                <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.registered_since') }}</h4>
-                                <p class="text-slate-800 font-bold mt-0.5">{{ $business->created_at->format('d M Y') }}</p>
-                            </div>
-                        </div>
-
-                        @if($business->approved_at)
+                        @php
+                            $memberName = null;
+                            if ($business->user && $business->user->memberProfile) {
+                                $p = $business->user->memberProfile;
+                                $memberName = trim(collect([$p->first_name, $p->middle_name ?? null, $p->last_name])->filter()->implode(' '));
+                            } elseif ($business->user) {
+                                $memberName = $business->user->name;
+                            }
+                        @endphp
+                        @if($memberName)
                             <div class="flex items-start gap-2.5">
                                 <svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                                    </path>
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
                                 <div>
-                                    <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.subscription_status') }}</h4>
-                                    @if($business->membership_status === 'active')
-                                        <span class="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded mt-0.5 inline-block uppercase">{{ __('messages.active') }}</span>
-                                    @else
-                                        <span class="text-[9px] font-extrabold text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded mt-0.5 inline-block uppercase">{{ __('messages.expired') }}</span>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <div class="flex items-start gap-2.5">
-                                <svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <div>
-                                    <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.subscription_expiry') }}</h4>
-                                    <p class="text-slate-800 font-bold mt-0.5">{{ $business->approved_at->addYear()->format('d M Y') }}</p>
-                                </div>
-                            </div>
-                        @endif
-
-                        @if($business->member_id)
-                            <div class="flex items-start gap-2.5">
-                                <svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2H5z"></path>
-                                </svg>
-                                <div>
-                                    <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.member_id') }}</h4>
-                                    <p class="text-slate-800 font-bold mt-0.5">{{ $business->member_id }}</p>
+                                    <h4 class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide">{{ __('messages.member') }}</h4>
+                                    <p class="text-slate-800 font-bold mt-0.5">{{ $memberName }}</p>
                                 </div>
                             </div>
                         @endif
                     </div>
+
+
 
                     <!-- COLUMN 2: LOCATION & ADDRESS DETAILS -->
                     <div class="space-y-3">

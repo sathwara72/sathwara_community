@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\AreaController as AdminArea;
 use App\Http\Controllers\Admin\SponsorshipController as AdminSponsorship;
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\SubAdminController;
+use App\Http\Controllers\Business\BusinessAuthController;
+use App\Http\Controllers\Business\DashboardController as BusinessDashboard;
 use App\Http\Controllers\Admin\NotificationController as AdminNotification;
 use Illuminate\Support\Facades\Route;
 
@@ -40,7 +42,7 @@ Route::get('/gallery', [PublicController::class, 'gallery'])->name('gallery');
 Route::get('/business-directory', [PublicController::class, 'businessDirectory'])->name('business.directory');
 Route::get('/business-directory/{id}', [PublicController::class, 'businessDetails'])->name('business.details');
 Route::get('/contact-us', [PublicController::class, 'contact'])->name('contact');
-Route::post('/contact-us', [PublicController::class, 'contactSubmit'])->name('contact.submit');
+Route::post('/contact-us', [PublicController::class, 'contactSubmit'])->name('contact.submit')->middleware('throttle:5,1');
 
 // ================= REGISTRATION FORMS =================
 Route::middleware('guest')->group(function () {
@@ -48,7 +50,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/register/member', [RegistrationController::class, 'showMemberRegister'])->name('register.member');
     Route::post('/register/member', [RegistrationController::class, 'submitMemberRegister'])->name('register.member.submit');
     Route::post('/register/member/pre-validate', [RegistrationController::class, 'preValidateMember'])->name('register.member.pre_validate');
-    Route::post('/register/member/send-otp', [RegistrationController::class, 'sendRegistrationOtp'])->name('register.member.send_otp');
+    Route::post('/register/member/send-otp', [RegistrationController::class, 'sendRegistrationOtp'])->name('register.member.send_otp')->middleware('throttle:5,10');
     Route::post('/register/member/verify-otp', [RegistrationController::class, 'verifyRegistrationOtp'])->name('register.member.verify_otp');
 });
 
@@ -56,8 +58,42 @@ Route::middleware('guest')->group(function () {
 // Business signup (Public - can be submitted by guests or logged-in members)
 Route::get('/register/business', [RegistrationController::class, 'showBusinessRegister'])->name('register.business');
 Route::post('/register/business', [RegistrationController::class, 'submitBusinessRegister'])->name('register.business.submit');
-Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id');
-Route::get('/api/lookup-father-member', [RegistrationController::class, 'lookupFatherMember'])->name('api.lookup_father_member');
+Route::post('/register/business/send-otp', [RegistrationController::class, 'sendBusinessRegistrationOtp'])->name('register.business.send_otp')->middleware('throttle:5,10');
+Route::post('/register/business/verify-otp', [RegistrationController::class, 'verifyBusinessRegistrationOtp'])->name('register.business.verify_otp');
+Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id')->middleware('throttle:30,1');
+Route::get('/api/lookup-father-member', [RegistrationController::class, 'lookupFatherMember'])->name('api.lookup_father_member')->middleware('throttle:30,1');
+
+// ================= BUSINESS PANEL AUTH =================
+Route::prefix('business')->name('business.')->group(function () {
+    Route::get('/login', [BusinessAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [BusinessAuthController::class, 'login'])->name('login.submit')->middleware('throttle:10,1');
+    Route::post('/logout', [BusinessAuthController::class, 'logout'])->name('logout');
+
+    // Business Forgot / Reset Password
+    Route::get('/forgot-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showForgotPasswordForm'])->name('password.request');
+    Route::post('/forgot-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'sendOtp'])->name('password.email')->middleware('throttle:5,10');
+    Route::get('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showVerifyOtpForm'])->name('password.otp.verify.form');
+    Route::post('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'verifyOtp'])->name('password.otp.verify.submit');
+    Route::get('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showResetPasswordForm'])->name('password.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'resetPassword'])->name('password.store');
+});
+
+// ================= BUSINESS PANEL (Protected) =================
+Route::middleware(['auth:business'])->prefix('business')->name('business.')->group(function () {
+    Route::get('/', function () {
+        return redirect()->route('business.profile.edit');
+    });
+    Route::get('/dashboard', [BusinessDashboard::class, 'index'])->name('dashboard');
+    Route::get('/profile', [BusinessDashboard::class, 'editProfile'])->name('profile.edit');
+    Route::post('/profile', [BusinessDashboard::class, 'updateProfile'])->name('profile.update');
+    Route::post('/profile/email/send-otp', [BusinessDashboard::class, 'sendProfileEmailOtp'])->name('profile.email.send_otp')->middleware('throttle:5,10');
+    Route::post('/profile/email/verify-otp', [BusinessDashboard::class, 'verifyProfileEmailOtp'])->name('profile.email.verify_otp');
+    Route::post('/password', [BusinessDashboard::class, 'updatePassword'])->name('password.update');
+    Route::get('/renewal', [BusinessDashboard::class, 'renewal'])->name('renewal');
+    Route::post('/renewal/pay', [BusinessDashboard::class, 'processRenewal'])->name('renewal.pay');
+    Route::post('/renewal/generate-link', [BusinessDashboard::class, 'generateRenewalLink'])->name('renewal.generateLink');
+    Route::get('/renewal/callback', [BusinessDashboard::class, 'renewalCallback'])->name('renewal.callback');
+});
 
 // ================= ACCOUNT STATUS PAGE & REDIRECT =================
 // Guarded by auth, but accessible even if NOT approved (so they see the pending/rejected status)
@@ -131,7 +167,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     Route::delete('/sub-admins/{id}', [SubAdminController::class, 'destroy'])->name('sub_admins.destroy');
 
     // Members list, detail sheet, approvals, CSV export, print
-    Route::middleware(['permission_check:members_manage'])->group(function() {
+    Route::middleware(['permission_check:members_manage'])->group(function () {
         Route::get('/members', [AdminMember::class, 'index'])->name('members.index');
         Route::get('/members/export', [AdminMember::class, 'exportCsv'])->name('members.export');
         Route::get('/members/print', [AdminMember::class, 'printList'])->name('members.print');
@@ -147,7 +183,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Areas Management
-    Route::middleware(['permission_check:areas_manage'])->group(function() {
+    Route::middleware(['permission_check:areas_manage'])->group(function () {
         Route::get('/areas', [AdminArea::class, 'index'])->name('areas.index');
         Route::get('/areas/export', [AdminArea::class, 'exportCsv'])->name('areas.export');
         Route::get('/areas/sample-csv', [AdminArea::class, 'downloadSampleCsv'])->name('areas.sample_csv');
@@ -158,7 +194,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Businesses and Categories
-    Route::middleware(['permission_check:businesses_manage'])->group(function() {
+    Route::middleware(['permission_check:businesses_manage'])->group(function () {
         Route::get('/businesses', [AdminBusiness::class, 'index'])->name('businesses.index');
         Route::get('/businesses/export', [AdminBusiness::class, 'exportCsv'])->name('businesses.export');
         Route::get('/businesses/{id}', [AdminBusiness::class, 'show'])->name('businesses.show');
@@ -182,7 +218,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Events and Registrations
-    Route::middleware(['permission_check:events_manage'])->group(function() {
+    Route::middleware(['permission_check:events_manage'])->group(function () {
         Route::get('/events/export', [AdminEvent::class, 'exportCsv'])->name('events.export');
         Route::resource('events', AdminEvent::class);
         Route::get('/events/{id}/registrations/export', [AdminEvent::class, 'exportRegistrationsCsv'])->name('events.registrations.export');
@@ -225,7 +261,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // General Gallery
-    Route::middleware(['permission_check:gallery_manage'])->group(function() {
+    Route::middleware(['permission_check:gallery_manage'])->group(function () {
         Route::get('/gallery', [AdminGallery::class, 'index'])->name('gallery.index');
         Route::get('/gallery/export', [AdminGallery::class, 'exportCsv'])->name('gallery.export');
         Route::post('/gallery', [AdminGallery::class, 'store'])->name('gallery.store');
@@ -233,7 +269,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Content Management
-    Route::middleware(['permission_check:sliders_manage'])->group(function() {
+    Route::middleware(['permission_check:sliders_manage'])->group(function () {
         Route::get('/content/sliders', [AdminContent::class, 'sliders'])->name('content.sliders');
         Route::get('/content/sliders/export', [AdminContent::class, 'exportSlidersCsv'])->name('content.sliders.export');
         Route::post('/content/sliders', [AdminContent::class, 'storeSlider'])->name('content.sliders.store');
@@ -241,7 +277,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/sliders/{id}', [AdminContent::class, 'destroySlider'])->name('content.sliders.destroy');
     });
 
-    Route::middleware(['permission_check:agendas_manage'])->group(function() {
+    Route::middleware(['permission_check:agendas_manage'])->group(function () {
         Route::get('/content/agendas', [AdminContent::class, 'agendas'])->name('content.agendas');
         Route::get('/content/agendas/export', [AdminContent::class, 'exportAgendasCsv'])->name('content.agendas.export');
         Route::post('/content/agendas', [AdminContent::class, 'storeAgenda'])->name('content.agendas.store');
@@ -249,7 +285,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/agendas/{id}', [AdminContent::class, 'destroyAgenda'])->name('content.agendas.destroy');
     });
 
-    Route::middleware(['permission_check:desk_manage'])->group(function() {
+    Route::middleware(['permission_check:desk_manage'])->group(function () {
         Route::get('/content/management-desk', [AdminContent::class, 'managementDesk'])->name('content.desk');
         Route::get('/content/management-desk/export', [AdminContent::class, 'exportDeskCsv'])->name('content.desk.export');
         Route::post('/content/management-desk', [AdminContent::class, 'storeDesk'])->name('content.desk.store');
@@ -257,7 +293,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/management-desk/{id}', [AdminContent::class, 'destroyDesk'])->name('content.desk.destroy');
     });
 
-    Route::middleware(['permission_check:committee_manage'])->group(function() {
+    Route::middleware(['permission_check:committee_manage'])->group(function () {
         Route::get('/content/committee', [AdminContent::class, 'committee'])->name('content.committee');
         Route::get('/content/committee/export', [AdminContent::class, 'exportCommitteeCsv'])->name('content.committee.export');
         Route::post('/content/committee', [AdminContent::class, 'storeCommittee'])->name('content.committee.store');
@@ -265,7 +301,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/committee/{id}', [AdminContent::class, 'destroyCommittee'])->name('content.committee.destroy');
     });
 
-    Route::middleware(['permission_check:timelines_manage'])->group(function() {
+    Route::middleware(['permission_check:timelines_manage'])->group(function () {
         Route::get('/content/timelines', [AdminContent::class, 'timelines'])->name('content.timelines');
         Route::get('/content/timelines/export', [AdminContent::class, 'exportTimelinesCsv'])->name('content.timelines.export');
         Route::post('/content/timelines', [AdminContent::class, 'storeTimeline'])->name('content.timelines.store');
@@ -273,7 +309,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/content/timelines/{id}', [AdminContent::class, 'destroyTimeline'])->name('content.timelines.destroy');
     });
 
-    Route::middleware(['permission_check:announcements_manage'])->group(function() {
+    Route::middleware(['permission_check:announcements_manage'])->group(function () {
         Route::get('/content/updates', [AdminContent::class, 'updates'])->name('content.updates');
         Route::get('/content/updates/export', [AdminContent::class, 'exportUpdatesCsv'])->name('content.updates.export');
         Route::post('/content/updates', [AdminContent::class, 'storeUpdate'])->name('content.updates.store');
@@ -282,7 +318,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Site & Email Settings
-    Route::middleware(['permission_check:settings_manage'])->group(function() {
+    Route::middleware(['permission_check:settings_manage'])->group(function () {
         Route::get('/settings', [AdminSettings::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettings::class, 'update'])->name('settings.update');
 
@@ -295,12 +331,20 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Receipts Download Routes
-    Route::prefix('receipts')->name('receipts.')->group(function() {
+    Route::prefix('receipts')->name('receipts.')->group(function () {
         Route::get('/membership/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadMembership'])->name('membership');
         Route::get('/business/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadBusiness'])->name('business');
         Route::get('/event-pass/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadEventPass'])->name('event_pass');
         Route::get('/sponsorship/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadSponsorship'])->name('sponsorship');
     });
+});
+
+// Public / Member Receipt Download Routes
+Route::prefix('receipts')->name('receipts.')->group(function () {
+    Route::get('/event-pass/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadEventPass'])->name('event_pass');
+    Route::get('/sponsorship/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadSponsorship'])->name('sponsorship');
+    Route::get('/membership/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadMembership'])->name('membership');
+    Route::get('/business/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadBusiness'])->name('business');
 });
 
 // Sponsorship Preview Route

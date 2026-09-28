@@ -46,6 +46,10 @@ class ReceiptController extends Controller
             'paymentId' => $paymentId,
         ]);
 
+        if (request()->has('view')) {
+            return $pdf->stream('Membership_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
+        }
+
         return $pdf->download('Membership_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
     }
 
@@ -71,6 +75,10 @@ class ReceiptController extends Controller
             'paymentId' => $paymentId,
         ]);
 
+        if (request()->has('view')) {
+            return $pdf->stream('Business_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
+        }
+
         return $pdf->download('Business_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
     }
 
@@ -82,7 +90,12 @@ class ReceiptController extends Controller
         $registration = EventRegistration::with('event')->findOrFail($id);
         $event = $registration->event ?? Event::findOrFail($registration->event_id);
         $user = $registration->user_id ? User::find($registration->user_id) : null;
-        
+
+        // Ensure that if event has a pass fee, registration must be paid
+        if ((float) ($event->pass_fee ?? 0) > 0 && ($registration->payment_status ?? 'unpaid') !== 'paid') {
+            abort(403, 'Payment is required to download this event pass.');
+        }
+
         $tokens = \App\Services\PassTokenService::getOrGenerateTokens($registration);
         $passTokens = [];
         foreach ($tokens as $tk) {
@@ -96,7 +109,7 @@ class ReceiptController extends Controller
 
         $passes = array_column($passTokens, 'passNo');
         $personCount = count($passes);
-        $amount = (float)($registration->payment_amount ?? 0);
+        $amount = (float) ($registration->payment_amount ?? 0);
         $paymentStatus = $registration->payment_status ?? 'paid';
         $paymentId = $registration->payment_id;
         $receiptNo = ReceiptNumberService::assign($registration, 'receipt_no');
@@ -114,6 +127,10 @@ class ReceiptController extends Controller
             'paymentId' => $paymentId,
         ]);
 
+        if (request()->has('view')) {
+            return $pdf->stream('Event_Pass_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
+        }
+
         return $pdf->download('Event_Pass_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
     }
 
@@ -125,7 +142,7 @@ class ReceiptController extends Controller
         $sponsor = EventSponsor::with(['event', 'sponsorshipType'])->findOrFail($id);
         $event = $sponsor->event;
         $sponsorshipType = $sponsor->sponsorshipType;
-        $amount = (float)($sponsor->amount ?? 0);
+        $amount = (float) ($sponsor->amount ?? 0);
         $paymentStatus = $sponsor->payment_status ?? 'received';
         $paymentId = $sponsor->payment_id;
         $receiptNo = ReceiptNumberService::assign($sponsor, 'receipt_no');
@@ -139,6 +156,10 @@ class ReceiptController extends Controller
             'paymentStatus' => $paymentStatus,
             'paymentId' => $paymentId,
         ]);
+
+        if (request()->has('view')) {
+            return $pdf->stream('Sponsorship_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
+        }
 
         return $pdf->download('Sponsorship_Receipt_' . self::filenameSafe($receiptNo) . '.pdf');
     }
@@ -177,7 +198,7 @@ class ReceiptController extends Controller
             'sponsor' => $sponsor,
             'sponsorshipType' => $sponsor->sponsorshipType,
             'receiptNo' => $receiptNo,
-            'amount' => (float)($sponsor->amount ?? 25000),
+            'amount' => (float) ($sponsor->amount ?? 25000),
             'paymentStatus' => 'received',
             'paymentId' => 'pay_SPN_10004',
         ]);

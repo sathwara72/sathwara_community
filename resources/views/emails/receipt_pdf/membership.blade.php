@@ -3,6 +3,26 @@
 @section('type_label', 'Membership Receipt')
 
 @section('content')
+    @php
+        $memberName = \App\Support\GujaratiText::reorderMatra($user->name ?? '');
+        $memberAddress = !empty($profile->address) ? $profile->address : ($profile->city ?? '');
+        $formattedAddress = !empty($memberAddress) ? \App\Support\GujaratiText::reorderMatra($memberAddress) : '';
+        $memberPhone = $profile->phone ?? ($user->phone ?? '');
+        $amountInWords = \App\Support\NumberToWords::convert($amount);
+    @endphp
+
+    <!-- Acknowledgement Box -->
+    <div class="ack-box">
+        Shree <strong>{{ $memberName }}</strong>
+        @if(!empty($formattedAddress))
+            , Address <strong>{{ $formattedAddress }}</strong>
+        @endif
+        @if(!empty($memberPhone))
+            , Mobile <strong>{{ $memberPhone }}</strong>
+        @endif
+        , we have received a sum of Rupees <strong>{{ number_format($amount, 2) }} ({{ $amountInWords }} INR)</strong> as per the details below:
+    </div>
+
     <!-- Member Details -->
     <div class="section-header">Member Information</div>
     <table class="info-table">

@@ -3,6 +3,30 @@
 @section('type_label', 'Business Renewal Receipt')
 
 @section('content')
+    @php
+        $bizName = \App\Support\GujaratiText::reorderMatra($business->business_name ?? '');
+        $ownerName = \App\Support\GujaratiText::reorderMatra($business->owner_name ?? '');
+        $bizAddress = !empty($business->address) ? $business->address : ($business->area?->name ?? '');
+        $formattedAddress = !empty($bizAddress) ? \App\Support\GujaratiText::reorderMatra($bizAddress) : '';
+        $bizPhone = $business->phone ?? '';
+        $amountInWords = \App\Support\NumberToWords::convert($amount);
+    @endphp
+
+    <!-- Acknowledgement Box -->
+    <div class="ack-box">
+        Shree <strong>{{ $bizName }}</strong>
+        @if(!empty($ownerName))
+            (Contact Person: <strong>{{ $ownerName }}</strong>),
+        @endif
+        @if(!empty($formattedAddress))
+            Address <strong>{{ $formattedAddress }}</strong>,
+        @endif
+        @if(!empty($bizPhone))
+            Mobile <strong>{{ $bizPhone }}</strong>,
+        @endif
+        we have received a sum of Rupees <strong>{{ number_format($amount, 2) }} ({{ $amountInWords }} INR)</strong> as per the details below:
+    </div>
+
     <!-- Business Details -->
     <div class="section-header">Business Listing Details</div>
     <table class="info-table">

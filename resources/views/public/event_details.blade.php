@@ -119,6 +119,7 @@
 
     <!-- Event Content & Registration -->
     <section class="py-12 md:py-16 bg-white event-details-content"
+             @close-all-modals.window="showSponsorModal = false"
              x-data="{
                  showSponsorModal: false,
                  selectedTypeId: '',
@@ -132,23 +133,6 @@
                  }
              }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            @if(session('success'))
-                <div class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl flex items-center gap-3 shadow-2xs">
-                    <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                    </div>
-                    <span class="text-xs sm:text-sm font-bold">{{ session('success') }}</span>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl flex items-center gap-3 shadow-2xs">
-                    <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </div>
-                    <span class="text-xs sm:text-sm font-bold">{{ session('error') }}</span>
-                </div>
-            @endif
 
             @if($errors->any())
                 <div class="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl space-y-1.5 shadow-2xs">
@@ -480,9 +464,9 @@
                                                 {{ strtoupper(substr($sp->name, 0, 1)) }}
                                             </div>
                                         @endif
-                                        <div class="font-extrabold text-slate-900 text-xs line-clamp-1 w-full" title="{{ $sp->name }}">{{ $sp->name }}</div>
+                                        <div class="font-extrabold text-slate-900 text-xs w-full break-words leading-snug" title="{{ $sp->name }}">{{ $sp->name }}</div>
                                         @if($sp->sponsorshipType)
-                                            <span class="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded mt-1 border border-primary-100/60 line-clamp-1">
+                                            <span class="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded mt-1 border border-primary-100/60 text-center break-words">
                                                 {{ $sp->sponsorshipType->title }}
                                             </span>
                                         @endif
@@ -582,12 +566,35 @@
                                                 </div>
                                             @endif
 
-                                            @if($registration)
+                                            @php
+                                                $isFeeRequired = (float)($event->pass_fee ?? 0) > 0;
+                                                $hasPaidPass = $registration && (!$isFeeRequired || ($registration->payment_status === 'paid'));
+                                            @endphp
+
+                                            @if($hasPaidPass)
                                                 @php
                                                     $regPersons = max(1, (int)($registration->form_data['person_count'] ?? 1));
                                                     $userPasses = [];
-                                                    for ($i = 1; $i <= $regPersons; $i++) {
-                                                        $userPasses[] = sprintf('%03d', $i);
+                                                    $tokens = \App\Services\PassTokenService::getOrGenerateTokens($registration);
+                                                    $basePassNo = (int) ($registration->pass_number ?: ($registration->form_data['registration_no'] ?? $registration->id));
+                                                    if ($tokens->isNotEmpty()) {
+                                                        foreach ($tokens as $idx => $tk) {
+                                                            $userPasses[] = [
+                                                                'passNo' => sprintf('%03d', $basePassNo + $idx),
+                                                                'tokenHash' => $tk->token_hash,
+                                                                'passCode' => $tk->pass_code,
+                                                                'qrUrl' => \App\Services\PassTokenService::getQrCodeImageUrl($tk->token_hash),
+                                                            ];
+                                                        }
+                                                    } else {
+                                                        for ($i = 0; $i < $regPersons; $i++) {
+                                                            $userPasses[] = [
+                                                                'passNo' => sprintf('%03d', $basePassNo + $i),
+                                                                'tokenHash' => '',
+                                                                'passCode' => '',
+                                                                'qrUrl' => '',
+                                                            ];
+                                                        }
                                                     }
                                                     $attendeeName = $registration->form_data['full_name'] ?? (auth()->user() ? auth()->user()->name : 'Member');
                                                     $memberId = auth()->user() ? sprintf('#%05d', auth()->user()->id) : ($registration->form_data['member_id'] ?? '-');
@@ -620,7 +627,7 @@
                                             @endif
                                         </div>
 
-                                        @if($registration)
+                                        @if($hasPaidPass)
                                             <!-- View Passes Modal (Teleported to Body) -->
                                             <template x-teleport="body">
                                                 <div x-show="showViewPassesModal" 
@@ -659,67 +666,99 @@
 
                                                         <!-- Modal Scrollable Content containing all passes -->
                                                         <div class="p-4 sm:p-6 overflow-y-auto space-y-6 bg-slate-50 flex-1" id="printablePassesArea">
-                                                            @foreach($userPasses as $idx => $pNo)
-                                                                <div class="bg-white rounded-2xl border-2 border-slate-900 shadow-sm overflow-hidden text-slate-900 print-pass-item" 
+                                                            @foreach($userPasses as $idx => $pObj)
+                                                                @php
+                                                                    $pNo = is_array($pObj) ? $pObj['passNo'] : $pObj;
+                                                                    $qrUrl = is_array($pObj) ? ($pObj['qrUrl'] ?? '') : '';
+                                                                    $passCode = is_array($pObj) ? ($pObj['passCode'] ?? '') : '';
+                                                                @endphp
+                                                                <div class="relative bg-white rounded-2xl border-2 border-slate-900 shadow-md overflow-hidden text-slate-900 print-pass-item transition-all hover:shadow-xl" 
                                                                      id="pass-card-{{ $idx }}"
                                                                      data-pass-no="{{ $pNo }}"
+                                                                     data-qr-url="{{ $qrUrl }}"
                                                                      data-event-title="{{ $event->title }}"
                                                                      data-mandal="Shree Satwara Gnati Mandal, Ahmedabad"
                                                                      data-date="{{ date('d-M-Y', strtotime($event->date)) }}{{ $event->time ? ' | ' . date('h:i A', strtotime($event->time)) : '' }}"
                                                                      data-venue="{{ $event->venue }}"
+                                                                     data-attendee="{{ $attendeeName }}"
+                                                                     data-member-code="{{ $memberId }}"
                                                                      data-logo="{{ $logoUrl }}">
-                                                                    <!-- Top Bar -->
-                                                                    <div class="bg-slate-900 text-white px-4 py-2 flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                                                                        <span>{{ __('messages.community_entry_pass') }}</span>
-                                                                        <span class="text-primary-400">{{ __('messages.pass') }}</span>
+                                                                    
+                                                                    <!-- Left & Right Ticket Notches -->
+                                                                    <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-50 border-2 border-slate-900 z-20"></div>
+                                                                    <div class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-50 border-2 border-slate-900 z-20"></div>
+
+                                                                    <!-- Top Bar Header -->
+                                                                    <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white px-5 py-2.5 flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
+                                                                        <span class="flex items-center gap-2 truncate">
+                                                                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                                                            <span>{{ $attendeeName }}</span>
+                                                                            @if($memberId && $memberId !== '-')
+                                                                                <span class="text-indigo-300 font-mono">({{ $memberId }})</span>
+                                                                            @endif
+                                                                        </span>
+                                                                        <span class="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-black shrink-0 tracking-widest">
+                                                                            VERIFIED PASS #{{ $idx + 1 }}
+                                                                        </span>
                                                                     </div>
 
-                                                                    <!-- Pass Core (Sketch Layout) -->
-                                                                    <div class="p-4 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
-                                                                        <!-- Left: Circular Logo -->
-                                                                        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                                                            <img src="{{ $logoUrl }}" alt="Logo" class="w-full h-full object-cover" onerror="this.src='/logo.png'">
+                                                                    <!-- Pass Core Body -->
+                                                                    <div class="p-4 sm:p-5 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 relative bg-white">
+                                                                        <!-- Left: Mandal Logo -->
+                                                                        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-slate-900 bg-slate-50 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                                                                            <img src="{{ $logoUrl }}" alt="Logo" class="w-full h-full object-contain" onerror="this.src='/logo.png'">
                                                                         </div>
 
-                                                                        <!-- Middle Details: Mandal, Event Name, Date, Attendee -->
-                                                                        <div class="flex-1 space-y-1.5 text-center sm:text-left">
-                                                                            <div class="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                                        <!-- Center: Event & Mandal Info -->
+                                                                        <div class="flex-1 space-y-1.5 text-center sm:text-left min-w-0">
+                                                                            <div class="text-[11px] font-black text-slate-500 uppercase tracking-widest">
                                                                                 Shree Satwara Gnati Mandal, Ahmedabad
                                                                             </div>
-                                                                            <div class="text-base sm:text-lg font-black text-rose-600 leading-tight">
+                                                                            <div class="text-base sm:text-lg font-black text-slate-950 leading-tight tracking-tight break-words">
                                                                                 {{ $event->title }}
                                                                             </div>
-                                                                            <div class="text-xs font-bold text-slate-700 flex items-center justify-center sm:justify-start gap-1">
+                                                                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-100 text-slate-800 text-xs font-bold border border-slate-200">
+                                                                                <svg class="w-3.5 h-3.5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                                                                 <span>{{ __('messages.date') ?? 'Date' }}:</span>
-                                                                                <span>{{ date('d-M-Y', strtotime($event->date)) }}</span>
+                                                                                <span class="font-extrabold text-slate-950">{{ date('d-M-Y', strtotime($event->date)) }}</span>
                                                                                 @if($event->time)
                                                                                     <span class="text-slate-400">|</span>
-                                                                                    <span>{{ date('h:i A', strtotime($event->time)) }}</span>
+                                                                                    <span class="font-extrabold text-indigo-700">{{ date('h:i A', strtotime($event->time)) }}</span>
                                                                                 @endif
                                                                             </div>
-
                                                                         </div>
 
-                                                                        <!-- Right: Dedicated Pass No. Box -->
-                                                                        <div class="shrink-0 flex flex-col items-center sm:items-end justify-between self-stretch pt-2 sm:pt-0">
-                                                                            <div class="border-2 border-slate-900 rounded-xl px-4 py-2 bg-slate-50 text-center shadow-xs">
-                                                                                <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">{{ __('messages.pass_no') }}</span>
-                                                                                <span class="text-xl font-black text-slate-900 block mt-0.5 tracking-widest">{{ $pNo }}</span>
+                                                                        <!-- Right: Anti-Fraud QR Code & Pass Number Badge -->
+                                                                        <div class="shrink-0 flex items-center gap-3 bg-slate-50 border-2 border-slate-900 p-2 rounded-2xl shadow-xs">
+                                                                            @if(!empty($qrUrl))
+                                                                                <div class="w-18 h-18 sm:w-20 sm:h-20 bg-white border border-slate-300 rounded-xl p-1 flex items-center justify-center shrink-0">
+                                                                                    <img src="{{ $qrUrl }}" alt="QR Gate Pass" class="w-full h-full object-contain">
+                                                                                </div>
+                                                                            @endif
+                                                                            <div class="text-center px-2">
+                                                                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block">PASS NO</span>
+                                                                                <span class="text-2xl font-black text-indigo-950 block mt-0.5 tracking-wider">{{ $pNo }}</span>
+                                                                                @if(!empty($passCode))
+                                                                                    <span class="inline-block mt-1 text-[8px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">{{ $passCode }}</span>
+                                                                                @endif
                                                                             </div>
                                                                         </div>
                                                                     </div>
 
                                                                     <!-- Bottom Location Strip -->
-                                                                    <div class="border-t-2 border-dashed border-slate-200 bg-slate-50/80 px-4 py-2.5 text-xs font-bold text-slate-700 flex items-center justify-between gap-1.5">
-                                                                        <span class="flex items-center gap-1.5">
-                                                                            <svg class="w-3.5 h-3.5 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                                                            <span><strong>{{ __('messages.location') ?? 'Location' }}:</strong> {{ $event->venue }}</span>
+                                                                    <div class="border-t-2 border-dashed border-slate-200 bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-800 flex items-center justify-between gap-2">
+                                                                        <span class="flex items-center gap-1.5 min-w-0">
+                                                                            <svg class="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                                            <span class="truncate"><strong>{{ __('messages.location') ?? 'Location' }}:</strong> {{ $event->venue }}</span>
                                                                         </span>
-                                                                        <button type="button" onclick="downloadSinglePass('pass-card-{{ $idx }}')"
-                                                                                class="flex items-center gap-1 px-2.5 py-1 bg-slate-900 hover:bg-slate-700 text-white text-[10px] font-extrabold rounded-lg transition-colors cursor-pointer no-print">
-                                                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                                                            <span>{{ __('messages.download') }}</span>
-                                                                        </button>
+                                                                        <div class="flex items-center gap-2 shrink-0">
+                                                                            <span class="text-[10px] text-slate-400 font-mono font-semibold hidden sm:inline uppercase tracking-widest">GATE SCANNER VALID</span>
+                                                                            <button type="button" onclick="downloadSinglePass('pass-card-{{ $idx }}')"
+                                                                                    class="flex items-center gap-1 px-2.5 py-1 bg-slate-900 hover:bg-slate-700 text-white text-[10px] font-extrabold rounded-lg transition-colors cursor-pointer no-print">
+                                                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                                                <span>{{ __('messages.download') ?? 'Download' }}</span>
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             @endforeach
@@ -1054,6 +1093,11 @@ function submitSponsorFormWithRazorpay() {
         "description": "Event Sponsorship - {{ addslashes($event->title) }} (₹" + sponsorAmount.toLocaleString() + ")",
         "handler": function (response) {
             paymentIdInput.value = response.razorpay_payment_id;
+            window.dispatchEvent(new CustomEvent('close-all-modals'));
+            document.querySelectorAll('[x-show="showSponsorModal"]').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            window.dispatchEvent(new CustomEvent('show-loader'));
             sponsorForm.submit();
         },
         "prefill": {
@@ -1066,23 +1110,44 @@ function submitSponsorFormWithRazorpay() {
         },
         "modal": {
             "ondismiss": function() {
-                if (confirm("{{ $isGu ? 'ઓનલાઇન પેમેન્ટ પૂર્ણ થયું નથી. શું તમે આ સ્પોન્સરશિપ વિગતો સાથે સબમિટ કરવા માંગો છો (Pending Payment)?' : 'Payment was not completed. Do you want to submit your sponsorship details with Pending payment status?' }}")) {
-                    sponsorForm.submit();
-                }
+                // User closed or cancelled the Razorpay payment modal.
+                // Do not submit the form and do not prompt to submit with pending status.
             }
         }
     };
 
     if (window.Razorpay) {
         const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response) {
+            alert(response.error?.description || "{{ $isGu ? 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment failed. Please try again.' }}");
+        });
         rzp.open();
     } else {
-        alert('Razorpay Payment Gateway is initializing. Submitting registration...');
-        sponsorForm.submit();
+        alert("{{ $isGu ? 'પેમેન્ટ ગેટવે લોડ થઈ શક્યો નથી. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment gateway failed to load. Please try again.' }}");
     }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    /* =================== SPONSOR REGISTRATION INTERCEPT =================== */
+    const sponsorForm = document.getElementById('publicSponsorRegisterForm');
+    if (sponsorForm) {
+        sponsorForm.addEventListener('submit', function (e) {
+            const paymentIdInput = document.getElementById('sponsor_razorpay_payment_id');
+            if (paymentIdInput && paymentIdInput.value) {
+                return true; // Already paid
+            }
+
+            const amountInput = sponsorForm.querySelector('[name="amount"]');
+            const sponsorAmount = amountInput ? parseFloat(amountInput.value) || 0 : 0;
+            if (sponsorAmount > 0) {
+                e.preventDefault();
+                submitSponsorFormWithRazorpay();
+                return false;
+            }
+            return true;
+        });
+    }
+
     /* =================== PASS REGISTRATION RAZORPAY =================== */
     const passForm = document.getElementById('publicEventRegisterForm');
     if (passForm) {
@@ -1119,7 +1184,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.querySelectorAll('[x-show="showPassModal"], [x-show="showViewPassesModal"]').forEach(function(el) {
                         el.style.display = 'none';
                     });
+                    window.dispatchEvent(new CustomEvent('show-loader'));
                     passForm.submit();
+                },
+                "modal": {
+                    "ondismiss": function() {
+                        // User cancelled pass payment modal, do not submit
+                    }
                 },
                 "prefill": {
                     "name": userName,
@@ -1133,10 +1204,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (window.Razorpay) {
                 const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                    alert(response.error?.description || "{{ $isGu ? 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment failed. Please try again.' }}");
+                });
                 rzp.open();
             } else {
-                alert('Razorpay Payment Gateway failed to load. Submitting registration...');
-                passForm.submit();
+                alert("{{ $isGu ? 'પેમેન્ટ ગેટવે લોડ થઈ શક્યો નથી. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment gateway failed to load. Please try again.' }}");
             }
         });
     }
@@ -1153,6 +1226,9 @@ function _renderPassHtmlCard(passData) {
     const date = passData.date || '';
     const passNo = passData.passNo || '001';
     const venue = passData.venue || '';
+    const attendee = passData.attendee || '';
+    const memberCode = passData.memberCode || '';
+    const topNameWithCode = attendee ? (attendee + (memberCode && memberCode !== '-' ? ' (' + memberCode + ')' : '')) : 'SHREE SATWARA GNATI MANDAL, AHMEDABAD';
 
     return `
     <div style="border: 2px solid #0f172a; border-radius: 12px; overflow: hidden; margin-bottom: 22px; page-break-inside: avoid; background: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-sizing: border-box;">
@@ -1160,7 +1236,7 @@ function _renderPassHtmlCard(passData) {
         <table style="width: 100%; border-collapse: collapse; background-color: #0f172a; color: #ffffff;">
             <tr>
                 <td style="padding: 7px 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; text-align: left; color: #ffffff;">
-                    SHREE SATWARA GNATI MANDAL, AHMEDABAD
+                    ${topNameWithCode}
                 </td>
                 <td style="padding: 7px 16px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; text-align: right; color: #f59e0b;">
                     ENTRY PASS
@@ -1192,11 +1268,18 @@ function _renderPassHtmlCard(passData) {
                     </div>
                 </td>
 
-                <!-- Pass No Box -->
-                <td style="width: 110px; vertical-align: middle; padding: 14px 16px 14px 0; text-align: right;">
-                    <div style="display: inline-block; border: 2px solid #0f172a; border-radius: 10px; background-color: #f8fafc; padding: 8px 14px; text-align: center; min-width: 85px; box-sizing: border-box;">
-                        <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b;">PASS NO.</div>
-                        <div style="font-size: 22px; font-weight: 900; letter-spacing: 4px; color: #0f172a; margin-top: 2px;">${passNo}</div>
+                <!-- Pass No & QR Code Box -->
+                <td style="width: 170px; vertical-align: middle; padding: 14px 16px 14px 0; text-align: right;">
+                    <div style="display: inline-flex; align-items: center; gap: 8px;">
+                        ${passData.qrUrl ? `
+                        <div style="border: 2px solid #0f172a; border-radius: 10px; background-color: #ffffff; padding: 3px; width: 68px; height: 68px; box-sizing: border-box; text-align: center;">
+                            <img src="${passData.qrUrl}" style="width: 100%; height: 100%; object-fit: contain;">
+                        </div>
+                        ` : ''}
+                        <div style="display: inline-block; border: 2px solid #0f172a; border-radius: 10px; background-color: #f8fafc; padding: 8px 12px; text-align: center; min-width: 80px; box-sizing: border-box;">
+                            <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b;">PASS NO.</div>
+                            <div style="font-size: 20px; font-weight: 900; letter-spacing: 3px; color: #0f172a; margin-top: 2px;">${passNo}</div>
+                        </div>
                     </div>
                 </td>
             </tr>
@@ -1222,10 +1305,35 @@ function _openPassesPrintWindow(cardsHtml, title) {
     <meta charset="utf-8">
     <title>${title}</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #ffffff; padding: 24px; color: #0f172a; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-adjust: exact !important; 
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #ffffff; 
+            padding: 24px; 
+            color: #0f172a; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-adjust: exact !important; 
+        }
         @media print {
-            body { padding: 0; }
+            body { 
+                padding: 0; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                color-adjust: exact !important; 
+            }
+            * {
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                color-adjust: exact !important; 
+            }
             @page { margin: 15mm; size: auto; }
         }
     </style>
@@ -1245,11 +1353,14 @@ function downloadAllPasses() {
     let html = '';
     cards.forEach(card => {
         const data = {
-            passNo: card.dataset.passNo || card.querySelector('.text-xl')?.innerText.trim() || '001',
+            passNo: card.dataset.passNo || card.querySelector('.text-2xl')?.innerText.trim() || card.querySelector('.text-xl')?.innerText.trim() || '001',
+            qrUrl: card.dataset.qrUrl || '',
             title: card.dataset.eventTitle || '',
             mandal: card.dataset.mandal || 'Shree Satwara Gnati Mandal, Ahmedabad',
             date: card.dataset.date || '',
             venue: card.dataset.venue || '',
+            attendee: card.dataset.attendee || '',
+            memberCode: card.dataset.memberCode || '',
             logo: card.dataset.logo || card.querySelector('img')?.src || ''
         };
         html += _renderPassHtmlCard(data);
@@ -1261,11 +1372,14 @@ function downloadSinglePass(cardId) {
     const card = document.getElementById(cardId);
     if (!card) return;
     const data = {
-        passNo: card.dataset.passNo || card.querySelector('.text-xl')?.innerText.trim() || '001',
+        passNo: card.dataset.passNo || card.querySelector('.text-2xl')?.innerText.trim() || card.querySelector('.text-xl')?.innerText.trim() || '001',
+        qrUrl: card.dataset.qrUrl || '',
         title: card.dataset.eventTitle || '',
         mandal: card.dataset.mandal || 'Shree Satwara Gnati Mandal, Ahmedabad',
         date: card.dataset.date || '',
         venue: card.dataset.venue || '',
+        attendee: card.dataset.attendee || '',
+        memberCode: card.dataset.memberCode || '',
         logo: card.dataset.logo || card.querySelector('img')?.src || ''
     };
     _openPassesPrintWindow(_renderPassHtmlCard(data), 'Event Entry Pass - ' + data.passNo);
