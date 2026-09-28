@@ -1440,6 +1440,28 @@ return [
     'mark_all_read' => 'બધું વાંચેલું ચિહ્નિત કરો',
     'no_notifications_yet' => 'હજુ સુધી કોઈ સૂચના નથી',
     'view_all_notifications' => 'બધી સૂચનાઓ જુઓ',
+
+    // Guest (non-member) pass purchase
+    'pass_purchase_access' => 'પાસ કોણ ખરીદી શકે',
+    'pass_purchase_access_hint' => 'બિન-સભ્યોને માત્ર ચકાસાયેલ ઇમેઇલ + મોબાઇલ જોઈશે',
+    'pass_access_members_only' => 'ફક્ત લૉગિન કરેલા સભ્યો',
+    'pass_access_anyone' => 'કોઈપણ (સભ્યો અને બિન-સભ્યો)',
+    'guest_buy_pass' => 'પાસ ખરીદો (લૉગિન જરૂરી નથી)',
+    'guest_or_login' => 'પહેલેથી સભ્ય છો? નોંધણી માટે લૉગિન કરો',
+    'guest_email' => 'ઇમેઇલ સરનામું',
+    'guest_email_hint' => 'તમારો પાસ અને રસીદ આ ઇમેઇલ પર મોકલવામાં આવશે',
+    'guest_mobile' => 'મોબાઇલ નંબર',
+    'guest_name_optional' => 'તમારું નામ (વૈકલ્પિક)',
+    'guest_send_otp' => 'OTP મોકલો',
+    'guest_resend_otp' => 'OTP ફરી મોકલો',
+    'guest_enter_otp' => '6-અંકનો OTP દાખલ કરો',
+    'guest_verify_otp' => 'ચકાસો',
+    'guest_email_verified' => 'ઇમેઇલ ચકાસાયો',
+    'guest_change_email' => 'બદલો',
+    'guest_processing' => 'કૃપા કરીને રાહ જુઓ...',
+    'guest_pay_and_get_pass' => 'ચુકવણી કરો અને પાસ મેળવો',
+    'guest_get_free_pass' => 'મફત પાસ મેળવો',
+    'guest_payment_cancelled' => 'ચુકવણી પૂર્ણ થઈ નથી. પાસ માટે તમારી પાસેથી કોઈ ચાર્જ લેવાયો નથી.',
 ];
 
 

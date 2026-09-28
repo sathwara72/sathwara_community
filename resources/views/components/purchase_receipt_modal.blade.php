@@ -10,6 +10,7 @@
 
     getViewUrl() {
         if (!this.receipt || !this.receipt.download_url) return '#';
+        if (this.receipt.view_url) return this.receipt.view_url;
         const url = this.receipt.download_url;
         return url + (url.includes('?') ? '&view=1' : '?view=1');
     }

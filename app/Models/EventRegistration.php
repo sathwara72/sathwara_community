@@ -20,6 +20,7 @@ class EventRegistration extends Model
         'form_data',
         'is_selected',
         'payment_id',
+        'razorpay_order_id',
         'payment_status',
         'payment_amount',
     ];

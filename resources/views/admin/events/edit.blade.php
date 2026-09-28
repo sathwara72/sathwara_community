@@ -182,6 +182,19 @@
                 </div>
             </div>
 
+            <!-- Who can buy passes -->
+            <div class="space-y-0.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
+                    <span>{{ __('messages.pass_purchase_access') }}</span>
+                    <span class="text-[9px] text-slate-400 font-normal">({{ __('messages.pass_purchase_access_hint') }})</span>
+                </label>
+                <select name="pass_purchase_access" required
+                    class="w-full md:w-1/2 text-xs font-semibold px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-primary-500">
+                    <option value="members_only" {{ old('pass_purchase_access', $event->pass_purchase_access ?? 'members_only') == 'members_only' ? 'selected' : '' }}>{{ __('messages.pass_access_members_only') }}</option>
+                    <option value="anyone" {{ old('pass_purchase_access', $event->pass_purchase_access ?? 'members_only') == 'anyone' ? 'selected' : '' }}>{{ __('messages.pass_access_anyone') }}</option>
+                </select>
+            </div>
+
             <div class="space-y-1">
                 <label class="text-[10px] font-bold text-slate-500 uppercase">{{ __('messages.event_description_guidelines') }}</label>
                 <input type="hidden" name="description" id="description_input" value="{{ old('description', $event->description) }}">

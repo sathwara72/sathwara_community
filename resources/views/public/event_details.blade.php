@@ -526,7 +526,9 @@
                                 <div x-data="{ showPassModal: false, showViewPassesModal: false, count: 1, passFee: {{ (float)($event->pass_fee ?? 0) }} }"
                                      @close-all-modals.window="showPassModal = false; showViewPassesModal = false"
                                      class="space-y-4">
-                                    @if(auth()->guest())
+                                    @if(auth()->guest() && $event->allowsGuestPassPurchase())
+                                        @include('public.partials.guest_pass_purchase', ['event' => $event])
+                                    @elseif(auth()->guest())
                                         <div class="space-y-3.5">
                                             @if(($event->pass_fee ?? 0) > 0)
                                                 <div class="bg-primary-50 border border-primary-200 rounded-2xl p-3.5 flex items-center justify-between">

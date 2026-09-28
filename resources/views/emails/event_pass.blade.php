@@ -375,6 +375,9 @@
                                     <span class="pass-no-label">Pass No.</span>
                                     <span class="pass-no-value">{{ $passNo }}</span>
                                 </div>
+                                @if(!empty($qrUrls[$index]))
+                                    <img src="{{ $qrUrls[$index] }}" alt="Entry QR" width="90" height="90" style="display: block; margin: 8px auto 0;">
+                                @endif
                             </div>
                         </div>
 

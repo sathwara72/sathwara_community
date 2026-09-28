@@ -1440,5 +1440,27 @@ return [
     'mark_all_read' => 'Mark all read',
     'no_notifications_yet' => 'No notifications yet',
     'view_all_notifications' => 'View all notifications',
+
+    // Guest (non-member) pass purchase
+    'pass_purchase_access' => 'Who can buy passes',
+    'pass_purchase_access_hint' => 'Non-members only need a verified email + mobile',
+    'pass_access_members_only' => 'Only logged-in members',
+    'pass_access_anyone' => 'Anyone (members and non-members)',
+    'guest_buy_pass' => 'Buy Pass (no login needed)',
+    'guest_or_login' => 'Already a member? Login to register',
+    'guest_email' => 'Email address',
+    'guest_email_hint' => 'Your pass and receipt will be emailed here',
+    'guest_mobile' => 'Mobile number',
+    'guest_name_optional' => 'Your name (optional)',
+    'guest_send_otp' => 'Send OTP',
+    'guest_resend_otp' => 'Resend OTP',
+    'guest_enter_otp' => 'Enter 6-digit OTP',
+    'guest_verify_otp' => 'Verify',
+    'guest_email_verified' => 'Email verified',
+    'guest_change_email' => 'Change',
+    'guest_processing' => 'Please wait...',
+    'guest_pay_and_get_pass' => 'Pay & Get Pass',
+    'guest_get_free_pass' => 'Get Free Pass',
+    'guest_payment_cancelled' => 'Payment was not completed. You have not been charged for a pass.',
 ];
 

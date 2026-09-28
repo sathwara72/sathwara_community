@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\BusinessRenewalReceiptMail;
 use App\Models\BusinessPaymentLink;
 use App\Models\Setting;
+use App\Services\GuestPassService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -27,12 +28,30 @@ class RazorpayWebhookController extends Controller
         try {
             if ($event === 'payment_link.paid') {
                 $this->handlePaymentLinkPaid($payload);
+            } elseif ($event === 'order.paid') {
+                $this->handleOrderPaid($payload);
             }
         } catch (\Throwable $e) {
             Log::error('Razorpay webhook processing error: ' . $e->getMessage(), ['payload' => $payload]);
         }
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Safety net for guest pass purchases: issues the pass even if the buyer closed the browser
+     * after paying and never came back to the site.
+     */
+    private function handleOrderPaid(array $payload): void
+    {
+        $order = $payload['payload']['order']['entity'] ?? null;
+        $paymentId = $payload['payload']['payment']['entity']['id'] ?? null;
+
+        if (!$order || !$paymentId || !GuestPassService::isGuestOrder($order)) {
+            return;
+        }
+
+        app(GuestPassService::class)->fulfillPaidOrder($order, $paymentId);
     }
 
     private function handlePaymentLinkPaid(array $payload): void

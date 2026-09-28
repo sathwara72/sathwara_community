@@ -27,6 +27,8 @@ class EventPassPurchasedMail extends Mailable
     public float $amount;
     public string $paymentStatus;
     public ?string $paymentId;
+    /** @var array<int, string> QR image URLs keyed by zero-based pass index */
+    public array $qrUrls = [];
 
     /**
      * Create a new message instance.
@@ -42,6 +44,10 @@ class EventPassPurchasedMail extends Mailable
         $this->paymentStatus = $registration->payment_status ?? 'paid';
         $this->paymentId = $registration->payment_id;
         $this->receiptNo = \App\Services\ReceiptNumberService::assign($registration, 'receipt_no');
+
+        foreach (\App\Services\PassTokenService::getOrGenerateTokens($registration) as $token) {
+            $this->qrUrls[$token->pass_index - 1] = \App\Services\PassTokenService::getQrCodeImageUrl($token->token_hash);
+        }
     }
 
     /**

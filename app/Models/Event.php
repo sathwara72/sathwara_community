@@ -26,6 +26,7 @@ class Event extends Model
         'form_start_date',
         'form_end_date',
         'pass_fee',
+        'pass_purchase_access',
         'total_pass_limit',
         'form_fee',
         'max_participants',
@@ -43,6 +44,11 @@ class Event extends Model
         'total_pass_limit' => 'integer',
         'form_fee' => 'decimal:2',
     ];
+
+    public function allowsGuestPassPurchase(): bool
+    {
+        return $this->pass_purchase_access === 'anyone';
+    }
 
     public function registrations()
     {

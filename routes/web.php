@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\GuestPassController;
 use App\Http\Controllers\Member\DashboardController as MemberDashboard;
 use App\Http\Controllers\Member\FamilyController as MemberFamily;
 use App\Http\Controllers\Member\AwardController as MemberAward;
@@ -36,6 +37,14 @@ Route::get('/events/{id}', [PublicController::class, 'eventDetails'])->name('eve
 Route::get('/events/{id}/register', [PublicController::class, 'showPublicRegistrationForm'])->name('events.public_register_form');
 Route::post('/events/{id}/register', [PublicController::class, 'registerEvent'])->name('events.public_register');
 Route::post('/events/{id}/sponsor', [PublicController::class, 'registerSponsor'])->name('events.sponsor.register');
+
+// Pass purchase without login (only for events with pass_purchase_access = 'anyone')
+Route::prefix('/events/{id}/guest-pass')->name('events.guest_pass.')->group(function () {
+    Route::post('/otp', [GuestPassController::class, 'sendOtp'])->name('send_otp')->middleware('throttle:5,10');
+    Route::post('/verify', [GuestPassController::class, 'verifyOtp'])->name('verify_otp')->middleware('throttle:10,10');
+    Route::post('/order', [GuestPassController::class, 'createOrder'])->name('order')->middleware('throttle:10,10');
+    Route::post('/complete', [GuestPassController::class, 'complete'])->name('complete')->middleware('throttle:10,10');
+});
 Route::get('/updates', [PublicController::class, 'updates'])->name('updates');
 Route::get('/updates/{id}', [PublicController::class, 'updateDetails'])->name('update.details');
 Route::get('/gallery', [PublicController::class, 'gallery'])->name('gallery');
@@ -346,6 +355,10 @@ Route::prefix('receipts')->name('receipts.')->group(function () {
     Route::get('/membership/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadMembership'])->name('membership');
     Route::get('/business/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadBusiness'])->name('business');
 });
+
+// Signed receipt/pass download for guest (non-member) pass purchases
+Route::get('/receipts/guest-event-pass/{id}', [\App\Http\Controllers\ReceiptController::class, 'downloadEventPass'])
+    ->middleware('signed')->name('receipts.guest_event_pass');
 
 // Sponsorship Preview Route
 Route::get('/preview/sponsorship', [\App\Http\Controllers\ReceiptController::class, 'previewSponsorship'])->name('preview.sponsorship');
