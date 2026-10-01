@@ -3,6 +3,7 @@
 @section('page_title', $event->title)
 
 @section('content')
+    @php $isGu = (app()->getLocale() === 'gu'); @endphp
     <div class="space-y-4">
         <!-- Back to Events List -->
         <div>
@@ -143,7 +144,7 @@
                                 </div>
                             </div>
 
-                            @if(!empty($event->registration_end_date) && ($event->event_type ?? 'normal') !== 'normal')
+                            @if(!empty($event->form_end_date) && ($event->event_type ?? 'normal') !== 'normal')
                                 <div class="flex items-center gap-3 text-xs font-semibold text-slate-600">
                                     <div class="p-1.5 bg-rose-50 text-rose-500 rounded-lg shrink-0">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -155,6 +156,24 @@
                                     <div>
                                         <span
                                             class="text-[9px] text-rose-500 block font-extrabold uppercase tracking-wider leading-none">{{ __('messages.form_fill_up_last_date') }}</span>
+                                        <span
+                                            class="text-rose-700 font-bold">{{ date('d-M-Y', strtotime($event->form_end_date)) }}</span>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if(!empty($event->registration_end_date) && ($event->event_type ?? 'normal') !== 'normal')
+                                <div class="flex items-center gap-3 text-xs font-semibold text-slate-600">
+                                    <div class="p-1.5 bg-rose-50 text-rose-500 rounded-lg shrink-0">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <span
+                                            class="text-[9px] text-rose-500 block font-extrabold uppercase tracking-wider leading-none">{{ __('messages.pass_purchase_last_date') }}</span>
                                         <span
                                             class="text-rose-700 font-bold">{{ date('d-M-Y', strtotime($event->registration_end_date)) }}</span>
                                     </div>

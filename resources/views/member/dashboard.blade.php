@@ -125,7 +125,7 @@
                             if (in_array($event->event_type ?? 'normal', ['inam_vitaran', 'yuva_melo'])) {
                                 $hasForm = true;
                             }
-                            $isFormDeadlinePassed = !empty($event->registration_end_date) && now()->toDateString() > \Carbon\Carbon::parse($event->registration_end_date)->toDateString();
+                            $isFormDeadlinePassed = !empty($event->form_end_date) && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString();
                         @endphp
                         <div onclick="window.location.href='{{ route('event.details', $event->id) }}'"
                             class="bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs hover:shadow-md hover:border-primary-400 transition-all flex flex-col justify-between space-y-2.5 group cursor-pointer">
@@ -187,7 +187,7 @@
                                                 @if($isFormDeadlinePassed)
                                                     <div class="flex items-center gap-1 text-[10.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200/90 px-2 py-1 rounded-lg">
                                                         <svg class="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                        <span>{{ $isGu ? 'છેલ્લી તારીખ:' : 'Last Date:' }} {{ date('d M, Y', strtotime($event->registration_end_date)) }}</span>
+                                                        <span>{{ $isGu ? 'છેલ્લી તારીખ:' : 'Last Date:' }} {{ date('d M, Y', strtotime($event->form_end_date)) }}</span>
                                                         <span class="text-[9px] bg-rose-600 text-white font-black px-1.5 py-0.5 rounded ml-0.5">{{ $isGu ? 'પૂર્ણ' : 'Closed' }}</span>
                                                     </div>
                                                 @else

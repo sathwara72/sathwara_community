@@ -135,7 +135,7 @@ Route::middleware(['auth', 'role:Member', 'approved'])->prefix('member')->name('
     Route::get('/directory', [MemberDashboard::class, 'directory'])->name('directory');
 
     // Family CRUD
-    Route::resource('family', MemberFamily::class);
+    Route::resource('family', MemberFamily::class)->except(['show']);
 
     // Event Registration & Listing/Viewing inside Member Portal
     Route::get('/events', [MemberEvent::class, 'index'])->name('events.index');
