@@ -66,9 +66,6 @@ class EventController extends Controller
     {
         $event = Event::published()->findOrFail($id);
         
-        if (!($event->has_registration_form ?? $event->registration_option)) {
-            return redirect()->route('event.details', $event->id)->with('warning', 'Registration form is not enabled for this event.');
-        }
         $user = auth()->user();
         $allUserRegistrations = $user ? $user->eventRegistrations()->where('event_id', $id)->orderBy('created_at', 'desc')->get() : collect();
 

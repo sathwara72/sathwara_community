@@ -178,6 +178,7 @@
                                                         class="truncate">{{ $event->venue ?: ($isGu ? 'સ્થળ જાહેર થશે' : 'Venue TBA') }}</span>
                                                 </div>
                                             </div>
+                                            @include('member.event._deadlines', ['event' => $event])
                                         </div>
 
                                         <!-- Bottom Action Area -->
@@ -185,11 +186,15 @@
                                             <!-- Form Action / Last Date Expired Badge -->
                                             @if($hasForm)
                                                 @if($isFormDeadlinePassed)
-                                                    <div class="flex items-center gap-1 text-[10.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200/90 px-2 py-1 rounded-lg">
+                                                    <a href="{{ route('member.events.register_form', $event->id) }}"
+                                                        onclick="event.stopPropagation()"
+                                                        title="{{ $isGu ? 'ફોર્મ ભરવાની છેલ્લી તારીખ પૂર્ણ થઈ છે. અગાઉના ફોર્મ જુઓ.' : 'Form fill-up date has passed. View your previous submissions.' }}"
+                                                        class="flex items-center gap-1 text-[10.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200/90 hover:bg-rose-100 px-2 py-1 rounded-lg">
                                                         <svg class="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                                         <span>{{ $isGu ? 'છેલ્લી તારીખ:' : 'Last Date:' }} {{ date('d M, Y', strtotime($event->form_end_date)) }}</span>
                                                         <span class="text-[9px] bg-rose-600 text-white font-black px-1.5 py-0.5 rounded ml-0.5">{{ $isGu ? 'પૂર્ણ' : 'Closed' }}</span>
-                                                    </div>
+                                                        <span class="underline">{{ $isGu ? 'જુઓ' : 'View' }} &rarr;</span>
+                                                    </a>
                                                 @else
                                                     <a href="{{ route('member.events.register_form', $event->id) }}"
                                                         onclick="event.stopPropagation()"

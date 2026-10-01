@@ -313,7 +313,12 @@
                     editingRegistrationId: null,
                     previewLang: @json(app()->getLocale() === 'gu' ? 'gu' : 'en'),
                     marksheetUrl: '',
-                    mainPageTab: 'form',
+                    mainPageTab: @json(
+                        (isset($registrations) && $registrations->count() > 0
+                            && (!($event->has_registration_form ?? $event->registration_option)
+                                || (!empty($event->form_end_date)
+                                    && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString()))) ? 'submitted' : 'form'
+                    ),
                     yuvaTab: 1,
                     showDetailsModal: false,
                     showSiblingModal: false,
@@ -668,7 +673,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <span>Notice: Registration form is disabled for this event.</span>
+                    <span>Notice: Registration form is disabled for this event.@if(!empty($event->form_end_date)) Form fill-up closed on {{ date('d-M-Y', strtotime($event->form_end_date)) }}.@endif</span>
                 </div>
             @elseif(!$isRegistrationClosed)
                 <div
@@ -749,6 +754,11 @@
                             @if($isRegistrationFormDisabled)
                                 Online registration form is not enabled for <strong
                                     class="text-slate-800 font-bold">{{ $event->title }}</strong>.
+                                @if(!empty($event->form_end_date))
+                                    Form fill-up closed on
+                                    <span
+                                        class="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200/80 inline-block">{{ date('d-M-Y', strtotime($event->form_end_date)) }}</span>.
+                                @endif
                             @elseif($formNotYetOpen)
                                 Form fill-up for <strong class="text-slate-800 font-bold">{{ $event->title }}</strong> opens on
                                 <span
@@ -1789,6 +1799,20 @@
             @if(isset($registrations) && $registrations->count() > 0)
                 <!-- ================= TAB 2: SUBMITTED REGISTRATION DETAILS ================= -->
                 <div x-show="mainPageTab === 'submitted'" x-cloak class="space-y-3 pt-1">
+                    @if($isRegistrationClosed)
+                        <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2 font-bold">
+                            <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>
+                                @if($isRegistrationFormDisabled)
+                                    Registration form is disabled for this event.@if(!empty($event->form_end_date)) Form fill-up closed on {{ date('d-M-Y', strtotime($event->form_end_date)) }}.@endif
+                                @elseif($formNotYetOpen)
+                                    Form fill-up has not started. It opens on {{ date('d-M-Y', strtotime($event->form_start_date)) }}.
+                                @else
+                                    Form fill-up closed on {{ date('d-M-Y', strtotime($event->form_end_date)) }}. You can view your previous submissions below.
+                                @endif
+                            </span>
+                        </div>
+                    @endif
                     <div class="flex items-center justify-between px-1">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>

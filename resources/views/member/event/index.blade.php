@@ -310,6 +310,7 @@
                                         {{ \Illuminate\Support\Str::limit($cleanDesc, 80, '...') }}
                                     </p>
                                 </a>
+                                @include('member.event._deadlines', ['event' => $event])
                             </div>
 
                             <!-- Action and Status -->

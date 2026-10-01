@@ -215,10 +215,6 @@ class PublicController extends Controller
     {
         $event = Event::published()->findOrFail($id);
 
-        if ($event->event_type !== 'normal' && !($event->has_registration_form || $event->registration_option)) {
-            return redirect()->route('event.details', $event->id)->with('warning', 'Registration form is not enabled for this event.');
-        }
-
         if ($event->event_type !== 'yuva_melo' && !auth()->check()) {
             return redirect()->route('login')->with('warning', 'Please login to fill up this form.');
         }
