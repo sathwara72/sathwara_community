@@ -43,6 +43,7 @@
 
             <form method="POST" action="{{ route('register.business.submit') }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-4">
                 @csrf
+                <input type="hidden" name="redirect_to" value="{{ request()->fullUrl() }}">
                 
                 <!-- Row 1: Member ID & Business Name -->
                 <div class="space-y-1" 
@@ -189,35 +190,39 @@
                     <!-- Password & Confirm Password (for Business Panel Login) -->
                     <div class="mt-3 pt-3 border-t border-slate-200/60">
                         <p class="text-xs font-bold text-slate-600 mb-2.5">🔐 Set a password to access your <strong>Business Panel</strong> after registration.</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div class="space-y-1" x-data="{ show: false }">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-data="{ pass: '', passConfirm: '', showPass: false, showConfirmPass: false }">
+                            <div class="space-y-1">
                                 <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Password <span class="text-rose-500">*</span></label>
                                 <div class="relative">
-                                    <input :type="show ? 'text' : 'password'" name="password"
+                                    <input :type="showPass ? 'text' : 'password'" name="password" x-model="pass"
                                            placeholder="Min 6 characters"
                                            class="w-full text-sm font-semibold px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-0 @error('password') border-rose-400 @enderror"
                                            required minlength="6">
-                                    <button type="button" @click="show = !show"
+                                    <button type="button" @click="showPass = !showPass"
                                             class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm">
-                                        <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        <svg x-show="show" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                        <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showPass" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
                                     </button>
                                 </div>
+                                <p x-show="pass && pass.length < 6" x-cloak class="text-xs text-amber-600 font-bold mt-0.5">⚠️ Min 6 characters required</p>
                                 @error('password') <p class="text-xs text-rose-600 font-bold mt-0.5">{{ $message }}</p> @enderror
                             </div>
-                            <div class="space-y-1" x-data="{ show: false }">
+                            <div class="space-y-1">
                                 <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Confirm Password <span class="text-rose-500">*</span></label>
                                 <div class="relative">
-                                    <input :type="show ? 'text' : 'password'" name="password_confirmation"
+                                    <input :type="showConfirmPass ? 'text' : 'password'" name="password_confirmation" x-model="passConfirm"
                                            placeholder="Repeat password"
                                            class="w-full text-sm font-semibold px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-0"
+                                           :class="passConfirm && pass !== passConfirm ? 'border-rose-400' : ''"
                                            required minlength="6">
-                                    <button type="button" @click="show = !show"
+                                    <button type="button" @click="showConfirmPass = !showConfirmPass"
                                             class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm">
-                                        <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        <svg x-show="show" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                        <svg x-show="!showConfirmPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showConfirmPass" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
                                     </button>
                                 </div>
+                                <p x-show="passConfirm && pass !== passConfirm" x-cloak class="text-xs text-rose-600 font-bold mt-0.5">⚠️ Passwords do not match (પાસવર્ડ સરખા નથી)</p>
+                                <p x-show="passConfirm && pass === passConfirm" x-cloak class="text-xs text-emerald-600 font-bold mt-0.5">✓ Passwords match (પાસવર્ડ સરખા છે)</p>
                             </div>
                         </div>
                     </div>
@@ -776,13 +781,30 @@ document.addEventListener('DOMContentLoaded', function () {
     // Escape key closes modals
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeOtpModal(); closeAlert(); } });
 
-    // ── Block form submit if email not verified ───
+    // ── Block form submit if email not verified or password mismatch ───
     const bizForm = document.querySelector('form[action="{{ route('register.business.submit') }}"]');
     if (bizForm) {
         bizForm.addEventListener('submit', function (e) {
             // Allow if payment already done
             const paymentIdInput = document.getElementById('razorpay_payment_id');
             if (paymentIdInput && paymentIdInput.value) return true;
+
+            const password = bizForm.querySelector('[name="password"]')?.value || '';
+            const passwordConfirm = bizForm.querySelector('[name="password_confirmation"]')?.value || '';
+
+            if (password.length < 6) {
+                e.preventDefault();
+                showAlert('Password must be at least 6 characters long.', 'warning', 'Password Too Short');
+                bizForm.querySelector('[name="password"]')?.focus();
+                return false;
+            }
+
+            if (password !== passwordConfirm) {
+                e.preventDefault();
+                showAlert('The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)', 'warning', 'Password Mismatch');
+                bizForm.querySelector('[name="password_confirmation"]')?.focus();
+                return false;
+            }
 
             if (!isEmailVerified) {
                 e.preventDefault();
@@ -807,8 +829,9 @@ document.addEventListener('DOMContentLoaded', function () {
     sessionStorage.removeItem('biz_rzp_inprogress');
 
     const submitBtn = document.getElementById('submitBusinessBtn');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
 
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', async function (e) {
         const paymentIdInput = document.getElementById('razorpay_payment_id');
 
         // Already captured payment_id — allow normal form submit to server
@@ -829,6 +852,75 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!form.checkValidity()) {
             form.reportValidity();
             return;
+        }
+
+        const password = form.querySelector('[name="password"]')?.value || '';
+        const passwordConfirm = form.querySelector('[name="password_confirmation"]')?.value || '';
+
+        if (password.length < 6) {
+            showAlert('Password must be at least 6 characters long.', 'warning', 'Password Too Short');
+            form.querySelector('[name="password"]')?.focus();
+            return;
+        }
+
+        if (password !== passwordConfirm) {
+            showAlert('The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)', 'warning', 'Password Mismatch');
+            form.querySelector('[name="password_confirmation"]')?.focus();
+            return;
+        }
+
+        const phone = (form.querySelector('[name="phone"]')?.value || '').trim();
+        if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
+            showAlert("{{ __('messages.mobile_10_digits_required') ?? 'મોબાઈલ નંબર બરાબર ૧૦ અંકનો હોવો જરૂરી છે.' }}", 'warning', 'Invalid Mobile Number');
+            form.querySelector('[name="phone"]')?.focus();
+            return;
+        }
+
+        const logoInput = form.querySelector('[name="logo"]');
+        if (logoInput && (!logoInput.files || logoInput.files.length === 0)) {
+            showAlert('Please upload your Business Logo or Visiting Card.', 'warning', 'Logo Required');
+            logoInput.focus();
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Validating details...</span>';
+        }
+
+        // ── Server-Side Pre-Validation before opening Razorpay ──
+        try {
+            const formData = new FormData(form);
+            const preValRes = await fetch("{{ route('register.business.pre_validate') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+            const preValData = await preValRes.json();
+
+            if (!preValRes.ok || !preValData.success) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+                const errorsList = preValData.errors ? preValData.errors.join('<br>• ') : (preValData.message || 'Please correct errors before payment.');
+                showAlert('• ' + errorsList, 'error', 'Validation Error');
+                return false;
+            }
+        } catch (err) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+            showAlert('Unable to validate details with server. Please try again.', 'error', 'Network Error');
+            return false;
+        }
+
+        if (submitBtn) {
+            submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Opening payment...</span>';
         }
 
         const razorpayKey    = "{{ $razorpayKeyId ?? '' }}";
