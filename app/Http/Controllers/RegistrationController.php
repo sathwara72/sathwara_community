@@ -531,6 +531,124 @@ class RegistrationController extends Controller
     }
 
     /**
+     * Pre-validate Business Registration before Payment / Submission
+     */
+    public function preValidateBusiness(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'member_id'           => 'nullable|string|max:255',
+            'business_name'       => 'required|string|max:255',
+            'owner_name'          => 'required|string|max:255',
+            'category_id'         => 'nullable|exists:business_categories,id',
+            'description'         => 'nullable|string',
+            'address'             => 'required|string',
+            'area_id'             => 'required|exists:areas,id',
+            'phone'               => 'required|digits:10',
+            'whatsapp'            => 'nullable|digits:10',
+            'email'               => 'required|email|max:255',
+            'password'            => 'required|string|min:6|confirmed',
+            'website'             => 'nullable|url|max:255',
+            'facebook'            => 'nullable|string|max:255',
+            'instagram'           => 'nullable|string|max:255',
+            'youtube'             => 'nullable|string|max:255',
+            'linkedin'            => 'nullable|string|max:255',
+            'logo'                => 'required|file|mimes:jpeg,jpg,png,webp,gif,bmp,pdf|max:10240',
+            'gallery'             => 'nullable|array|max:6',
+            'gallery.*'           => 'nullable|file|mimes:jpeg,jpg,png,webp,gif,bmp|max:10240',
+        ], [
+            'logo.required' => 'Please upload your Business Logo or Visiting Card.',
+            'logo.mimes'    => 'Business Logo must be an image file (JPG, PNG, WEBP) or a PDF document.',
+            'logo.max'      => 'Business Logo file size must not exceed 10MB.',
+            'email.required' => 'Business email is required and will be used for your Business Panel login.',
+            'password.required' => 'Please set a password for your Business Panel account.',
+            'password.min' => 'Password must be at least 6 characters.',
+            'password.confirmed' => 'The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()->all(),
+            ], 422);
+        }
+
+        // Server-side check that business email was verified via OTP
+        $verifiedEmail = session('biz_reg_email_verified');
+        if (empty($verifiedEmail) || strtolower(trim($request->email)) !== strtolower(trim($verifiedEmail))) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['Please verify your business email address via OTP before submitting.'],
+            ], 422);
+        }
+
+        $userId = null;
+        $rawMemberId = null;
+
+        if ($request->filled('member_id')) {
+            $rawMemberId = trim($request->member_id);
+            $numericId = (int) preg_replace('/[^0-9]/', '', $rawMemberId);
+
+            $memberUser = null;
+            if ($numericId > 0) {
+                $memberUser = User::find($numericId);
+            }
+
+            if (!$memberUser) {
+                $profile = MemberProfile::where('id', $numericId)
+                    ->orWhere('phone', $rawMemberId)
+                    ->first();
+                if ($profile) {
+                    $memberUser = $profile->user;
+                }
+            }
+
+            if (!$memberUser) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => [__('messages.member_id_not_found') ?? 'The entered Member ID does not exist in our database. Please check your Member ID.'],
+                ], 422);
+            }
+
+            $userId = $memberUser->id;
+        }
+
+        if (!$userId && auth()->check()) {
+            $userId = auth()->id();
+        }
+
+        // Single Business per Member Constraint Check
+        if ($userId) {
+            $formattedMemberId = '#' . sprintf('%05d', $userId);
+            $existingBusiness = Business::where('user_id', $userId)
+                ->orWhere('member_id', (string) $userId)
+                ->orWhere('member_id', $formattedMemberId)
+                ->orWhere('member_id', '#' . $userId)
+                ->first();
+
+            if ($existingBusiness) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => ["Each member is allowed to register only 1 business. You have already registered '{$existingBusiness->business_name}'. (દરેક સભ્ય માત્ર ૧ જ વ્યવસાય રજીસ્ટર કરી શકે છે.)"],
+                ], 422);
+            }
+        }
+
+        if ($rawMemberId) {
+            $existingBusiness = Business::where('member_id', $rawMemberId)->first();
+            if ($existingBusiness) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => ["A business ('{$existingBusiness->business_name}') has already been registered with Member ID '{$rawMemberId}'. Only 1 business registration per member is allowed."],
+                ], 422);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    /**
      * Handle Business Registration Submission
      */
     public function submitBusinessRegister(Request $request)
@@ -709,7 +827,17 @@ class RegistrationController extends Controller
             }
         }
 
-        $response = redirect()->route('business.directory')
+        if ($request->input('redirect_to') === 'dashboard') {
+            $redirectTarget = redirect()->route('member.dashboard');
+        } elseif ($request->filled('redirect_to')) {
+            $redirectTarget = redirect($request->input('redirect_to'));
+        } elseif ($request->headers->has('referer')) {
+            $redirectTarget = redirect()->back();
+        } else {
+            $redirectTarget = redirect()->route('register.business');
+        }
+
+        $response = $redirectTarget
             ->with('success', 'Your business directory registration has been submitted successfully and is pending admin approval.');
 
         if ($paymentStatus === 'paid') {

@@ -314,10 +314,12 @@
                     previewLang: @json(app()->getLocale() === 'gu' ? 'gu' : 'en'),
                     marksheetUrl: '',
                     mainPageTab: @json(
-                        (isset($registrations) && $registrations->count() > 0
+                        request('tab') ? request('tab') :
+                        ((session('success') && isset($registrations) && $registrations->count() > 0) ? 'submitted' :
+                        ((isset($registrations) && $registrations->count() > 0
                             && (!($event->has_registration_form ?? $event->registration_option)
                                 || (!empty($event->form_end_date)
-                                    && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString()))) ? 'submitted' : 'form'
+                                    && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString()))) ? 'submitted' : 'form'))
                     ),
                     yuvaTab: 1,
                     showDetailsModal: false,
@@ -803,6 +805,7 @@
                             @csrf
                             <input type="hidden" name="registration_id" id="editing_registration_id" :value="editingRegistrationId">
                             <input type="hidden" name="razorpay_payment_id" id="dynamic_razorpay_payment_id">
+                            <input type="hidden" name="redirect_to" value="{{ request()->fullUrl() }}">
 
                             <!-- Inline Form Error Notification Banner -->
                             <div id="yuvaFormErrorBanner" style="display: none;"

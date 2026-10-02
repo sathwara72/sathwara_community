@@ -67,6 +67,7 @@ Route::middleware('guest')->group(function () {
 // Business signup (Public - can be submitted by guests or logged-in members)
 Route::get('/register/business', [RegistrationController::class, 'showBusinessRegister'])->name('register.business');
 Route::post('/register/business', [RegistrationController::class, 'submitBusinessRegister'])->name('register.business.submit');
+Route::post('/register/business/pre-validate', [RegistrationController::class, 'preValidateBusiness'])->name('register.business.pre_validate');
 Route::post('/register/business/send-otp', [RegistrationController::class, 'sendBusinessRegistrationOtp'])->name('register.business.send_otp')->middleware('throttle:5,10');
 Route::post('/register/business/verify-otp', [RegistrationController::class, 'verifyBusinessRegistrationOtp'])->name('register.business.verify_otp');
 Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id')->middleware('throttle:30,1');
