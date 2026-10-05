@@ -231,18 +231,7 @@ class RegistrationController extends Controller
         $businessFee = (float) \App\Models\Setting::get('business_registration_fee', '500');
         $razorpayKeyId = \App\Models\Setting::get('razorpay_key_id', env('RAZORPAY_KEY_ID', ''));
 
-        $existingBusiness = null;
-        if (auth()->check()) {
-            $user = auth()->user();
-            $formattedMemberId = '#' . sprintf('%05d', $user->id);
-            $existingBusiness = Business::where('user_id', $user->id)
-                ->orWhere('member_id', (string) $user->id)
-                ->orWhere('member_id', $formattedMemberId)
-                ->orWhere('member_id', '#' . $user->id)
-                ->first();
-        }
-
-        return view('public.register_business', compact('categories', 'areas', 'existingBusiness', 'businessFee', 'razorpayKeyId'));
+        return view('public.register_business', compact('categories', 'areas', 'businessFee', 'razorpayKeyId'));
     }
 
     /**
@@ -311,7 +300,7 @@ class RegistrationController extends Controller
 
     /**
      * Rules beyond field validation, shared by pre-validation and the final submit: unique business
-     * email, Member ID must exist, and one business per member.
+     * email and the Member ID must exist.
      *
      * @return array{error: ?array{0: string, 1: string}, user_id: ?int, member_id: ?string}
      */
@@ -338,14 +327,8 @@ class RegistrationController extends Controller
             $memberUser = auth()->user();
         }
 
-        if ($memberUser) {
-            $result['user_id'] = $memberUser->id;
-
-            $existingBusiness = $this->existingBusinessFor($memberUser, $result['member_id']);
-            if ($existingBusiness) {
-                $result['error'] = ['member_id', "Each member is allowed to register only 1 business. '{$existingBusiness->business_name}' is already registered for this member. (દરેક સભ્ય માત્ર ૧ જ વ્યવસાય રજીસ્ટર કરી શકે છે.)"];
-            }
-        }
+        // A member may register any number of businesses
+        $result['user_id'] = $memberUser?->id;
 
         return $result;
     }
@@ -372,26 +355,6 @@ class RegistrationController extends Controller
         }
 
         return $memberUser;
-    }
-
-    private function existingBusinessFor(User $memberUser, ?string $typedMemberId, $exceptBusinessId = null): ?Business
-    {
-        $formattedMemberId = '#' . sprintf('%05d', $memberUser->id);
-
-        return Business::where(function ($q) use ($memberUser, $typedMemberId, $formattedMemberId) {
-                $q->where('user_id', $memberUser->id)
-                  ->orWhere('member_id', (string) $memberUser->id)
-                  ->orWhere('member_id', $formattedMemberId)
-                  ->orWhere('member_id', '#' . $memberUser->id);
-                if ($typedMemberId) {
-                    $q->orWhere('member_id', $typedMemberId);
-                }
-                if ($memberUser->member_code) {
-                    $q->orWhere('member_id', $memberUser->member_code);
-                }
-            })
-            ->when($exceptBusinessId, fn ($q) => $q->where('id', '!=', $exceptBusinessId))
-            ->first();
     }
 
     /**
@@ -535,26 +498,7 @@ class RegistrationController extends Controller
             $name = $memberUser->memberProfile
                 ? trim($memberUser->memberProfile->first_name . ' ' . $memberUser->memberProfile->last_name)
                 : $memberUser->name;
-            $memberCode        = $memberUser->member_code ?: ('#' . sprintf('%05d', $memberUser->id));
-            $formattedMemberId = '#' . sprintf('%05d', $memberUser->id);
-
-            // Get the currently authenticated business ID (if on business profile page)
-            $currentBusinessId = $request->query('business_id');
-            if (!$currentBusinessId && auth()->guard('business')->check()) {
-                $currentBusinessId = auth()->guard('business')->id();
-            }
-
-
-            // Check if member already registered a business (skip own business)
-            $existingBusiness = $this->existingBusinessFor($memberUser, $memberId, $currentBusinessId);
-
-            if ($existingBusiness) {
-                return response()->json([
-                    'found' => false,
-                    'has_business' => true,
-                    'message' => "❌ Member {$name} has already registered a business ('{$existingBusiness->business_name}'). Each member is allowed to register only 1 business."
-                ]);
-            }
+            $memberCode = $memberUser->member_code ?: ('#' . sprintf('%05d', $memberUser->id));
 
             return response()->json([
                 'found' => true,

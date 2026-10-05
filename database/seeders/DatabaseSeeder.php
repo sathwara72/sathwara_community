@@ -208,7 +208,6 @@ class DatabaseSeeder extends Seeder
         ManagementDesk::create([
             'name' => 'Ramanbhai Sathwara',
             'designation' => 'President',
-            'message' => 'It is my extreme pleasure to serve the Shree Satwara Gnati Mandal, Ahmedabad. We strive to implement new platforms that keep us connected globally. Let\'s work together for our progress.',
             'photo_path' => 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?q=80&w=300',
             'display_order' => 1,
             'status' => true
@@ -216,7 +215,6 @@ class DatabaseSeeder extends Seeder
         ManagementDesk::create([
             'name' => 'Gitaben Sathwara',
             'designation' => 'Secretary',
-            'message' => 'Welcome to the digital home of our community. We encourage all members to register, keep their profiles up-to-date, and join us in our upcoming community initiatives.',
             'photo_path' => 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300',
             'display_order' => 2,
             'status' => true

@@ -34,15 +34,6 @@ class AwardController extends Controller
     }
 
     /**
-     * View Application Details
-     */
-    public function show($id)
-    {
-        $application = AwardApplication::with('user.memberProfile')->findOrFail($id);
-        return view('admin.awards.show', compact('application'));
-    }
-
-    /**
      * Approve Application
      */
     public function approve(Request $request, $id)

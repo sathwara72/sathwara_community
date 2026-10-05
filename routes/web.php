@@ -257,7 +257,6 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         // Student Awards Applications
         Route::get('/awards', [AdminAward::class, 'index'])->name('awards.index');
         Route::get('/awards/export', [AdminAward::class, 'exportCsv'])->name('awards.export');
-        Route::get('/awards/{id}', [AdminAward::class, 'show'])->name('awards.show');
         Route::post('/awards/{id}/approve', [AdminAward::class, 'approve'])->name('awards.approve');
         Route::post('/awards/{id}/reject', [AdminAward::class, 'reject'])->name('awards.reject');
         Route::delete('/awards/{id}', [AdminAward::class, 'destroy'])->name('awards.destroy');

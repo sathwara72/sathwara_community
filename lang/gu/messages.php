@@ -1030,8 +1030,6 @@ return [
     'social_media_links' => 'સોશ્યલ મીડિયા લિંક્સ',
 
     // Business Registration Form Translations
-    'business_limit_exceeded' => 'વ્યવસાય નોંધણી મર્યાદા (નોંધણી મર્યાદા પૂર્ણ)',
-    'business_limit_desc' => 'તમે અગાઉથી જ વ્યવસાય નોંધાવેલ છે: :name (સ્થિતિ: :status). દરેક સભ્ય માત્ર ૧ જ વ્યવસાય નોંધાવી શકે છે.',
     'checking' => 'ચકાસી રહ્યા છીએ...',
     'whatsapp_same_as_phone' => 'વોટ્સએપ નંબર ફોન નંબર જેવો જ છે?',
     'yes' => 'હા',

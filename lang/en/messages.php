@@ -1030,8 +1030,6 @@ return [
     'social_media_links' => 'Social Media Links',
 
     // Business Registration Form Translations
-    'business_limit_exceeded' => 'Business Registration Limit Exceeded (Business Limit Reached)',
-    'business_limit_desc' => 'You have already registered a business: :name (Status: :status). Each member is allowed to register only 1 business.',
     'checking' => 'Checking...',
     'whatsapp_same_as_phone' => 'WhatsApp number same as Phone?',
     'yes' => 'Yes',

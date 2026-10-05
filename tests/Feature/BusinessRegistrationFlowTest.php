@@ -74,16 +74,23 @@ class BusinessRegistrationFlowTest extends TestCase
             ->assertJsonFragment(['errors' => ['This email address is already registered with another business account.']]);
     }
 
-    public function test_pre_validation_rejects_unknown_member_and_second_business_for_a_member(): void
+    public function test_pre_validation_rejects_unknown_member(): void
     {
         $this->postJson(route('register.business.pre_validate'), $this->form(['member_id' => 'NOPE999999']))
             ->assertStatus(422);
+    }
 
+    public function test_a_member_can_register_more_than_one_business(): void
+    {
         $member = User::factory()->create(['member_code' => 'SSAM0777']);
-        $this->existingBusiness(['user_id' => $member->id, 'email' => 'old@example.com']);
+        $this->existingBusiness(['user_id' => $member->id, 'member_id' => 'SSAM0777', 'email' => 'old@example.com']);
 
-        $this->postJson(route('register.business.pre_validate'), $this->form(['member_id' => 'SSAM0777']))
-            ->assertStatus(422);
+        $this->getJson(route('api.check_member_id', ['member_id' => 'SSAM0777']))->assertJson(['found' => true]);
+        $this->postJson(route('register.business.pre_validate'), $this->form(['member_id' => 'SSAM0777']))->assertOk();
+        $this->post(route('register.business.submit'), $this->form(['member_id' => 'SSAM0777', 'razorpay_payment_id' => 'pay_second']))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(2, Business::where('user_id', $member->id)->count());
     }
 
     public function test_member_code_links_the_business_to_that_member_not_to_the_user_with_the_same_number(): void

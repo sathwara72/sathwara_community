@@ -12,23 +12,6 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="bg-white border border-slate-200/60 rounded-2xl p-5 md:p-6 shadow-xs">
             
-            @if(isset($existingBusiness) && $existingBusiness)
-                <div class="mb-5 p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2 font-black text-xs text-amber-900">
-                            <span>⚠️</span>
-                            <span>{{ __('messages.business_limit_exceeded') }}</span>
-                        </div>
-                        <p class="text-xs text-amber-800 font-medium">
-                            {{ __('messages.business_limit_desc', ['name' => $existingBusiness->business_name, 'status' => strtoupper($existingBusiness->status)]) }}
-                        </p>
-                    </div>
-                    <a href="{{ route('member.businesses.my') }}" class="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-all shrink-0">
-                        <span>{{ __('messages.my_businesses') }}</span> &rarr;
-                    </a>
-                </div>
-            @endif
-
             <!-- Validation errors -->
             @if ($errors->any())
                 <div class="mb-4 p-3 bg-rose-50 border border-rose-100 text-rose-800 rounded-xl">
