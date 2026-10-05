@@ -219,16 +219,17 @@ class GalleryController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_caption'),
                 __('messages.csv_image_path'),
                 __('messages.csv_display_order'),
                 __('messages.csv_uploaded_at')
             ]);
 
+            $sr = 0;
             foreach ($photos as $p) {
                 fputcsv($file, [
-                    $p->id,
+                    ++$sr,
                     $p->caption ?? '',
                     $p->image_path ?? '',
                     $p->display_order ?? 0,

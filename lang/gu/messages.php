@@ -1030,8 +1030,6 @@ return [
     'social_media_links' => 'સોશ્યલ મીડિયા લિંક્સ',
 
     // Business Registration Form Translations
-    'business_limit_exceeded' => 'વ્યવસાય નોંધણી મર્યાદા (નોંધણી મર્યાદા પૂર્ણ)',
-    'business_limit_desc' => 'તમે અગાઉથી જ વ્યવસાય નોંધાવેલ છે: :name (સ્થિતિ: :status). દરેક સભ્ય માત્ર ૧ જ વ્યવસાય નોંધાવી શકે છે.',
     'checking' => 'ચકાસી રહ્યા છીએ...',
     'whatsapp_same_as_phone' => 'વોટ્સએપ નંબર ફોન નંબર જેવો જ છે?',
     'yes' => 'હા',
@@ -1452,16 +1450,24 @@ return [
     'guest_email_hint' => 'તમારો પાસ અને રસીદ આ ઇમેઇલ પર મોકલવામાં આવશે',
     'guest_mobile' => 'મોબાઇલ નંબર',
     'guest_name_optional' => 'તમારું નામ (વૈકલ્પિક)',
-    'guest_send_otp' => 'OTP મોકલો',
-    'guest_resend_otp' => 'OTP ફરી મોકલો',
-    'guest_enter_otp' => '6-અંકનો OTP દાખલ કરો',
-    'guest_verify_otp' => 'ચકાસો',
-    'guest_email_verified' => 'ઇમેઇલ ચકાસાયો',
+    'guest_continue' => 'આગળ વધો',
+    'guest_pass_sent_to' => 'પાસ આ ઇમેઇલ પર મોકલાશે',
+    'guest_member_email_login' => 'આ ઇમેઇલ નોંધાયેલા સભ્યનો છે. પાસ ખરીદવા માટે કૃપા કરીને લૉગિન કરો.',
     'guest_change_email' => 'બદલો',
     'guest_processing' => 'કૃપા કરીને રાહ જુઓ...',
     'guest_pay_and_get_pass' => 'ચુકવણી કરો અને પાસ મેળવો',
     'guest_get_free_pass' => 'મફત પાસ મેળવો',
     'guest_payment_cancelled' => 'ચુકવણી પૂર્ણ થઈ નથી. પાસ માટે તમારી પાસેથી કોઈ ચાર્જ લેવાયો નથી.',
+    'csv_area' => 'વિસ્તાર',
+    'csv_membership_started' => 'સભ્યપદ શરૂ',
+    'csv_membership_expires' => 'સભ્યપદ સમાપ્ત',
+    'csv_member_code' => 'સભ્ય કોડ',
+    'csv_parent_name' => 'વાલીનું નામ',
+    'csv_achievement' => 'સિદ્ધિ',
+    'csv_award_name' => 'એવોર્ડનું નામ',
+    'csv_contact_no' => 'સંપર્ક નંબર',
+    'csv_certificate_url' => 'પ્રમાણપત્ર લિંક',
+    'csv_sr_no' => 'ક્રમ',
 ];
 
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\EventPassPurchasedMail;
+use App\Models\Area;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
 /**
- * Pass purchases by non-members (no login): email + mobile, email verified by OTP.
+ * Pass purchases by non-members (no login): email + mobile. Member emails must log in instead.
  *
  * Payment is verified server-side: the amount is fixed by a Razorpay order we create,
  * and a registration is only created for an order that Razorpay reports as paid.
@@ -80,7 +81,7 @@ class GuestPassService
      *
      * @return array<string, mixed> Razorpay order entity
      */
-    public function createOrder(Event $event, string $email, string $mobile, ?string $name, int $personCount): array
+    public function createOrder(Event $event, string $email, string $mobile, ?int $areaId, ?string $name, int $personCount): array
     {
         $amount = self::totalFor($event, $personCount);
 
@@ -95,6 +96,7 @@ class GuestPassService
                     'event_id' => (string) $event->id,
                     'email' => $email,
                     'mobile' => $mobile,
+                    'area_id' => (string) $areaId,
                     'name' => (string) $name,
                     'person_count' => (string) $personCount,
                 ],
@@ -181,6 +183,7 @@ class GuestPassService
             $event,
             (string) ($notes['email'] ?? ''),
             (string) ($notes['mobile'] ?? ''),
+            ($notes['area_id'] ?? '') !== '' ? (int) $notes['area_id'] : null,
             ($notes['name'] ?? '') !== '' ? $notes['name'] : null,
             $personCount,
             $amountPaid,
@@ -194,9 +197,9 @@ class GuestPassService
      *
      * @return array{0: ?EventRegistration, 1: bool}
      */
-    public function fulfillFreePass(Event $event, string $email, string $mobile, ?string $name, int $personCount): array
+    public function fulfillFreePass(Event $event, string $email, string $mobile, ?int $areaId, ?string $name, int $personCount): array
     {
-        return $this->createRegistration($event, $email, $mobile, $name, $personCount, 0.0, null, null);
+        return $this->createRegistration($event, $email, $mobile, $areaId, $name, $personCount, 0.0, null, null);
     }
 
     /**
@@ -206,35 +209,37 @@ class GuestPassService
         Event $event,
         string $email,
         string $mobile,
+        ?int $areaId,
         ?string $name,
         int $personCount,
         float $amount,
         ?string $paymentId,
         ?string $orderId
     ): array {
-        // The email was OTP-verified, so if it belongs to a member account the pass is attached to that
-        // account and shows up in their dashboard as well as in the email.
-        $memberId = User::whereRaw('LOWER(email) = ?', [strtolower($email)])->value('id');
+        $area = $areaId ? Area::find($areaId) : null;
 
+        // The email is not verified, so the pass is never attached to a member account.
         try {
-            $registration = DB::transaction(function () use ($event, $email, $mobile, $name, $personCount, $amount, $paymentId, $orderId, $memberId) {
+            $registration = DB::transaction(function () use ($event, $email, $mobile, $area, $name, $personCount, $amount, $paymentId, $orderId) {
                 $passNumber = EventSequenceService::nextPassNumber($event->id);
 
                 return EventRegistration::create([
                     'event_id' => $event->id,
                     'pass_number' => $passNumber,
                     'registration_type' => 'pass',
-                    'user_id' => $memberId,
+                    'user_id' => null,
                     'status' => 'approved',
                     'form_data' => [
                         'full_name' => $name ?: 'Guest',
                         'email' => $email,
                         'contact_number' => $mobile,
                         'mobile' => $mobile,
+                        'area_id' => $area?->id,
+                        'area' => $area?->name ?? '',
                         'person_count' => $personCount,
                         'registration_no' => $passNumber,
-                        'is_guest' => $memberId === null,
-                        'email_verified' => true,
+                        'is_guest' => true,
+                        'email_verified' => false,
                         'submission_date' => now()->format('d-M-Y h:i A'),
                     ],
                     'payment_id' => $paymentId,
@@ -255,7 +260,7 @@ class GuestPassService
         PassTokenService::getOrGenerateTokens($registration);
 
         $this->notifyAdmins($event, $registration, $name ?: 'Guest');
-        $this->sendPassEmail($event, $registration, $email, $personCount, $memberId ? $registration->user : null);
+        $this->sendPassEmail($event, $registration, $email, $personCount, null);
 
         return [$registration, true];
     }

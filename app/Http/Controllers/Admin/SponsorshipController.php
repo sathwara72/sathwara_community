@@ -254,7 +254,7 @@ class SponsorshipController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="event_' . $event->id . '_sponsors_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => $event->exportDisposition('sponsors'),
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Expires' => '0',
@@ -265,7 +265,7 @@ class SponsorshipController extends Controller
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
 
             fputcsv($handle, [
-                'ID',
+                'Sr. No.',
                 'Sponsor / Organization Name',
                 'Contact Person',
                 'Mobile Number',
@@ -280,9 +280,10 @@ class SponsorshipController extends Controller
                 'Registered Date',
             ]);
 
+            $sr = 0;
             foreach ($sponsors as $s) {
                 fputcsv($handle, [
-                    $s->id,
+                    ++$sr,
                     $s->name,
                     $s->contact_person ?? '-',
                     $s->mobile,

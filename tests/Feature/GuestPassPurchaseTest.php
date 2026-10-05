@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\EventPassPurchasedMail;
-use App\Mail\RegisterEmailOtpMail;
+use App\Models\Area;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
@@ -48,25 +48,11 @@ class GuestPassPurchaseTest extends TestCase
         ], $attributes));
     }
 
-    private function sendOtp(Event $event, string $email = 'guest@gmail.com', string $mobile = '98765 43210')
+    private function enterDetails(Event $event, string $email = 'guest@gmail.com', string $mobile = '98765 43210')
     {
-        return $this->postJson(route('events.guest_pass.send_otp', $event->id), ['email' => $email, 'mobile' => $mobile]);
-    }
+        $areaId = Area::firstOrCreate(['name' => 'Naroda'])->id;
 
-    /** Runs the OTP steps and returns the emailed code. */
-    private function verifyEmail(Event $event, string $email = 'guest@gmail.com'): void
-    {
-        $this->sendOtp($event, $email)->assertOk();
-
-        $otp = null;
-        Mail::assertSent(RegisterEmailOtpMail::class, function ($mail) use (&$otp, $email) {
-            if ($mail->email === $email) {
-                $otp = $mail->otp;
-            }
-            return true;
-        });
-
-        $this->postJson(route('events.guest_pass.verify_otp', $event->id), ['otp' => $otp])->assertOk();
+        return $this->postJson(route('events.guest_pass.details', $event->id), ['email' => $email, 'mobile' => $mobile, 'area_id' => $areaId]);
     }
 
     private function fakeOrder(Event $event, array $overrides = [], string $orderId = 'order_ABC123'): array
@@ -110,7 +96,7 @@ class GuestPassPurchaseTest extends TestCase
     {
         $event = $this->event(['pass_purchase_access' => 'members_only']);
 
-        $this->sendOtp($event)->assertForbidden();
+        $this->enterDetails($event)->assertForbidden();
         Mail::assertNothingSent();
     }
 
@@ -119,26 +105,50 @@ class GuestPassPurchaseTest extends TestCase
         $event = $this->event();
 
         foreach (['someone@mailinator.com', 'x@example.com', 'dummy123@gmail.com', 'not-an-email'] as $email) {
-            $this->sendOtp($event, $email)->assertStatus(422);
+            $this->enterDetails($event, $email)->assertStatus(422);
         }
 
-        $this->sendOtp($event, 'guest@gmail.com', '12345')->assertStatus(422);
+        $this->enterDetails($event, 'guest@gmail.com', '12345')->assertStatus(422);
         Mail::assertNothingSent();
     }
 
-    public function test_otp_is_emailed_and_wrong_codes_are_locked_out(): void
+    public function test_details_step_sends_no_otp_email(): void
     {
         $event = $this->event();
-        $this->sendOtp($event)->assertOk();
-        Mail::assertSent(RegisterEmailOtpMail::class, fn ($m) => $m->hasTo('guest@gmail.com'));
 
-        for ($i = 0; $i < 5; $i++) {
-            $this->postJson(route('events.guest_pass.verify_otp', $event->id), ['otp' => '000000'])->assertStatus(400);
-        }
-        $this->postJson(route('events.guest_pass.verify_otp', $event->id), ['otp' => '000000'])->assertStatus(429);
+        $this->enterDetails($event)->assertOk()->assertJson(['email' => 'guest@gmail.com']);
+        Mail::assertNothingSent();
     }
 
-    public function test_cannot_create_order_without_verified_email(): void
+    public function test_area_is_required_and_saved_on_the_pass(): void
+    {
+        $event = $this->event(['pass_fee' => 0]);
+
+        $this->postJson(route('events.guest_pass.details', $event->id), ['email' => 'guest@gmail.com', 'mobile' => '9876543210'])
+            ->assertStatus(422);
+        $this->postJson(route('events.guest_pass.details', $event->id), ['email' => 'guest@gmail.com', 'mobile' => '9876543210', 'area_id' => 99999])
+            ->assertStatus(422);
+
+        $this->enterDetails($event)->assertOk();
+        $this->postJson(route('events.guest_pass.complete', $event->id), ['person_count' => 1])->assertOk();
+
+        $registration = EventRegistration::firstOrFail();
+        $this->assertSame('Naroda', $registration->form_data['area']);
+        $this->assertSame(Area::where('name', 'Naroda')->value('id'), $registration->form_data['area_id']);
+    }
+
+    public function test_member_email_must_log_in_instead_of_buying_as_guest(): void
+    {
+        User::factory()->create(['email' => 'Guest@Gmail.com', 'status' => 'approved']);
+        $event = $this->event();
+        $this->fakeOrder($event);
+
+        $this->enterDetails($event)->assertStatus(422);
+        $this->postJson(route('events.guest_pass.order', $event->id), ['person_count' => 1])->assertForbidden();
+        Http::assertNothingSent();
+    }
+
+    public function test_cannot_create_order_without_entering_details(): void
     {
         $event = $this->event();
         $this->fakeOrder($event);
@@ -150,7 +160,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_paid_purchase_creates_guest_registration_and_emails_pass(): void
     {
         $event = $this->event();
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
         $this->fakeOrder($event);
 
         $this->postJson(route('events.guest_pass.order', $event->id), ['person_count' => 2, 'name' => 'Ravi Patel'])
@@ -182,10 +192,10 @@ class GuestPassPurchaseTest extends TestCase
         Mail::assertSent(EventPassPurchasedMail::class, fn ($m) => $m->hasTo('guest@gmail.com') && $m->personCount === 2);
     }
 
-    public function test_one_verification_can_buy_passes_multiple_times(): void
+    public function test_one_details_entry_can_buy_passes_multiple_times(): void
     {
         $event = $this->event();
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
 
         foreach (['order_ONE' => 'pay_1', 'order_TWO' => 'pay_2'] as $orderId => $paymentId) {
             $this->fakeOrder($event, [], $orderId);
@@ -199,7 +209,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_replaying_a_paid_order_does_not_create_a_second_registration(): void
     {
         $event = $this->event();
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
         $this->fakeOrder($event);
 
         $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())->assertOk();
@@ -212,7 +222,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_forged_payment_signature_is_rejected(): void
     {
         $event = $this->event();
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
         $this->fakeOrder($event);
 
         $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload(signature: 'forged'))
@@ -226,7 +236,7 @@ class GuestPassPurchaseTest extends TestCase
     {
         $event = $this->event();
         $other = $this->event(['title' => 'Other']);
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
 
         $this->fakeOrder($event, ['notes' => ['email' => 'someone.else@gmail.com']]);
         $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())->assertStatus(422);
@@ -240,7 +250,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_unsettled_payment_defers_to_webhook_and_webhook_issues_the_pass_once(): void
     {
         $event = $this->event();
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
         $this->fakeOrder($event, ['status' => 'attempted', 'amount_paid' => 0]);
 
         $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())
@@ -273,7 +283,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_free_event_needs_no_payment(): void
     {
         $event = $this->event(['pass_fee' => 0]);
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
 
         $this->postJson(route('events.guest_pass.order', $event->id), ['person_count' => 3])
             ->assertOk()->assertJson(['free' => true]);
@@ -290,7 +300,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_pass_limit_and_deadline_are_enforced(): void
     {
         $event = $this->event(['total_pass_limit' => 2]);
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
 
         $this->postJson(route('events.guest_pass.order', $event->id), ['person_count' => 3])->assertStatus(422);
 
@@ -301,7 +311,7 @@ class GuestPassPurchaseTest extends TestCase
     public function test_pass_email_contains_a_qr_code_per_pass(): void
     {
         $event = $this->event();
-        $this->verifyEmail($event);
+        $this->enterDetails($event);
         $this->fakeOrder($event);
         $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())->assertOk();
 
@@ -321,18 +331,4 @@ class GuestPassPurchaseTest extends TestCase
         $this->get(route('event.details', $closed->id))->assertOk()->assertDontSee(__('messages.guest_buy_pass'));
     }
 
-    public function test_purchase_with_a_members_email_is_attached_to_the_member_account(): void
-    {
-        $member = User::factory()->create(['email' => 'Guest@Gmail.com', 'status' => 'approved']);
-        $event = $this->event();
-        $this->verifyEmail($event);
-        $this->fakeOrder($event);
-
-        $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())->assertOk();
-
-        $registration = EventRegistration::firstOrFail();
-        $this->assertSame($member->id, $registration->user_id);
-        $this->assertTrue($member->eventRegistrations()->where('event_id', $event->id)->exists());
-        Mail::assertSent(EventPassPurchasedMail::class, fn ($m) => $m->hasTo('guest@gmail.com'));
-    }
 }

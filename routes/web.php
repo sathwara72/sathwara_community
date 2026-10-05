@@ -40,8 +40,7 @@ Route::post('/events/{id}/sponsor', [PublicController::class, 'registerSponsor']
 
 // Pass purchase without login (only for events with pass_purchase_access = 'anyone')
 Route::prefix('/events/{id}/guest-pass')->name('events.guest_pass.')->group(function () {
-    Route::post('/otp', [GuestPassController::class, 'sendOtp'])->name('send_otp')->middleware('throttle:5,10');
-    Route::post('/verify', [GuestPassController::class, 'verifyOtp'])->name('verify_otp')->middleware('throttle:10,10');
+    Route::post('/details', [GuestPassController::class, 'saveDetails'])->name('details')->middleware('throttle:10,10');
     Route::post('/order', [GuestPassController::class, 'createOrder'])->name('order')->middleware('throttle:10,10');
     Route::post('/complete', [GuestPassController::class, 'complete'])->name('complete')->middleware('throttle:10,10');
 });
@@ -59,17 +58,13 @@ Route::middleware('guest')->group(function () {
     Route::get('/register/member', [RegistrationController::class, 'showMemberRegister'])->name('register.member');
     Route::post('/register/member', [RegistrationController::class, 'submitMemberRegister'])->name('register.member.submit');
     Route::post('/register/member/pre-validate', [RegistrationController::class, 'preValidateMember'])->name('register.member.pre_validate');
-    Route::post('/register/member/send-otp', [RegistrationController::class, 'sendRegistrationOtp'])->name('register.member.send_otp')->middleware('throttle:5,10');
-    Route::post('/register/member/verify-otp', [RegistrationController::class, 'verifyRegistrationOtp'])->name('register.member.verify_otp');
 });
 
 
 // Business signup (Public - can be submitted by guests or logged-in members)
 Route::get('/register/business', [RegistrationController::class, 'showBusinessRegister'])->name('register.business');
 Route::post('/register/business', [RegistrationController::class, 'submitBusinessRegister'])->name('register.business.submit');
-Route::post('/register/business/pre-validate', [RegistrationController::class, 'preValidateBusiness'])->name('register.business.pre_validate');
-Route::post('/register/business/send-otp', [RegistrationController::class, 'sendBusinessRegistrationOtp'])->name('register.business.send_otp')->middleware('throttle:5,10');
-Route::post('/register/business/verify-otp', [RegistrationController::class, 'verifyBusinessRegistrationOtp'])->name('register.business.verify_otp');
+Route::post('/register/business/pre-validate', [RegistrationController::class, 'preValidateBusiness'])->name('register.business.pre_validate')->middleware('throttle:20,10');
 Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id')->middleware('throttle:30,1');
 Route::get('/api/lookup-father-member', [RegistrationController::class, 'lookupFatherMember'])->name('api.lookup_father_member')->middleware('throttle:30,1');
 
@@ -96,8 +91,6 @@ Route::middleware(['auth:business'])->prefix('business')->name('business.')->gro
     Route::get('/dashboard', [BusinessDashboard::class, 'index'])->name('dashboard');
     Route::get('/profile', [BusinessDashboard::class, 'editProfile'])->name('profile.edit');
     Route::post('/profile', [BusinessDashboard::class, 'updateProfile'])->name('profile.update');
-    Route::post('/profile/email/send-otp', [BusinessDashboard::class, 'sendProfileEmailOtp'])->name('profile.email.send_otp')->middleware('throttle:5,10');
-    Route::post('/profile/email/verify-otp', [BusinessDashboard::class, 'verifyProfileEmailOtp'])->name('profile.email.verify_otp');
     Route::post('/password', [BusinessDashboard::class, 'updatePassword'])->name('password.update');
     Route::get('/renewal', [BusinessDashboard::class, 'renewal'])->name('renewal');
     Route::post('/renewal/pay', [BusinessDashboard::class, 'processRenewal'])->name('renewal.pay');
@@ -264,7 +257,6 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         // Student Awards Applications
         Route::get('/awards', [AdminAward::class, 'index'])->name('awards.index');
         Route::get('/awards/export', [AdminAward::class, 'exportCsv'])->name('awards.export');
-        Route::get('/awards/{id}', [AdminAward::class, 'show'])->name('awards.show');
         Route::post('/awards/{id}/approve', [AdminAward::class, 'approve'])->name('awards.approve');
         Route::post('/awards/{id}/reject', [AdminAward::class, 'reject'])->name('awards.reject');
         Route::delete('/awards/{id}', [AdminAward::class, 'destroy'])->name('awards.destroy');

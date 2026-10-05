@@ -49,7 +49,7 @@ class RazorpayPaymentTest extends TestCase
         Setting::set('member_signup_fee', '1000');
         $area = Area::first();
 
-        $response = $this->withSession(['reg_email_verified' => 'ramesh@test.com'])->post(route('register.member.submit'), [
+        $response = $this->post(route('register.member.submit'), [
             'first_name' => 'Ramesh',
             'middle_name' => 'K',
             'last_name' => 'Sathwara',
@@ -82,7 +82,6 @@ class RazorpayPaymentTest extends TestCase
         Setting::set('business_registration_fee', '500');
         $area = Area::first();
 
-        session(['biz_reg_email_verified' => 'biztest@example.com']);
 
         $response = $this->post(route('register.business.submit'), [
             'business_name' => 'Sathwara Enterprise',
@@ -235,7 +234,6 @@ class RazorpayPaymentTest extends TestCase
     public function test_business_pre_validation_fails_when_passwords_do_not_match(): void
     {
         $area = Area::first();
-        session(['biz_reg_email_verified' => 'bizmatch@example.com']);
 
         $response = $this->postJson(route('register.business.pre_validate'), [
             'business_name' => 'Mismatch Store',
@@ -261,7 +259,6 @@ class RazorpayPaymentTest extends TestCase
     public function test_business_pre_validation_succeeds_with_matching_passwords(): void
     {
         $area = Area::first();
-        session(['biz_reg_email_verified' => 'bizmatch2@example.com']);
 
         $response = $this->postJson(route('register.business.pre_validate'), [
             'business_name' => 'Match Store',

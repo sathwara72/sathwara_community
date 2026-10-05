@@ -23,7 +23,7 @@ class BusinessController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Business::with('category');
+        $query = Business::with(['category', 'area']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -459,7 +459,7 @@ class BusinessController extends Controller
             "Expires"             => "0"
         ];
 
-        $query = Business::with('category');
+        $query = Business::with(['category', 'area']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -483,31 +483,37 @@ class BusinessController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_business_name'),
                 __('messages.csv_owner_name'),
                 __('messages.csv_category'),
                 __('messages.csv_phone'),
                 __('messages.csv_email'),
+                __('messages.csv_area'),
                 __('messages.csv_city'),
                 __('messages.csv_state'),
                 __('messages.csv_status'),
-                __('messages.csv_created_at')
+                __('messages.csv_membership_started'),
+                __('messages.csv_membership_expires')
             ]);
 
+            $sr = 0;
             foreach ($businesses as $b) {
                 $statusKey = strtolower($b->status ?? '');
                 fputcsv($file, [
-                    $b->id,
+                    ++$sr,
                     $b->business_name,
                     $b->owner_name,
                     $b->category ? $b->category->name : '',
                     $b->phone ?? '',
                     $b->email ?? '',
+                    $b->area ? $b->area->name : '',
                     $b->city ?? '',
                     $b->state ?? '',
                     __('messages.' . $statusKey) != 'messages.' . $statusKey ? __('messages.' . $statusKey) : ucfirst($b->status),
-                    $b->created_at ? $b->created_at->format('Y-m-d H:i') : '',
+                    // Membership runs one year from approval / last renewal
+                    $b->approved_at ? $b->approved_at->format('d-M-Y') : '',
+                    $b->approved_at ? $b->approved_at->copy()->addYear()->format('d-M-Y') : '',
                 ]);
             }
             fclose($file);

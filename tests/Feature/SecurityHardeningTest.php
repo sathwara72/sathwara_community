@@ -62,35 +62,6 @@ class SecurityHardeningTest extends TestCase
         $this->assertTrue(str_contains($error, 'ઘણા બધા પ્રયાસો') || str_contains($error, 'Too many login attempts'));
     }
 
-    public function test_business_otp_verification_locks_out_after_too_many_attempts()
-    {
-        // Set up OTP session
-        $this->withSession([
-            'biz_reg_otp_email' => 'otpsec@test.com',
-            'biz_reg_otp_code' => '123456',
-            'biz_reg_otp_expires' => now()->addMinutes(10),
-            'biz_reg_otp_attempts' => 0,
-        ]);
-
-        // Fail 5 times
-        for ($i = 0; $i < 5; $i++) {
-            $res = $this->postJson(route('register.business.verify_otp'), [
-                'email' => 'otpsec@test.com',
-                'otp' => '000000',
-            ]);
-            $res->assertStatus(400);
-        }
-
-        // 6th attempt should fail with 429
-        $lockoutRes = $this->postJson(route('register.business.verify_otp'), [
-            'email' => 'otpsec@test.com',
-            'otp' => '000000',
-        ]);
-
-        $lockoutRes->assertStatus(429);
-        $this->assertFalse(session()->has('biz_reg_otp_code'));
-    }
-
     public function test_replayed_payment_id_is_rejected_on_member_registration()
     {
         $area = Area::create(['name' => 'Naroda', 'city' => 'Ahmedabad', 'state' => 'Gujarat']);
@@ -103,10 +74,6 @@ class SecurityHardeningTest extends TestCase
             'status' => 'approved',
             'payment_id' => 'pay_already_used_999',
             'payment_status' => 'paid',
-        ]);
-
-        $this->withSession([
-            'reg_email_verified' => 'newuser@test.com',
         ]);
 
         $response = $this->post(route('register.member.submit'), [
