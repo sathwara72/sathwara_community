@@ -4,12 +4,8 @@ return [
     // Validate that the email domain has MX/A records (blocks made-up domains)
     'check_dns' => env('GUEST_PASS_CHECK_DNS', true),
 
-    'otp_ttl_minutes' => 10,
-    'otp_resend_seconds' => 60,
-    'otp_max_attempts' => 5,
-
-    // How long one verified email may keep buying passes without re-verifying
-    'verified_ttl_minutes' => 60,
+    // How long the entered email + mobile stay valid for buying passes in this browser session
+    'details_ttl_minutes' => 60,
 
     'max_persons_per_purchase' => 50,
 

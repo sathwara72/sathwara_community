@@ -530,7 +530,7 @@ class EventController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_event_title'),
                 __('messages.csv_event_type'),
                 __('messages.csv_date'),
@@ -541,10 +541,11 @@ class EventController extends Controller
                 __('messages.csv_status')
             ]);
 
+            $sr = 0;
             foreach ($events as $e) {
                 $statusKey = strtolower($e->status ?? 'active');
                 fputcsv($file, [
-                    $e->id,
+                    ++$sr,
                     $e->title,
                     $e->event_type ?? 'normal',
                     $e->date,
@@ -582,26 +583,24 @@ class EventController extends Controller
 
         $headers = [
             "Content-type" => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=registrations_event_" . $event->id . "_" . date('Y-m-d') . ".csv",
+            "Content-Disposition" => $event->exportDisposition('passes'),
             "Pragma" => "no-cache",
             "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
             "Expires" => "0"
         ];
 
-        $callback = function () use ($registrations, $event) {
+        $callback = function () use ($registrations) {
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($file, ['ID', 'Event ID', 'Event Name', 'Pass No.', 'Member ID', 'Member Code', 'Participant Name', 'Contact Number', 'Person Count', 'Pass Fee (INR)', 'Payment Status', 'Payment ID', 'Purchase Date', 'Remarks']);
+            fputcsv($file, ['Sr. No.', 'Pass No.', 'Member Code', 'Participant Name', 'Contact Number', 'Person Count', 'Pass Fee (INR)', 'Payment Status', 'Payment ID', 'Purchase Date', 'Remarks']);
+            $sr = 0;
             foreach ($registrations as $index => $r) {
                 $fd = $r->form_data ?? [];
                 $passNo = $r->pass_number ? sprintf('%03d', $r->pass_number) : (isset($fd['registration_no']) && is_numeric($fd['registration_no']) ? sprintf('%03d', (int)$fd['registration_no']) : sprintf('%03d', $index + 1));
                 fputcsv($file, [
-                    $r->id,
-                    $event->id,
-                    $event->title,
+                    ++$sr,
                     $passNo,
-                    $r->user ? sprintf('#%05d', $r->user->id) : ($fd['member_id'] ?? ''),
                     $r->user->member_code ?? '',
                     $fd['full_name'] ?? ($r->user ? $r->user->name : 'Participant'),
                     $fd['contact_number'] ?? ($r->user->memberProfile->phone ?? ($fd['mobile'] ?? '')),
@@ -727,7 +726,7 @@ class EventController extends Controller
         $filenameSuffix = ($topFilter === 'top3' ? '_top3' : ($topFilter === 'top5' ? '_top5' : ''));
         $headers = [
             "Content-type" => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=inam_submissions_event_" . $event->id . $filenameSuffix . "_" . date('Y-m-d') . ".csv",
+            "Content-Disposition" => $event->exportDisposition('inam_submissions' . $filenameSuffix),
             "Pragma" => "no-cache",
             "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
             "Expires" => "0"
@@ -738,7 +737,8 @@ class EventController extends Controller
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             fputcsv($file, [
-                'ID',
+                'Sr. No.',
+                'Member Code',
                 'Student Name',
                 'Parent Name',
                 'Total Marks',
@@ -748,10 +748,10 @@ class EventController extends Controller
                 'Rank',
                 'Contact No',
                 'Marksheet URL',
-                'Member Code',
                 'Submission Date',
             ]);
 
+            $sr = 0;
             foreach ($sortedRows as $index => $r) {
                 $fd = $r->form_data ?? [];
                 $phone = $fd['mobile_no'] ?? $fd['mobile'] ?? $fd['contact_number'] ?? ($r->user->memberProfile->phone ?? ($r->user->phone ?? ''));
@@ -764,7 +764,8 @@ class EventController extends Controller
                 $submissionDate = $r->created_at ? $r->created_at->format('d-M-Y') : ($fd['submission_date'] ?? '');
 
                 fputcsv($file, [
-                    $index + 1, // ID starting from 1
+                    ++$sr,
+                    $memberCode,
                     $fd['student_name'] ?? ($r->user ? $r->user->name : ''),
                     $fd['father_name'] ?? ($fd['parent_name'] ?? ''),
                     $fd['total_marks'] ?? '',
@@ -774,7 +775,6 @@ class EventController extends Controller
                     'Rank ' . ($r->std_rank ?? ($index + 1)),
                     $phone,
                     $marksheetUrl,
-                    $memberCode,
                     $submissionDate,
                 ]);
             }
@@ -802,31 +802,28 @@ class EventController extends Controller
 
         $headers = [
             "Content-type" => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=yuva_melo_candidates_event_" . $event->id . "_" . date('Y-m-d') . ".csv",
+            "Content-Disposition" => $event->exportDisposition('yuva_melo_candidates'),
             "Pragma" => "no-cache",
             "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
             "Expires" => "0"
         ];
 
-        $callback = function () use ($registrations, $event) {
+        $callback = function () use ($registrations) {
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             fputcsv($file, [
-                'ID', 'Event ID', 'Event Name', 'Yuva Melo No.', 'Submission Date', 'Status', 'Member ID', 'Member Code', 'Name', 'Surname', 'Gender', 'Father Name', 'Grandpa Name', 'Address', 'Mobile Number 1', 'Whatsapp Number', 'Birth Date', 'Age', 'Height', 'Weight', 'Qualification', 'Occupation', 'Occupation Address', 'Monthly Income', 'Elder Brothers', 'Married Elder Brothers', 'Younger Brothers', 'Married Younger Brothers', 'Elder Sisters', 'Married Elder Sisters', 'Younger Sisters', 'Married Younger Sisters', 'Father Occupation', 'Father Occupation Address', 'Father Mobile', 'Father Age', 'Father Income', 'Native Place', 'Mother Name', 'Mother Occupation', 'Maternal Uncle Name', 'Maternal Grandfather Name', 'Maternal Grandfather Address', 'Maternal Grandfather Occupation', 'Business', 'House', 'Own House', 'Vehicle', 'Divorce', 'Special Need', 'Physical Disability', 'Disability Duration', 'Other Info', 'Special Info', 'Photo URL'
+                'Sr. No.', 'Yuva Melo No.', 'Status', 'Member Code', 'Name', 'Surname', 'Gender', 'Father Name', 'Grandpa Name', 'Address', 'Mobile Number 1', 'Whatsapp Number', 'Birth Date', 'Age', 'Height', 'Weight', 'Qualification', 'Occupation', 'Occupation Address', 'Monthly Income', 'Elder Brothers', 'Married Elder Brothers', 'Younger Brothers', 'Married Younger Brothers', 'Elder Sisters', 'Married Elder Sisters', 'Younger Sisters', 'Married Younger Sisters', 'Father Occupation', 'Father Occupation Address', 'Father Mobile', 'Father Age', 'Father Income', 'Native Place', 'Mother Name', 'Mother Occupation', 'Maternal Uncle Name', 'Maternal Grandfather Name', 'Maternal Grandfather Address', 'Maternal Grandfather Occupation', 'Business', 'House', 'Own House', 'Vehicle', 'Divorce', 'Special Need', 'Physical Disability', 'Disability Duration', 'Other Info', 'Special Info', 'Photo URL', 'Submission Date'
             ]);
 
+            $sr = 0;
             foreach ($registrations as $index => $r) {
                 $fd = $r->form_data ?? [];
                 $yuvaNo = $r->yuva_melo_number ? sprintf('%03d', $r->yuva_melo_number) : (isset($fd['registration_no']) && is_numeric($fd['registration_no']) ? sprintf('%03d', (int)$fd['registration_no']) : sprintf('%03d', $index + 1));
                 fputcsv($file, [
-                    $r->id,
-                    $event->id,
-                    $event->title,
+                    ++$sr,
                     $yuvaNo,
-                    $fd['submission_date'] ?? ($r->created_at ? $r->created_at->format('d-M-Y h:i A') : ''),
                     ucfirst($r->status ?? 'approved'),
-                    $fd['member_number'] ?? ($r->user ? '#' . sprintf('%05d', $r->user->id) : ''),
                     $r->user->member_code ?? '',
                     $fd['first_name'] ?? ($r->user ? $r->user->name : ''),
                     $fd['surname'] ?? '',
@@ -875,6 +872,7 @@ class EventController extends Controller
                     $fd['other_info'] ?? '',
                     $fd['special_info'] ?? '',
                     $fd['member_photo_url'] ?? ($fd['selfie_url'] ?? ''),
+                    $fd['submission_date'] ?? ($r->created_at ? $r->created_at->format('d-M-Y h:i A') : ''),
                 ]);
             }
 

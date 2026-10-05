@@ -467,7 +467,8 @@ class MemberController extends Controller
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
+                __('messages.csv_member_code'),
                 __('messages.csv_name'),
                 __('messages.csv_email'),
                 __('messages.csv_status'),
@@ -481,12 +482,14 @@ class MemberController extends Controller
                 __('messages.csv_family_count')
             ]);
 
+            $sr = 0;
             foreach ($members as $member) {
                 $profile = $member->memberProfile;
                 $gender = $profile ? strtolower($profile->gender ?? '') : '';
                 $statusKey = strtolower($member->status ?? '');
 
                 fputcsv($file, [
+                    ++$sr,
                     $member->member_code ?: $member->formatted_member_id,
                     $member->name,
                     $member->email,

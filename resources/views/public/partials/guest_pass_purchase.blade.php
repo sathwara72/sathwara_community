@@ -5,6 +5,7 @@
     $guestMaxPersons = $guestRemaining === null
         ? (int) config('guest_pass.max_persons_per_purchase')
         : min((int) config('guest_pass.max_persons_per_purchase'), $guestRemaining);
+    $guestAreas = \App\Models\Area::orderBy('name')->get();
 @endphp
 
 <div class="space-y-3.5"
@@ -12,8 +13,7 @@
         fee: {{ $guestFee }},
         maxPersons: {{ max(1, $guestMaxPersons) }},
         urls: {
-            sendOtp: @js(route('events.guest_pass.send_otp', $event->id)),
-            verifyOtp: @js(route('events.guest_pass.verify_otp', $event->id)),
+            details: @js(route('events.guest_pass.details', $event->id)),
             order: @js(route('events.guest_pass.order', $event->id)),
             complete: @js(route('events.guest_pass.complete', $event->id)),
         },
@@ -79,7 +79,7 @@
                          class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold"></div>
 
                     {{-- Step 1: email + mobile --}}
-                    <form x-show="step === 'details'" @submit.prevent="sendOtp()" class="space-y-4">
+                    <form x-show="step === 'details'" @submit.prevent="saveDetails()" class="space-y-4">
                         <div class="space-y-1">
                             <label class="text-xs font-extrabold text-slate-800">{{ __('messages.guest_email') }} <span class="text-rose-500">*</span></label>
                             <input type="email" x-model="email" required autocomplete="email" inputmode="email"
@@ -91,37 +91,27 @@
                             <input type="tel" x-model="mobile" required autocomplete="tel" inputmode="numeric" maxlength="15" placeholder="9876543210"
                                    class="w-full text-sm font-semibold px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
                         </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-extrabold text-slate-800">{{ __('messages.area') }} <span class="text-rose-500">*</span></label>
+                            <select x-model="areaId" required
+                                    class="w-full text-sm font-semibold px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
+                                <option value="">-- {{ __('messages.select_area') }} --</option>
+                                @foreach($guestAreas as $area)
+                                    <option value="{{ $area->id }}">{{ $area->name }}{{ $area->pincode ? ' (' . $area->pincode . ')' : '' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         <button type="submit" :disabled="loading"
                                 class="w-full py-3.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 active:scale-95 text-white font-black text-xs rounded-2xl shadow-md transition-all cursor-pointer uppercase tracking-wider">
-                            <span x-text="loading ? processing : @js(__('messages.guest_send_otp'))"></span>
+                            <span x-text="loading ? processing : @js(__('messages.guest_continue'))"></span>
                         </button>
                     </form>
 
-                    {{-- Step 2: OTP --}}
-                    <form x-show="step === 'otp'" x-cloak @submit.prevent="verifyOtp()" class="space-y-4">
-                        <div class="text-xs text-slate-600 font-medium">
-                            <span x-text="email" class="font-black text-slate-900"></span>
-                            <button type="button" @click="reset()" class="ml-2 text-primary-700 font-bold hover:underline cursor-pointer">{{ __('messages.guest_change_email') }}</button>
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-xs font-extrabold text-slate-800">{{ __('messages.guest_enter_otp') }}</label>
-                            <input type="text" x-model="otp" required maxlength="6" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}"
-                                   class="w-full text-center text-2xl tracking-[0.5em] font-black px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
-                        </div>
-                        <button type="submit" :disabled="loading || otp.length !== 6"
-                                class="w-full py-3.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 active:scale-95 text-white font-black text-xs rounded-2xl shadow-md transition-all cursor-pointer uppercase tracking-wider">
-                            <span x-text="loading ? processing : @js(__('messages.guest_verify_otp'))"></span>
-                        </button>
-                        <button type="button" @click="sendOtp()" :disabled="loading || resendIn > 0"
-                                class="w-full text-xs font-bold text-slate-500 hover:text-primary-700 disabled:opacity-60 cursor-pointer">
-                            <span x-text="resendIn > 0 ? @js(__('messages.guest_resend_otp')) + ' (' + resendIn + 's)' : @js(__('messages.guest_resend_otp'))"></span>
-                        </button>
-                    </form>
-
-                    {{-- Step 3: choose number of passes and pay --}}
+                    {{-- Step 2: choose number of passes and pay --}}
                     <form x-show="step === 'purchase'" x-cloak @submit.prevent="pay()" class="space-y-4">
-                        <div class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs">
-                            <span class="font-bold text-emerald-800">✓ {{ __('messages.guest_email_verified') }}: <span x-text="email" class="font-black"></span></span>
+                        <div class="flex items-center justify-between gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs">
+                            <span class="font-bold text-slate-700 break-all">{{ __('messages.guest_pass_sent_to') }}: <span x-text="email" class="font-black text-slate-900"></span></span>
+                            <button type="button" @click="reset()" :disabled="loading" class="shrink-0 text-primary-700 font-bold hover:underline cursor-pointer">{{ __('messages.guest_change_email') }}</button>
                         </div>
 
                         <div class="space-y-1">
@@ -178,18 +168,15 @@ window.guestPassPurchase = function (cfg) {
         step: 'details',
         email: '',
         mobile: '',
+        areaId: '',
         name: '',
-        otp: '',
         count: 1,
         loading: false,
         error: '',
         info: '',
-        resendIn: 0,
-        timer: null,
 
         reset() {
             this.step = 'details';
-            this.otp = '';
             this.error = '';
             this.info = '';
         },
@@ -235,20 +222,9 @@ window.guestPassPurchase = function (cfg) {
             }
         },
 
-        sendOtp() {
+        saveDetails() {
             return this.run(async () => {
-                const data = await this.post(cfg.urls.sendOtp, { email: this.email, mobile: this.mobile });
-                this.step = 'otp';
-                this.otp = '';
-                this.info = data.message;
-                this.startResendTimer();
-                this.loading = false;
-            });
-        },
-
-        verifyOtp() {
-            return this.run(async () => {
-                const data = await this.post(cfg.urls.verifyOtp, { otp: this.otp });
+                const data = await this.post(cfg.urls.details, { email: this.email, mobile: this.mobile, area_id: this.areaId });
                 this.email = data.email || this.email;
                 this.step = 'purchase';
                 this.loading = false;
@@ -304,15 +280,6 @@ window.guestPassPurchase = function (cfg) {
             const data = await this.post(cfg.urls.complete, body);
             window.dispatchEvent(new CustomEvent('show-loader'));
             window.location.href = data.redirect;
-        },
-
-        startResendTimer() {
-            clearInterval(this.timer);
-            this.resendIn = 60;
-            this.timer = setInterval(() => {
-                this.resendIn = Math.max(0, this.resendIn - 1);
-                if (this.resendIn === 0) clearInterval(this.timer);
-            }, 1000);
         },
     };
 };

@@ -483,7 +483,7 @@ class ContentController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_title'),
                 __('messages.csv_subtitle'),
                 __('messages.csv_button_text'),
@@ -492,9 +492,10 @@ class ContentController extends Controller
                 __('messages.csv_status'),
                 __('messages.csv_created_at')
             ]);
+            $sr = 0;
             foreach ($sliders as $s) {
                 fputcsv($file, [
-                    $s->id,
+                    ++$sr,
                     $s->title ?? '',
                     $s->subtitle ?? '',
                     $s->button_text ?? '',
@@ -529,7 +530,7 @@ class ContentController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_title'),
                 __('messages.csv_description'),
                 __('messages.csv_icon'),
@@ -537,9 +538,10 @@ class ContentController extends Controller
                 __('messages.csv_status'),
                 __('messages.csv_created_at')
             ]);
+            $sr = 0;
             foreach ($agendas as $a) {
                 fputcsv($file, [
-                    $a->id,
+                    ++$sr,
                     $a->title ?? '',
                     $a->description ?? '',
                     $a->icon ?? '',
@@ -568,7 +570,7 @@ class ContentController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_name'),
                 __('messages.csv_designation'),
                 __('messages.csv_message'),
@@ -576,9 +578,10 @@ class ContentController extends Controller
                 __('messages.csv_status'),
                 __('messages.csv_created_at')
             ]);
+            $sr = 0;
             foreach ($desks as $d) {
                 fputcsv($file, [
-                    $d->id,
+                    ++$sr,
                     $d->name ?? '',
                     $d->designation ?? '',
                     $d->message ?? '',
@@ -607,7 +610,7 @@ class ContentController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_name'),
                 __('messages.csv_designation'),
                 __('messages.csv_phone'),
@@ -617,9 +620,10 @@ class ContentController extends Controller
                 __('messages.csv_status'),
                 __('messages.csv_created_at')
             ]);
+            $sr = 0;
             foreach ($committee as $c) {
                 fputcsv($file, [
-                    $c->id,
+                    ++$sr,
                     $c->name ?? '',
                     $c->designation ?? '',
                     $c->phone ?? '',
@@ -650,16 +654,17 @@ class ContentController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_year'),
                 __('messages.csv_title'),
                 __('messages.csv_description'),
                 __('messages.csv_status'),
                 __('messages.csv_created_at')
             ]);
+            $sr = 0;
             foreach ($timelines as $t) {
                 fputcsv($file, [
-                    $t->id,
+                    ++$sr,
                     $t->year ?? '',
                     $t->title ?? '',
                     $t->description ?? '',
@@ -687,17 +692,18 @@ class ContentController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_title'),
                 __('messages.csv_description'),
                 __('messages.csv_publish_date'),
                 __('messages.csv_status'),
                 __('messages.csv_created_at')
             ]);
+            $sr = 0;
             foreach ($updates as $u) {
                 $statusKey = strtolower($u->status ?? 'active');
                 fputcsv($file, [
-                    $u->id,
+                    ++$sr,
                     $u->title ?? '',
                     strip_tags(html_entity_decode($u->description ?? '')),
                     $u->publish_date ?? '',

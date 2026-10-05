@@ -49,7 +49,7 @@ class RazorpayPaymentTest extends TestCase
         Setting::set('member_signup_fee', '1000');
         $area = Area::first();
 
-        $response = $this->withSession(['reg_email_verified' => 'ramesh@test.com'])->post(route('register.member.submit'), [
+        $response = $this->post(route('register.member.submit'), [
             'first_name' => 'Ramesh',
             'middle_name' => 'K',
             'last_name' => 'Sathwara',
