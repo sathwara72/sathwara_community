@@ -207,6 +207,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::post('/businesses/{id}/deactivate', [AdminBusiness::class, 'deactivate'])->name('businesses.deactivate');
         Route::post('/businesses/{id}/activate', [AdminBusiness::class, 'activate'])->name('businesses.activate');
         Route::delete('/businesses/{id}', [AdminBusiness::class, 'destroy'])->name('businesses.destroy');
+        Route::post('/businesses/{id}/restore', [AdminBusiness::class, 'restore'])->name('businesses.restore');
 
         Route::post('/businesses/{id}/payment-links', [AdminBusiness::class, 'generatePaymentLink'])->name('businesses.paymentLinks.generate');
         Route::post('/businesses/{id}/payment-links/{linkId}/resend', [AdminBusiness::class, 'resendPaymentLinkEmail'])->name('businesses.paymentLinks.resend');

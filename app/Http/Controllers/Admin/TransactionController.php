@@ -71,7 +71,30 @@ class TransactionController extends Controller
      */
     public static function recordLabel(Transaction $t): string
     {
-        $p = $t->payable;
+        $p = self::payableWithTrashed($t);
+        $deleted = $p && method_exists($p, 'trashed') && $p->trashed() ? ' (deleted)' : '';
+
+        return self::baseLabel($p) . $deleted;
+    }
+
+    /**
+     * The paid-for record, including soft-deleted members / businesses.
+     */
+    private static function payableWithTrashed(Transaction $t)
+    {
+        if ($t->payable || !$t->payable_type || !class_exists($t->payable_type)) {
+            return $t->payable;
+        }
+
+        $uses = class_uses_recursive($t->payable_type);
+
+        return isset($uses[\Illuminate\Database\Eloquent\SoftDeletes::class])
+            ? $t->payable_type::withTrashed()->find($t->payable_id)
+            : null;
+    }
+
+    private static function baseLabel($p): string
+    {
 
         return match (true) {
             $p instanceof User => 'Member: ' . $p->name,
@@ -87,7 +110,7 @@ class TransactionController extends Controller
      */
     public static function recordUrl(Transaction $t): ?string
     {
-        $p = $t->payable;
+        $p = self::payableWithTrashed($t);
 
         return match (true) {
             $p instanceof User => route('admin.members.show', $p->id),
