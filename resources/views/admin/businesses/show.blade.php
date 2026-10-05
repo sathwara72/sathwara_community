@@ -31,6 +31,27 @@
                 <span>{{ __('messages.edit') }}</span>
             </a>
 
+            @php
+                $bizPerms = auth()->user()->permissions->pluck('name');
+                $canDeleteThis = auth()->user()->hasRole('Administrator') || $bizPerms->contains('businesses_manage') || $bizPerms->contains('businesses_delete');
+            @endphp
+            @if($business->trashed())
+                @if($canDeleteThis)
+                    <form method="POST" action="{{ route('admin.businesses.restore', $business->id) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-colors">Restore Business</button>
+                    </form>
+                @endif
+            @else
+            @if($canDeleteThis)
+                <form method="POST" action="{{ route('admin.businesses.destroy', $business->id) }}" class="inline"
+                    onsubmit="return confirm('Delete {{ addslashes($business->business_name) }}? It will be hidden everywhere but can be restored from the Deleted tab.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-extrabold text-xs rounded-xl shadow-2xs transition-colors">Delete</button>
+                </form>
+            @endif
+
             <!-- Approve Action -->
             @if($business->status !== 'approved')
                 <form method="POST" action="{{ route('admin.businesses.approve', $business->id) }}" class="inline">
@@ -101,6 +122,7 @@
                     </form>
                 @endif
             @endif
+            @endif {{-- end: not deleted --}}
 
             <!-- Back Button -->
             <a href="{{ route('admin.businesses.index') }}" 
@@ -112,6 +134,12 @@
     </div>
 
     <!-- Contact & Overview Grid -->
+    @if($business->trashed())
+        <div class="p-3 rounded-xl bg-slate-100 border border-slate-300 text-xs text-slate-700 font-semibold">
+            This business was <strong>deleted</strong> on {{ $business->deleted_at->format('d-M-Y h:i A') }}. It is hidden from the directory and its owner cannot log in. Its payments and history are kept.
+        </div>
+    @endif
+
     @if($business->status === 'rejected' && $business->rejection_reason)
         <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
             <strong>{{ __('messages.rejection_reason') }}:</strong> {{ $business->rejection_reason }}

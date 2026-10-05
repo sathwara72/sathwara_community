@@ -128,6 +128,13 @@
                                 class="px-2 py-1 rounded-md text-xs font-bold transition-all whitespace-nowrap {{ request('status') === 'rejected' ? 'bg-rose-600 text-white shadow-xs' : 'text-rose-700 hover:bg-rose-100/50' }}">
                                 {{ __('messages.rejected') }} ({{ $rejectedCount }})
                             </a>
+
+                            @if($canDeleteBusiness)
+                                <a href="{{ route('admin.businesses.index', array_merge(request()->except('page'), ['status' => 'deleted'])) }}"
+                                    class="px-2 py-1 rounded-md text-xs font-bold transition-all whitespace-nowrap {{ request('status') === 'deleted' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-500 hover:bg-slate-100' }}">
+                                    Deleted ({{ $deletedCount }})
+                                </a>
+                            @endif
                         </div>
 
                         @if($canEditBusiness)
@@ -229,6 +236,15 @@
                                                     d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7S3.732 16.057 2.458 12z" />
                                             </svg>
                                         </a>
+                                        @if($b->trashed())
+                                            @if($canDeleteBusiness)
+                                                <form method="POST" action="{{ route('admin.businesses.restore', $b->id) }}">@csrf
+                                                    <button class="h-7.5 px-2.5 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition-colors" title="Restore">
+                                                        Restore
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @else
                                         @if($canEditBusiness)
                                             <a href="{{ route('admin.businesses.edit', $b->id) }}"
                                                 class="w-7.5 h-7.5 flex items-center justify-center rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
@@ -299,6 +315,7 @@
                                                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
                                             </button>
+                                        @endif
                                         @endif
                                     </div>
                                 </td>
