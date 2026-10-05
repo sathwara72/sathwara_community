@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PaymentMailer;
+use App\Services\RazorpayVerifier;
 use App\Mail\BusinessRenewalReceiptMail;
 use App\Models\BusinessPaymentLink;
 use App\Models\Setting;
@@ -89,12 +91,13 @@ class RazorpayWebhookController extends Controller
         $business->payment_amount = $link->amount;
         $business->save();
 
-        if (!empty($business->email)) {
-            try {
-                Mail::to($business->email)->send(new BusinessRenewalReceiptMail($business, $link));
-            } catch (\Throwable $e) {
-                Log::error('Business Renewal Receipt Mail Error: ' . $e->getMessage());
-            }
-        }
+        app(RazorpayVerifier::class)->record($razorpayPaymentId, 'business_renewal', (float) $link->amount, $business, $business->owner_name . ' (' . $business->business_name . ')', $business->phone);
+
+        PaymentMailer::send($business->email, new BusinessRenewalReceiptMail($business, $link), 'Business renewal', [
+            'Business' => $business->business_name,
+            'Amount' => '₹' . number_format((float) $link->amount, 2),
+            'Payment ID' => $link->razorpay_payment_id,
+            'Phone' => $business->phone,
+        ]);
     }
 }

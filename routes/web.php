@@ -65,7 +65,7 @@ Route::middleware('guest')->group(function () {
 Route::get('/register/business', [RegistrationController::class, 'showBusinessRegister'])->name('register.business');
 Route::post('/register/business', [RegistrationController::class, 'submitBusinessRegister'])->name('register.business.submit');
 Route::post('/register/business/pre-validate', [RegistrationController::class, 'preValidateBusiness'])->name('register.business.pre_validate')->middleware('throttle:20,10');
-Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id')->middleware('throttle:30,1');
+Route::get('/api/check-member-id', [RegistrationController::class, 'checkMemberId'])->name('api.check_member_id');
 Route::get('/api/lookup-father-member', [RegistrationController::class, 'lookupFatherMember'])->name('api.lookup_father_member')->middleware('throttle:30,1');
 
 // ================= BUSINESS PANEL AUTH =================
@@ -78,9 +78,9 @@ Route::prefix('business')->name('business.')->group(function () {
     Route::get('/forgot-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showForgotPasswordForm'])->name('password.request');
     Route::post('/forgot-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'sendOtp'])->name('password.email')->middleware('throttle:5,10');
     Route::get('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showVerifyOtpForm'])->name('password.otp.verify.form');
-    Route::post('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'verifyOtp'])->name('password.otp.verify.submit');
+    Route::post('/verify-otp', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'verifyOtp'])->name('password.otp.verify.submit')->middleware('throttle:10,10');
     Route::get('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'showResetPasswordForm'])->name('password.reset');
-    Route::post('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'resetPassword'])->name('password.store');
+    Route::post('/reset-password', [\App\Http\Controllers\Business\BusinessPasswordResetController::class, 'resetPassword'])->name('password.store')->middleware('throttle:10,10');
 });
 
 // ================= BUSINESS PANEL (Protected) =================
@@ -120,9 +120,6 @@ Route::middleware(['auth', 'role:Member', 'approved'])->prefix('member')->name('
     Route::post('/profile', [MemberDashboard::class, 'updateProfile'])->name('profile.update');
     Route::post('/profile/password', [MemberDashboard::class, 'updatePassword'])->name('profile.update_password');
     Route::get('/account-settings', [MemberDashboard::class, 'accountSettings'])->name('account.settings');
-    Route::post('/account-settings/email/send-otp', [MemberDashboard::class, 'sendEmailOtp'])->name('account.settings.send_otp');
-    Route::post('/account-settings/email/verify-otp', [MemberDashboard::class, 'verifyEmailOtp'])->name('account.settings.verify_otp');
-    Route::get('/account-settings/email/cancel-otp', [MemberDashboard::class, 'cancelEmailOtp'])->name('account.settings.cancel_otp');
     Route::post('/account-settings/password', [MemberDashboard::class, 'updatePassword'])->name('account.settings.update_password');
     Route::get('/membership-card', [MemberDashboard::class, 'membershipCard'])->name('card');
     Route::get('/my-businesses', [MemberDashboard::class, 'myBusinesses'])->name('businesses.my');
@@ -171,6 +168,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
 
     // Members list, detail sheet, approvals, CSV export, print
     Route::middleware(['permission_check:members_manage'])->group(function () {
+        Route::post('/members/fee-settings', [\App\Http\Controllers\Admin\FeeSettingsController::class, 'updateMembership'])->name('fees.membership');
         Route::get('/members', [AdminMember::class, 'index'])->name('members.index');
         Route::get('/members/export', [AdminMember::class, 'exportCsv'])->name('members.export');
         Route::get('/members/print', [AdminMember::class, 'printList'])->name('members.print');
@@ -198,6 +196,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
 
     // Businesses and Categories
     Route::middleware(['permission_check:businesses_manage'])->group(function () {
+        Route::post('/businesses/fee-settings', [\App\Http\Controllers\Admin\FeeSettingsController::class, 'updateBusiness'])->name('fees.business');
         Route::get('/businesses', [AdminBusiness::class, 'index'])->name('businesses.index');
         Route::get('/businesses/export', [AdminBusiness::class, 'exportCsv'])->name('businesses.export');
         Route::get('/businesses/{id}', [AdminBusiness::class, 'show'])->name('businesses.show');
@@ -222,6 +221,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
 
     // Events and Registrations
     Route::middleware(['permission_check:events_manage'])->group(function () {
+        Route::post('/events/{id}/fee-settings', [\App\Http\Controllers\Admin\FeeSettingsController::class, 'updateEvent'])->name('fees.event');
         Route::get('/events/export', [AdminEvent::class, 'exportCsv'])->name('events.export');
         Route::resource('events', AdminEvent::class);
         Route::get('/events/{id}/registrations/export', [AdminEvent::class, 'exportRegistrationsCsv'])->name('events.registrations.export');
@@ -320,6 +320,12 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     });
 
     // Site & Email Settings
+    // Transactions ledger (view only)
+    Route::middleware(['permission_check:transactions_view'])->group(function () {
+        Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('transactions.index');
+        Route::get('/transactions/export', [\App\Http\Controllers\Admin\TransactionController::class, 'exportCsv'])->name('transactions.export');
+    });
+
     Route::middleware(['permission_check:settings_manage'])->group(function () {
         Route::get('/settings', [AdminSettings::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettings::class, 'update'])->name('settings.update');

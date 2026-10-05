@@ -107,6 +107,16 @@
                     <span>Gate QR Scanner</span>
                 </a>
                 @if($canEditThisEvent)
+                    @include('admin.partials.fee_settings_popup', [
+                        'title' => 'Fees — ' . $event->title,
+                        'action' => route('admin.fees.event', $event->id),
+                        'fields' => array_values(array_filter([
+                            ['name' => 'pass_fee', 'label' => 'Pass purchase (per person)', 'value' => $event->pass_fee, 'help' => 'Free: passes are issued without payment.'],
+                            $event->event_type === 'yuva_melo'
+                                ? ['name' => 'form_fee', 'label' => 'Yuva Melo candidate form', 'value' => $event->form_fee, 'help' => 'Free: candidates submit the form without paying.']
+                                : null,
+                        ])),
+                    ])
                     <a href="{{ route('admin.events.edit', $event->id) }}"
                         class="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/60 font-extrabold text-xs rounded-lg transition-colors flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -659,6 +669,7 @@
                                     'payment_status' => $reg->payment_status ?? 'paid',
                                     'payment_amount' => $reg->payment_amount ?? 0,
                                     'payment_id' => $reg->payment_id ?? '-',
+                                    'transaction_nos' => $reg->transactions->pluck('transaction_no')->implode(', '),
                                     'date' => $reg->created_at ? $reg->created_at->format('d-M-Y h:i A') : '',
                                     'form_data' => $fd,
                                     'index' => $regNo,
@@ -1040,6 +1051,7 @@
                                     'address' => $s->address,
                                     'notes' => $s->notes,
                                     'payment_status' => $s->payment_status,
+                                    'transaction_nos' => $s->transactions->pluck('transaction_no')->implode(', '),
                                     'status' => $s->status,
                                     'created_at' => $s->created_at ? $s->created_at->format('d-M-Y h:i A') : '-',
                                 ], JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP);
@@ -1268,6 +1280,9 @@
                                 </h3>
                                 <p class="text-[10px] text-slate-400 font-medium"
                                     x-text="(previewLang === 'en' ? 'Submitted on: ' : 'સબમિટ તારીખ: ') + (selectedRegistration.date || '')">
+                                </p>
+                                <p class="text-[10px] text-slate-500 font-mono font-bold" x-show="selectedRegistration.transaction_nos"
+                                    x-text="(previewLang === 'en' ? 'Transaction ID: ' : 'વ્યવહાર ID: ') + selectedRegistration.transaction_nos">
                                 </p>
                             </div>
                         </div>
@@ -2165,6 +2180,10 @@
                                 <span class="font-black block mt-0.5 truncate"
                                       :class="viewingSponsor.payment_status === 'received' ? 'text-emerald-700' : (viewingSponsor.payment_status === 'failed' ? 'text-rose-700' : 'text-amber-700')"
                                       x-text="viewingSponsor.payment_status === 'received' ? '{{ __('messages.payment_received') }}' : (viewingSponsor.payment_status === 'failed' ? '{{ __('messages.payment_failed') }}' : '{{ __('messages.payment_pending') }}')"></span>
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-0 overflow-hidden" x-show="viewingSponsor.transaction_nos">
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Transaction ID</span>
+                                <span class="font-mono font-black text-slate-800 block mt-0.5 truncate" x-text="viewingSponsor.transaction_nos"></span>
                             </div>
                             <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-0 overflow-hidden">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">{{ __('messages.status') }}</span>

@@ -68,6 +68,15 @@
 
                 <!-- Right: Action Buttons (Export CSV + Add Member) -->
                 <div class="flex items-center gap-2 shrink-0">
+                    @if($canEditMember)
+                        @include('admin.partials.fee_settings_popup', [
+                            'title' => 'Membership Fee',
+                            'action' => route('admin.fees.membership'),
+                            'fields' => [
+                                ['name' => 'member_signup_fee', 'label' => 'New membership registration', 'value' => \App\Models\Setting::get('member_signup_fee', '1000'), 'help' => 'Free: members register without paying.'],
+                            ],
+                        ])
+                    @endif
                     <a href="{{ route('admin.members.export', request()->all()) }}"
                         class="h-9 px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap border border-emerald-200/60">
                         <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>

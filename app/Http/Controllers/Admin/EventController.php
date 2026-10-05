@@ -51,7 +51,7 @@ class EventController extends Controller
         $event = Event::withCount('registrations')->findOrFail($id);
         $gallery = Gallery::where('event_id', $event->id)->orderBy('display_order')->get();
         $allRegistrations = EventRegistration::where('event_id', $event->id)
-            ->with(['user.memberProfile'])
+            ->with(['user.memberProfile', 'transactions'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -62,7 +62,7 @@ class EventController extends Controller
             ->get();
 
         $sponsors = EventSponsor::where('event_id', $event->id)
-            ->with(['sponsorshipType', 'user'])
+            ->with(['sponsorshipType', 'user', 'transactions'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -282,7 +282,7 @@ class EventController extends Controller
     {
         $event = Event::findOrFail($id);
         $allRegistrations = EventRegistration::where('event_id', $event->id)
-            ->with(['user.memberProfile'])
+            ->with(['user.memberProfile', 'transactions'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -568,7 +568,7 @@ class EventController extends Controller
     public function exportRegistrationsCsv($id)
     {
         $event = Event::findOrFail($id);
-        $allRegistrations = EventRegistration::where('event_id', $event->id)->with('user.memberProfile')->orderBy('created_at', 'asc')->get();
+        $allRegistrations = EventRegistration::where('event_id', $event->id)->with(['user.memberProfile', 'transactions'])->orderBy('created_at', 'asc')->get();
 
         // For inam_vitaran and yuva_melo events: export pass attendees only
         $registrations = $allRegistrations->filter(function($r) use ($event) {
@@ -593,7 +593,7 @@ class EventController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($file, ['Sr. No.', 'Pass No.', 'Member Code', 'Participant Name', 'Contact Number', 'Person Count', 'Pass Fee (INR)', 'Payment Status', 'Payment ID', 'Purchase Date', 'Remarks']);
+            fputcsv($file, ['Sr. No.', 'Pass No.', 'Member Code', 'Participant Name', 'Contact Number', 'Person Count', 'Pass Fee (INR)', 'Payment Status', 'Payment ID', 'Transaction ID', 'Purchase Date', 'Remarks']);
             $sr = 0;
             foreach ($registrations as $index => $r) {
                 $fd = $r->form_data ?? [];
@@ -608,6 +608,7 @@ class EventController extends Controller
                     $r->payment_amount ?? 0,
                     ucfirst($r->payment_status ?? 'paid'),
                     $r->payment_id ?? '-',
+                    $r->transactions->pluck('transaction_no')->implode(', '),
                     $fd['submission_date'] ?? ($r->created_at ? $r->created_at->format('d-M-Y h:i A') : ''),
                     $fd['remarks'] ?? '',
                 ]);

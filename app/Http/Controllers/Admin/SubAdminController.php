@@ -33,6 +33,7 @@ class SubAdminController extends Controller
             'timelines_manage'    => __('messages.mod_milestone_timeline'),
             'announcements_manage'=> __('messages.mod_announcements_news'),
             'settings_manage'     => __('messages.mod_global_settings'),
+            'transactions_view'   => __('messages.mod_transactions'),
         ];
     }
 

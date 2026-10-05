@@ -24,7 +24,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('register.business.submit') }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-4">
+            <form id="businessRegisterForm" method="POST" action="{{ route('register.business.submit') }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-4">
                 @csrf
                 <input type="hidden" name="redirect_to" value="{{ request()->fullUrl() }}">
                 
@@ -349,80 +349,7 @@
     </div>
 </section>
 
-<script>
-function multiShowcaseUploader() {
-    return {
-        files: [],
-        isDragging: false,
-        maxFiles: 6,
-        showLimitModal: false,
-        
-        selectFiles(e) {
-            if (e.target.files && e.target.files.length > 0) {
-                this.addFiles(Array.from(e.target.files));
-            }
-        },
-        
-        dropFiles(e) {
-            this.isDragging = false;
-            if (e.dataTransfer && e.dataTransfer.files) {
-                this.addFiles(Array.from(e.dataTransfer.files));
-            }
-        },
-        
-        addFiles(newFiles) {
-            let overflow = false;
-            newFiles.forEach(file => {
-                if (file.type.startsWith('image/')) {
-                    const exists = this.files.some(f => f.name === file.name && f.file.size === file.size);
-                    if (!exists) {
-                        if (this.files.length < this.maxFiles) {
-                            this.files.push({
-                                id: Math.random().toString(36).substring(2, 9),
-                                file: file,
-                                name: file.name,
-                                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-                                url: URL.createObjectURL(file)
-                            });
-                        } else {
-                            overflow = true;
-                        }
-                    }
-                }
-            });
-
-            if (overflow) {
-                this.showLimitModal = true;
-            }
-
-            this.syncInput();
-        },
-        
-        removeFile(index) {
-            if (this.files[index]) {
-                URL.revokeObjectURL(this.files[index].url);
-                this.files.splice(index, 1);
-                this.syncInput();
-            }
-        },
-        
-        clearAll() {
-            this.files.forEach(f => URL.revokeObjectURL(f.url));
-            this.files = [];
-            this.syncInput();
-        },
-        
-        syncInput() {
-            const input = this.$refs.hiddenFileInput;
-            if (input) {
-                const dt = new DataTransfer();
-                this.files.forEach(f => dt.items.add(f.file));
-                input.files = dt.files;
-            }
-        }
-    };
-}
-</script>
+<script src="{{ asset('js/business-gallery-uploader.js') }}?v={{ filemtime(public_path('js/business-gallery-uploader.js')) }}"></script>
 
 
 <div id="bizAlertModal" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:999999;align-items:center;justify-content:center;">
@@ -441,191 +368,15 @@ function multiShowcaseUploader() {
 
 @if(($businessFee ?? 500) > 0)
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const form = document.querySelector('form[action="{{ route('register.business.submit') }}"]');
-    if (!form) return;
-
-    // ── Prevent Razorpay re-opening on page refresh ──────────────
-    // If sessionStorage shows a payment was already initiated, do NOT
-    // re-trigger Razorpay when the page is refreshed (F5 / browser back).
-    sessionStorage.removeItem('biz_rzp_inprogress');
-
-    const submitBtn = document.getElementById('submitBusinessBtn');
-    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-
-    // ── Alert modal (messages are set as text, never HTML) ──────
-    const alertModal = document.getElementById('bizAlertModal');
-    if (alertModal && alertModal.parentElement !== document.body) document.body.appendChild(alertModal);
-    const alertColors = { warning: '#f59e0b', error: '#e11d48' };
-    function showAlert(message, type = 'warning', title = 'Notice') {
-        document.getElementById('bizAlertAccent').style.background = alertColors[type] || alertColors.warning;
-        document.getElementById('bizAlertTitle').textContent = title;
-        document.getElementById('bizAlertMessage').textContent = message;
-        alertModal.style.display = 'flex';
-    }
-    function closeAlert() { alertModal.style.display = 'none'; }
-    document.getElementById('bizAlertClose')?.addEventListener('click', closeAlert);
-    document.getElementById('bizAlertBackdrop')?.addEventListener('click', closeAlert);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAlert(); });
-
-    form.addEventListener('submit', async function (e) {
-        const paymentIdInput = document.getElementById('razorpay_payment_id');
-
-        // Already captured payment_id — allow normal form submit to server
-        if (paymentIdInput && paymentIdInput.value) {
-            return true;
-        }
-
-        // If browser is replaying a cached POST (refresh), just abort silently
-        if (sessionStorage.getItem('biz_rzp_inprogress') === '1') {
-            e.preventDefault();
-            sessionStorage.removeItem('biz_rzp_inprogress');
-            return false;
-        }
-
-        e.preventDefault();
-
-        // HTML5 validation
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const password = form.querySelector('[name="password"]')?.value || '';
-        const passwordConfirm = form.querySelector('[name="password_confirmation"]')?.value || '';
-
-        if (password.length < 6) {
-            showAlert('Password must be at least 6 characters long.', 'warning', 'Password Too Short');
-            form.querySelector('[name="password"]')?.focus();
-            return;
-        }
-
-        if (password !== passwordConfirm) {
-            showAlert('The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)', 'warning', 'Password Mismatch');
-            form.querySelector('[name="password_confirmation"]')?.focus();
-            return;
-        }
-
-        const phone = (form.querySelector('[name="phone"]')?.value || '').trim();
-        if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-            showAlert("{{ __('messages.mobile_10_digits_required') ?? 'મોબાઈલ નંબર બરાબર ૧૦ અંકનો હોવો જરૂરી છે.' }}", 'warning', 'Invalid Mobile Number');
-            form.querySelector('[name="phone"]')?.focus();
-            return;
-        }
-
-        const logoInput = form.querySelector('[name="logo"]');
-        if (logoInput && (!logoInput.files || logoInput.files.length === 0)) {
-            showAlert('Please upload your Business Logo or Visiting Card.', 'warning', 'Logo Required');
-            logoInput.focus();
-            return;
-        }
-
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Validating details...</span>';
-        }
-
-        // ── Server-Side Pre-Validation before opening Razorpay ──
-        try {
-            const formData = new FormData(form);
-            const preValRes = await fetch("{{ route('register.business.pre_validate') }}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: formData
-            });
-            const preValData = await preValRes.json();
-
-            if (!preValRes.ok || !preValData.success) {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHtml;
-                }
-                const errorsList = preValData.errors ? preValData.errors.join('\n• ') : (preValData.message || 'Please correct errors before payment.');
-                showAlert('• ' + errorsList, 'error', 'Please correct these details');
-                return false;
-            }
-        } catch (err) {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnHtml;
-            }
-            showAlert('Unable to validate details with server. Please try again.', 'error', 'Network Error');
-            return false;
-        }
-
-        if (submitBtn) {
-            submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Opening payment...</span>';
-        }
-
-        const razorpayKey    = "{{ $razorpayKeyId ?? '' }}";
-        const feeAmountPaise = {{ ($businessFee ?? 500) * 100 }};
-        const businessName   = form.querySelector('[name="business_name"]')?.value || '';
-        const ownerName      = form.querySelector('[name="owner_name"]')?.value || '';
-        const email          = form.querySelector('[name="email"]')?.value || '';
-
-        const resetSubmitBtn = function () {
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnHtml;
-            }
-        };
-
-        const options = {
-            "key":         razorpayKey || "rzp_test_key",
-            "amount":      feeAmountPaise,
-            "currency":    "INR",
-            "name":        "{{ config('app.name', 'Shree Satwara Gnati Mandal, Ahmedabad') }}",
-            "description": "Business Registration Fee - " + businessName,
-            "handler": function (response) {
-                // Mark payment done — clear session flag
-                sessionStorage.removeItem('biz_rzp_inprogress');
-                paymentIdInput.value = response.razorpay_payment_id;
-                form.submit();
-            },
-            "modal": {
-                "ondismiss": function () {
-                    // User closed Razorpay without paying — reset button
-                    sessionStorage.removeItem('biz_rzp_inprogress');
-                    resetSubmitBtn();
-                }
-            },
-            "prefill": {
-                "name":    ownerName,
-                "email":   email,
-                "contact": phone
-            },
-            "theme": { "color": "#2563EB" }
-        };
-
-        function launchRazorpay() {
-            sessionStorage.setItem('biz_rzp_inprogress', '1');
-            const rzp = new Razorpay(options);
-            rzp.on('payment.failed', function () {
-                sessionStorage.removeItem('biz_rzp_inprogress');
-                resetSubmitBtn();
-            });
-            rzp.open();
-        }
-
-        if (window.Razorpay) {
-            launchRazorpay();
-        } else {
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.onload = launchRazorpay;
-            script.onerror = function () {
-                sessionStorage.removeItem('biz_rzp_inprogress');
-                resetSubmitBtn();
-                showAlert('Razorpay Payment Gateway failed to load. Please check your internet connection.', 'error', 'Payment Error');
-            };
-            document.head.appendChild(script);
-        }
-    });
-});
+    window.BusinessRegisterConfig = {{ \Illuminate\Support\Js::from([
+        'csrf' => csrf_token(),
+        'razorpayKey' => $razorpayKeyId ?? '',
+        'feePaise' => (int) round(($businessFee ?? 500) * 100),
+        'appName' => config('app.name', 'Shree Satwara Gnati Mandal, Ahmedabad'),
+        'urls' => ['preValidate' => route('register.business.pre_validate')],
+        'i18n' => ['mobile10' => __('messages.mobile_10_digits_required')],
+    ]) }};
 </script>
+<script src="{{ asset('js/register-business.js') }}?v={{ filemtime(public_path('js/register-business.js')) }}"></script>
 @endif
 @endsection

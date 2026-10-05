@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Business;
 
+use App\Services\PaymentMailer;
+use App\Services\RazorpayVerifier;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Area;
@@ -224,18 +226,29 @@ class DashboardController extends Controller
             return redirect()->route('business.renewal')->with('info', __('Your business listing is currently active and does not require renewal yet.'));
         }
 
+        $renewalFee = (float) Setting::get('business_renewal_fee', Setting::get('business_registration_fee', '500'));
+
+        // Renewal set to Free by the admin: renew without any payment or transaction
+        if ($renewalFee <= 0) {
+            $business->approved_at = now();
+            $business->status = 'approved';
+            $business->membership_status = 'active';
+            $business->save();
+
+            return redirect()->route('business.renewal')->with('success', __('Business membership renewed successfully! Your listing is now active for 1 year.'));
+        }
+
         $request->validate([
             'razorpay_payment_id' => 'required|string|max:255',
         ]);
 
         $paymentId = $request->razorpay_payment_id;
-        $alreadyUsed = BusinessPaymentLink::where('razorpay_payment_id', $paymentId)->exists()
-            || \App\Models\User::where('payment_id', $paymentId)->exists();
-        if ($alreadyUsed) {
-            return redirect()->route('business.renewal')->with('error', 'This payment transaction ID has already been utilized.');
+
+        $verification = app(RazorpayVerifier::class)->verify($paymentId, $renewalFee);
+        if (!$verification['valid']) {
+            return redirect()->route('business.renewal')->with('error', $verification['error']);
         }
 
-        $renewalFee = (float) Setting::get('business_renewal_fee', Setting::get('business_registration_fee', '500'));
 
         $link = BusinessPaymentLink::create([
             'business_id' => $business->id,
@@ -257,19 +270,20 @@ class DashboardController extends Controller
         $business->payment_amount = $renewalFee;
         $business->save();
 
+        app(RazorpayVerifier::class)->record($paymentId, 'business_renewal', $renewalFee, $business, $business->owner_name . ' (' . $business->business_name . ')', $business->phone);
+
         Log::info('Business renewed via online payment', [
             'business_id' => $business->id,
             'payment_id' => $request->razorpay_payment_id,
             'amount' => $renewalFee,
         ]);
 
-        if (!empty($business->email)) {
-            try {
-                Mail::to($business->email)->send(new BusinessRenewalReceiptMail($business, $link));
-            } catch (\Throwable $e) {
-                Log::error('Business Renewal Receipt Mail Error: ' . $e->getMessage());
-            }
-        }
+        PaymentMailer::send($business->email, new BusinessRenewalReceiptMail($business, $link), 'Business renewal', [
+            'Business' => $business->business_name,
+            'Amount' => '₹' . number_format((float) $link->amount, 2),
+            'Payment ID' => $link->razorpay_payment_id,
+            'Phone' => $business->phone,
+        ]);
 
         return redirect()->route('business.renewal')->with('success', __('Business membership renewed successfully! Your listing is now active for 1 year.'));
     }
@@ -322,7 +336,14 @@ class DashboardController extends Controller
                 ->where('razorpay_link_id', $paymentLinkId)
                 ->first();
 
-            if ($link && ($status === 'paid' || !empty($paymentId))) {
+            // The redirect URL can be typed by anyone, so the link's real status comes from Razorpay
+            $remote = $link && $link->status !== 'paid' ? app(RazorpayVerifier::class)->fetchPaymentLink($paymentLinkId) : null;
+            if ($remote) {
+                $status = $remote['status'] ?? null;
+                $paymentId = $remote['payments'][0]['payment_id'] ?? $paymentId;
+            }
+
+            if ($link && ($link->status === 'paid' || ($remote && $status === 'paid'))) {
                 if ($link->status !== 'paid') {
                     $link->status = 'paid';
                     $link->paid_at = now();
@@ -337,13 +358,14 @@ class DashboardController extends Controller
                     $business->payment_amount = $link->amount;
                     $business->save();
 
-                    if (!empty($business->email)) {
-                        try {
-                            Mail::to($business->email)->send(new BusinessRenewalReceiptMail($business, $link));
-                        } catch (\Throwable $e) {
-                            Log::error('Business Renewal Callback Receipt Mail Error: ' . $e->getMessage());
-                        }
-                    }
+                    app(RazorpayVerifier::class)->record($business->payment_id, 'business_renewal', (float) $link->amount, $business, $business->owner_name . ' (' . $business->business_name . ')', $business->phone);
+
+                    PaymentMailer::send($business->email, new BusinessRenewalReceiptMail($business, $link), 'Business renewal', [
+                        'Business' => $business->business_name,
+                        'Amount' => '₹' . number_format((float) $link->amount, 2),
+                        'Payment ID' => $link->razorpay_payment_id,
+                        'Phone' => $business->phone,
+                    ]);
                 }
 
                 return redirect()->route('business.renewal')->with('success', __('Business membership renewed successfully! Your listing is now active for 1 year.'));

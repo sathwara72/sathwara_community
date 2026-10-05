@@ -174,7 +174,7 @@
 
 @section('content')
     @php
-        $isActive = $business->status === 'approved' && $business->membership_status === 'active';
+        $isActive = $business->isPubliclyListed();
         $renewalDue = $business->isRenewalDue();
         $approvedAt = $business->approved_at;
         $expiresAt = $approvedAt ? $approvedAt->copy()->addYear() : null;
@@ -233,12 +233,21 @@
                     {{ __('Your business membership has expired. Renew now to keep your business profile active and visible in the public directory.') }}
                 </p>
                 <div style="display:flex; align-items:baseline; gap:8px;">
-                    <span style="font-size:28px; font-weight:800; color:#fff;">₹{{ number_format($renewalFee, 2) }}</span>
+                    <span style="font-size:28px; font-weight:800; color:#fff;">{{ $renewalFee > 0 ? '₹' . number_format($renewalFee, 2) : __('Free') }}</span>
                     <span style="font-size:13px; opacity:0.85; font-weight:600;">/ {{ __('Valid for 1 Year') }}</span>
                 </div>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:10px; align-items:stretch; min-width: 220px;">
+                @if($renewalFee <= 0)
+                {{-- Renewal is free: renew directly --}}
+                <form method="POST" action="{{ route('business.renewal.pay') }}">
+                    @csrf
+                    <button type="submit" class="cta-btn" style="width:100%; background:#fff; color:var(--primary-hex, #ef4444); display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(0,0,0,0.18); font-size:14px; font-weight:800; padding:13px 24px; border:none;">
+                        <i class="fas fa-check-circle"></i> {{ __('Renew Now (Free)') }}
+                    </button>
+                </form>
+                @else
                 {{-- Online Pay & Renew Button --}}
                 <button type="button" id="payOnlineBtn" onclick="initiateRazorpayRenewal()" class="cta-btn" style="background:#fff; color:var(--primary-hex, #ef4444); display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(0,0,0,0.18); font-size:14px; font-weight:800; padding:13px 24px; border:none;">
                     <i class="fas fa-bolt"></i> {{ __('Pay & Renew Now') }}
@@ -251,6 +260,8 @@
                         <i class="fas fa-link"></i> {{ __('Generate Payment Link') }}
                     </button>
                 </form>
+
+                @endif
 
                 {{-- Contact Admin --}}
                 <a href="mailto:{{ config('mail.from.address', 'admin@sathwaracommunity.com') }}" class="cta-btn" style="border:none; font-size:11px; padding:6px 12px; text-align:center; opacity:0.85; text-decoration:underline;">
@@ -280,6 +291,48 @@
             <span class="badge badge-success" style="padding:6px 14px; font-size:12px; font-weight:700;">
                 <i class="fas fa-check-circle"></i> {{ __('Active (No renewal required)') }}
             </span>
+        </div>
+    @endif
+
+    {{-- Membership periods --}}
+    @if($business->memberships->isNotEmpty())
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calendar-check" style="color:var(--primary, #ef4444);"></i>
+                <h5>{{ __('Membership History') }}</h5>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div style="overflow-x:auto;">
+                    <table class="payment-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{{ __('Started') }}</th>
+                                <th>{{ __('Expires') }}</th>
+                                <th>{{ __('Payment') }}</th>
+                                <th>{{ __('Status') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($business->memberships as $i => $membership)
+                                <tr>
+                                    <td style="color:#94a3b8;">{{ $i + 1 }}</td>
+                                    <td>{{ $membership->started_at->format('d M, Y') }}</td>
+                                    <td>{{ $membership->expires_at->format('d M, Y') }}</td>
+                                    <td>{{ $membership->amount ? '₹' . number_format((float) $membership->amount, 2) : '—' }}</td>
+                                    <td>
+                                        @if($membership->isCurrent())
+                                            <span class="badge badge-success"><i class="fas fa-check-circle"></i> {{ __('Active') }}</span>
+                                        @else
+                                            <span class="badge badge-secondary">{{ __('Expired') }}</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     @endif
 

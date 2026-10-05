@@ -1467,5 +1467,9 @@ return [
     'csv_contact_no' => 'Contact No',
     'csv_certificate_url' => 'Certificate URL',
     'csv_sr_no' => 'Sr. No.',
+    'email_change_by_office' => 'To change your login email, please contact the Mandal office. Members cannot change it themselves.',
+    'login_email' => 'Login email',
+    'transactions' => 'Transactions',
+    'mod_transactions' => 'Transactions (view only)',
 ];
 
