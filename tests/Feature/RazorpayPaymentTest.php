@@ -82,17 +82,22 @@ class RazorpayPaymentTest extends TestCase
         Setting::set('business_registration_fee', '500');
         $area = Area::first();
 
+
         $response = $this->post(route('register.business.submit'), [
             'business_name' => 'Sathwara Enterprise',
             'owner_name' => 'Suresh Sathwara',
+            'email' => 'biztest@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
             'address' => '45 Commercial Complex',
             'area_id' => $area->id,
             'phone' => '9876543211',
             'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.jpg'),
             'razorpay_payment_id' => 'pay_biz_12345',
+            'redirect_to' => route('register.business'),
         ]);
 
-        $response->assertRedirect();
+        $response->assertRedirect(route('register.business'));
         $response->assertSessionHas('purchase_receipt');
         $receipt = session('purchase_receipt');
         $this->assertEquals('business', $receipt['type']);
@@ -224,5 +229,52 @@ class RazorpayPaymentTest extends TestCase
         $ownerResponse->assertStatus(200);
         $ownerResponse->assertSee('Pending Cafe');
         $ownerResponse->assertSee('PENDING');
+    }
+
+    public function test_business_pre_validation_fails_when_passwords_do_not_match(): void
+    {
+        $area = Area::first();
+
+        $response = $this->postJson(route('register.business.pre_validate'), [
+            'business_name' => 'Mismatch Store',
+            'owner_name' => 'Owner',
+            'email' => 'bizmatch@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'different456',
+            'address' => 'Sample Address',
+            'area_id' => $area->id,
+            'phone' => '9876543210',
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.jpg'),
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'success' => false,
+        ]);
+        $response->assertJsonFragment([
+            'errors' => ['The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)'],
+        ]);
+    }
+
+    public function test_business_pre_validation_succeeds_with_matching_passwords(): void
+    {
+        $area = Area::first();
+
+        $response = $this->postJson(route('register.business.pre_validate'), [
+            'business_name' => 'Match Store',
+            'owner_name' => 'Owner Two',
+            'email' => 'bizmatch2@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+            'address' => 'Sample Address',
+            'area_id' => $area->id,
+            'phone' => '9876543210',
+            'logo' => \Illuminate\Http\UploadedFile::fake()->image('logo.jpg'),
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+        ]);
     }
 }

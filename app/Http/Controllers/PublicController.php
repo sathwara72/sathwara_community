@@ -424,9 +424,15 @@ class PublicController extends Controller
             $formData['contact_number'] = substr(preg_replace('/[^0-9]/', '', $formData['contact_number']), 0, 10);
         }
 
-        $redirectTarget = $request->input('redirect_to') === 'dashboard'
-            ? redirect()->route('member.dashboard')
-            : redirect()->route('event.details', $event->id);
+        if ($request->input('redirect_to') === 'dashboard') {
+            $redirectTarget = redirect()->route('member.dashboard');
+        } elseif ($request->filled('redirect_to')) {
+            $redirectTarget = redirect($request->input('redirect_to'));
+        } elseif ($request->headers->has('referer')) {
+            $redirectTarget = redirect()->back();
+        } else {
+            $redirectTarget = redirect()->route('event.details', $event->id);
+        }
 
         // Check if matching registration exists for this specific student/participant or user
         $existingRegistration = null;
@@ -854,7 +860,7 @@ class PublicController extends Controller
 
         $registration->delete();
 
-        return redirect()->route('event.details', $event->id)->with('success', 'Registration deleted successfully.');
+        return redirect()->back(fallback: route('event.details', $event->id))->with('success', 'Registration deleted successfully.');
     }
 
     /**

@@ -62,25 +62,6 @@ class SecurityHardeningTest extends TestCase
         $this->assertTrue(str_contains($error, 'ઘણા બધા પ્રયાસો') || str_contains($error, 'Too many login attempts'));
     }
 
-    public function test_business_registration_email_check_rejects_a_taken_email()
-    {
-        $area = Area::create(['name' => 'Naroda', 'city' => 'Ahmedabad', 'state' => 'Gujarat']);
-
-        Business::create([
-            'business_name' => 'Taken Shop',
-            'owner_name' => 'Owner',
-            'email' => 'taken@test.com',
-            'phone' => '9898989898',
-            'address' => 'Station Road',
-            'logo_path' => 'businesses/logos/test.jpg',
-            'area_id' => $area->id,
-            'status' => 'approved',
-        ]);
-
-        $this->postJson(route('register.business.check_email'), ['email' => 'Taken@Test.com'])->assertStatus(422);
-        $this->postJson(route('register.business.check_email'), ['email' => 'free@test.com'])->assertOk();
-    }
-
     public function test_replayed_payment_id_is_rejected_on_member_registration()
     {
         $area = Area::create(['name' => 'Naroda', 'city' => 'Ahmedabad', 'state' => 'Gujarat']);

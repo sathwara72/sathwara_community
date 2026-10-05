@@ -222,32 +222,6 @@ class RegistrationController extends Controller
     }
 
     /**
-     * Check that a Business Registration email is not already taken (called before payment)
-     */
-    public function checkBusinessEmail(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first('email'),
-            ], 422);
-        }
-
-        if (Business::where('email', strtolower(trim($request->email)))->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This email address is already registered with another business account.',
-            ], 422);
-        }
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
      * Show Public Business Registration Form
      */
     public function showBusinessRegister()
@@ -272,11 +246,34 @@ class RegistrationController extends Controller
     }
 
     /**
-     * Handle Business Registration Submission
+     * Validate the Business Registration form before opening Razorpay, so nobody pays for a
+     * registration that the final submit would reject.
      */
-    public function submitBusinessRegister(Request $request)
+    public function preValidateBusiness(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), $this->businessRegistrationRules(), $this->businessRegistrationMessages());
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()->all(),
+            ], 422);
+        }
+
+        $check = $this->checkBusinessRegistration($request);
+        if ($check['error']) {
+            return response()->json([
+                'success' => false,
+                'errors' => [$check['error'][1]],
+            ], 422);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    private function businessRegistrationRules(): array
+    {
+        return [
             'member_id'           => 'nullable|string|max:255',
             'business_name'       => 'required|string|max:255',
             'owner_name'          => 'required|string|max:255',
@@ -296,23 +293,122 @@ class RegistrationController extends Controller
             'logo'                => 'required|file|mimes:jpeg,jpg,png,webp,gif,bmp,pdf|max:10240',
             'gallery'             => 'nullable|array|max:6',
             'gallery.*'           => 'nullable|file|mimes:jpeg,jpg,png,webp,gif,bmp|max:10240',
-            'razorpay_payment_id' => 'nullable|string|max:255',
-        ], [
+        ];
+    }
+
+    private function businessRegistrationMessages(): array
+    {
+        return [
             'logo.required' => 'Please upload your Business Logo or Visiting Card.',
             'logo.mimes'    => 'Business Logo must be an image file (JPG, PNG, WEBP) or a PDF document.',
             'logo.max'      => 'Business Logo file size must not exceed 10MB.',
             'email.required' => 'Business email is required and will be used for your Business Panel login.',
             'password.required' => 'Please set a password for your Business Panel account.',
             'password.min' => 'Password must be at least 6 characters.',
-            'password.confirmed' => 'The password and confirmation do not match.',
-        ]);
+            'password.confirmed' => 'The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)',
+        ];
+    }
+
+    /**
+     * Rules beyond field validation, shared by pre-validation and the final submit: unique business
+     * email, Member ID must exist, and one business per member.
+     *
+     * @return array{error: ?array{0: string, 1: string}, user_id: ?int, member_id: ?string}
+     */
+    private function checkBusinessRegistration(Request $request): array
+    {
+        $result = ['error' => null, 'user_id' => null, 'member_id' => null];
 
         // Business email doubles as the Business Panel login, so it must be unique
-        if (Business::where('email', strtolower(trim($request->email)))->exists()) {
-            return redirect()->back()->withInput()->withErrors([
-                'email' => 'This email address is already registered with another business account.',
-            ]);
+        if (Business::where('email', strtolower(trim((string) $request->email)))->exists()) {
+            $result['error'] = ['email', 'This email address is already registered with another business account.'];
+            return $result;
         }
+
+        $memberUser = null;
+        if ($request->filled('member_id')) {
+            $result['member_id'] = trim($request->member_id);
+            $memberUser = $this->findMemberByCode($result['member_id']);
+
+            if (!$memberUser) {
+                $result['error'] = ['member_id', __('messages.member_id_not_found') ?? 'The entered Member ID does not exist in our database. Please check your Member ID.'];
+                return $result;
+            }
+        } elseif (auth()->check()) {
+            $memberUser = auth()->user();
+        }
+
+        if ($memberUser) {
+            $result['user_id'] = $memberUser->id;
+
+            $existingBusiness = $this->existingBusinessFor($memberUser, $result['member_id']);
+            if ($existingBusiness) {
+                $result['error'] = ['member_id', "Each member is allowed to register only 1 business. '{$existingBusiness->business_name}' is already registered for this member. (દરેક સભ્ય માત્ર ૧ જ વ્યવસાય રજીસ્ટર કરી શકે છે.)"];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Find a member by what they type as "Member ID": member code (e.g. SSAM0123), numeric id or phone.
+     */
+    private function findMemberByCode(string $memberId): ?User
+    {
+        $memberUser = User::where('member_code', $memberId)
+            ->orWhere('member_code', strtoupper($memberId))
+            ->first();
+
+        $numericId = (int) preg_replace('/[^0-9]/', '', $memberId);
+        if (!$memberUser && $numericId > 0) {
+            $memberUser = User::find($numericId);
+        }
+
+        if (!$memberUser) {
+            $profile = MemberProfile::where('id', $numericId)
+                ->orWhere('phone', $memberId)
+                ->first();
+            $memberUser = $profile?->user;
+        }
+
+        return $memberUser;
+    }
+
+    private function existingBusinessFor(User $memberUser, ?string $typedMemberId, $exceptBusinessId = null): ?Business
+    {
+        $formattedMemberId = '#' . sprintf('%05d', $memberUser->id);
+
+        return Business::where(function ($q) use ($memberUser, $typedMemberId, $formattedMemberId) {
+                $q->where('user_id', $memberUser->id)
+                  ->orWhere('member_id', (string) $memberUser->id)
+                  ->orWhere('member_id', $formattedMemberId)
+                  ->orWhere('member_id', '#' . $memberUser->id);
+                if ($typedMemberId) {
+                    $q->orWhere('member_id', $typedMemberId);
+                }
+                if ($memberUser->member_code) {
+                    $q->orWhere('member_id', $memberUser->member_code);
+                }
+            })
+            ->when($exceptBusinessId, fn ($q) => $q->where('id', '!=', $exceptBusinessId))
+            ->first();
+    }
+
+    /**
+     * Handle Business Registration Submission
+     */
+    public function submitBusinessRegister(Request $request)
+    {
+        $request->validate($this->businessRegistrationRules() + [
+            'razorpay_payment_id' => 'nullable|string|max:255',
+        ], $this->businessRegistrationMessages());
+
+        $check = $this->checkBusinessRegistration($request);
+        if ($check['error']) {
+            return redirect()->back()->withInput()->withErrors([$check['error'][0] => $check['error'][1]]);
+        }
+        $userId = $check['user_id'];
+        $rawMemberId = $check['member_id'];
 
         $businessFee = (float) \App\Models\Setting::get('business_registration_fee', '500');
         $paymentId = $request->input('razorpay_payment_id');
@@ -325,65 +421,6 @@ class RegistrationController extends Controller
             ]);
         }
         $paymentStatus = $paymentVerification['status'];
-
-        $userId = null;
-        $rawMemberId = null;
-
-        if ($request->filled('member_id')) {
-            $rawMemberId = trim($request->member_id);
-            $numericId = (int) preg_replace('/[^0-9]/', '', $rawMemberId);
-
-            $memberUser = null;
-            if ($numericId > 0) {
-                $memberUser = User::find($numericId);
-            }
-
-            if (!$memberUser) {
-                $profile = MemberProfile::where('id', $numericId)
-                    ->orWhere('phone', $rawMemberId)
-                    ->first();
-                if ($profile) {
-                    $memberUser = $profile->user;
-                }
-            }
-
-            if (!$memberUser) {
-                return back()->withInput()->withErrors([
-                    'member_id' => __('messages.member_id_not_found') ?? 'The entered Member ID does not exist in our database. Please check your Member ID.',
-                ]);
-            }
-
-            $userId = $memberUser->id;
-        }
-
-        if (!$userId && auth()->check()) {
-            $userId = auth()->id();
-        }
-
-        // Single Business per Member Constraint Check
-        if ($userId) {
-            $formattedMemberId = '#' . sprintf('%05d', $userId);
-            $existingBusiness = Business::where('user_id', $userId)
-                ->orWhere('member_id', (string) $userId)
-                ->orWhere('member_id', $formattedMemberId)
-                ->orWhere('member_id', '#' . $userId)
-                ->first();
-
-            if ($existingBusiness) {
-                return back()->withInput()->withErrors([
-                    'member_id' => "Each member is allowed to register only 1 business. You have already registered '{$existingBusiness->business_name}'. (દરેક સભ્ય માત્ર ૧ જ વ્યવસાય રજીસ્ટર કરી શકે છે.)",
-                ]);
-            }
-        }
-
-        if ($rawMemberId) {
-            $existingBusiness = Business::where('member_id', $rawMemberId)->first();
-            if ($existingBusiness) {
-                return back()->withInput()->withErrors([
-                    'member_id' => "A business ('{$existingBusiness->business_name}') has already been registered with Member ID '{$rawMemberId}'. Only 1 business registration per member is allowed.",
-                ]);
-            }
-        }
 
         // Upload Logo
         $logoPath = $request->file('logo')->store('businesses/logos', 'public');
@@ -446,7 +483,17 @@ class RegistrationController extends Controller
             }
         }
 
-        $response = redirect()->route('business.directory')
+        if ($request->input('redirect_to') === 'dashboard') {
+            $redirectTarget = redirect()->route('member.dashboard');
+        } elseif ($request->filled('redirect_to') && parse_url($request->input('redirect_to'), PHP_URL_HOST) === $request->getHost()) {
+            $redirectTarget = redirect($request->input('redirect_to'));
+        } elseif ($request->headers->has('referer')) {
+            $redirectTarget = redirect()->back();
+        } else {
+            $redirectTarget = redirect()->route('register.business');
+        }
+
+        $response = $redirectTarget
             ->with('success', 'Your business directory registration has been submitted successfully and is pending admin approval.');
 
         if ($paymentStatus === 'paid') {
@@ -481,28 +528,7 @@ class RegistrationController extends Controller
             return response()->json(['found' => false, 'message' => '']);
         }
 
-        $numericId = (int) preg_replace('/[^0-9]/', '', $memberId);
-        $memberUser = null;
-
-        // 1. Try by member_code (e.g. SSAM0123) – exact or case-insensitive match
-        $memberUser = User::where('member_code', $memberId)
-            ->orWhere('member_code', strtoupper($memberId))
-            ->first();
-
-        // 2. Try numeric ID lookup
-        if (!$memberUser && $numericId > 0) {
-            $memberUser = User::find($numericId);
-        }
-
-        // 3. Try MemberProfile by id or phone
-        if (!$memberUser) {
-            $profile = MemberProfile::where('id', $numericId)
-                ->orWhere('phone', $memberId)
-                ->first();
-            if ($profile) {
-                $memberUser = $profile->user;
-            }
-        }
+        $memberUser = $this->findMemberByCode($memberId);
 
         if ($memberUser) {
             $memberUser->load('memberProfile');
@@ -520,15 +546,7 @@ class RegistrationController extends Controller
 
 
             // Check if member already registered a business (skip own business)
-            $existingBusiness = Business::where(function ($q) use ($memberUser, $memberId, $formattedMemberId) {
-                    $q->where('user_id', $memberUser->id)
-                      ->orWhere('member_id', $memberId)
-                      ->orWhere('member_id', (string) $memberUser->id)
-                      ->orWhere('member_id', $formattedMemberId)
-                      ->orWhere('member_id', $memberUser->member_code);
-                })
-                ->when($currentBusinessId, fn($q) => $q->where('id', '!=', $currentBusinessId))
-                ->first();
+            $existingBusiness = $this->existingBusinessFor($memberUser, $memberId, $currentBusinessId);
 
             if ($existingBusiness) {
                 return response()->json([

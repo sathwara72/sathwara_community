@@ -43,6 +43,7 @@
 
             <form method="POST" action="{{ route('register.business.submit') }}" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-4">
                 @csrf
+                <input type="hidden" name="redirect_to" value="{{ request()->fullUrl() }}">
                 
                 <!-- Row 1: Member ID & Business Name -->
                 <div class="space-y-1" 
@@ -174,35 +175,39 @@
                     <!-- Password & Confirm Password (for Business Panel Login) -->
                     <div class="mt-3 pt-3 border-t border-slate-200/60">
                         <p class="text-xs font-bold text-slate-600 mb-2.5">🔐 Set a password to access your <strong>Business Panel</strong> after registration.</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div class="space-y-1" x-data="{ show: false }">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" x-data="{ pass: '', passConfirm: '', showPass: false, showConfirmPass: false }">
+                            <div class="space-y-1">
                                 <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Password <span class="text-rose-500">*</span></label>
                                 <div class="relative">
-                                    <input :type="show ? 'text' : 'password'" name="password"
+                                    <input :type="showPass ? 'text' : 'password'" name="password" x-model="pass"
                                            placeholder="Min 6 characters"
                                            class="w-full text-sm font-semibold px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-0 @error('password') border-rose-400 @enderror"
                                            required minlength="6">
-                                    <button type="button" @click="show = !show"
+                                    <button type="button" @click="showPass = !showPass"
                                             class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm">
-                                        <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        <svg x-show="show" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                        <svg x-show="!showPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showPass" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
                                     </button>
                                 </div>
+                                <p x-show="pass && pass.length < 6" x-cloak class="text-xs text-amber-600 font-bold mt-0.5">⚠️ Min 6 characters required</p>
                                 @error('password') <p class="text-xs text-rose-600 font-bold mt-0.5">{{ $message }}</p> @enderror
                             </div>
-                            <div class="space-y-1" x-data="{ show: false }">
+                            <div class="space-y-1">
                                 <label class="text-xs font-bold text-slate-700 uppercase tracking-wider">Confirm Password <span class="text-rose-500">*</span></label>
                                 <div class="relative">
-                                    <input :type="show ? 'text' : 'password'" name="password_confirmation"
+                                    <input :type="showConfirmPass ? 'text' : 'password'" name="password_confirmation" x-model="passConfirm"
                                            placeholder="Repeat password"
                                            class="w-full text-sm font-semibold px-3 py-2 pr-9 bg-white border border-slate-200 rounded-lg focus:border-indigo-400 focus:ring-0"
+                                           :class="passConfirm && pass !== passConfirm ? 'border-rose-400' : ''"
                                            required minlength="6">
-                                    <button type="button" @click="show = !show"
+                                    <button type="button" @click="showConfirmPass = !showConfirmPass"
                                             class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm">
-                                        <svg x-show="!show" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        <svg x-show="show" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                        <svg x-show="!showConfirmPass" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showConfirmPass" x-cloak class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
                                     </button>
                                 </div>
+                                <p x-show="passConfirm && pass !== passConfirm" x-cloak class="text-xs text-rose-600 font-bold mt-0.5">⚠️ Passwords do not match (પાસવર્ડ સરખા નથી)</p>
+                                <p x-show="passConfirm && pass === passConfirm" x-cloak class="text-xs text-emerald-600 font-bold mt-0.5">✓ Passwords match (પાસવર્ડ સરખા છે)</p>
                             </div>
                         </div>
                     </div>
@@ -328,7 +333,12 @@
 
                 <!-- Payment Summary & Submit Button -->
                 <div class="md:col-span-3 space-y-3 pt-2">
-                    <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+                    <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id" value="{{ old('razorpay_payment_id') }}">
+                    @if(old('razorpay_payment_id'))
+                        <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                            ✓ Your payment ({{ old('razorpay_payment_id') }}) has been received. Please correct the highlighted details, re-select your logo and photos, and submit again — you will not be charged again.
+                        </div>
+                    @endif
                     @if(($businessFee ?? 500) > 0)
                         <div class="bg-primary-50/90 border border-primary-200/80 rounded-xl p-3.5 flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
@@ -432,6 +442,20 @@ function multiShowcaseUploader() {
 </script>
 
 
+<div id="bizAlertModal" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:999999;align-items:center;justify-content:center;">
+    <div id="bizAlertBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);"></div>
+    <div class="relative w-full max-w-sm mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div id="bizAlertAccent" class="h-1.5 w-full"></div>
+        <div class="p-6">
+            <h3 id="bizAlertTitle" class="text-sm font-extrabold text-slate-900"></h3>
+            <p id="bizAlertMessage" class="text-xs text-slate-600 mt-2 leading-relaxed" style="white-space:pre-line;"></p>
+            <div class="flex justify-end pt-4">
+                <button id="bizAlertClose" type="button" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl cursor-pointer">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @if(($businessFee ?? 500) > 0)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -444,6 +468,23 @@ document.addEventListener('DOMContentLoaded', function () {
     sessionStorage.removeItem('biz_rzp_inprogress');
 
     const submitBtn = document.getElementById('submitBusinessBtn');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    // ── Alert modal (messages are set as text, never HTML) ──────
+    const alertModal = document.getElementById('bizAlertModal');
+    if (alertModal && alertModal.parentElement !== document.body) document.body.appendChild(alertModal);
+    const alertColors = { warning: '#f59e0b', error: '#e11d48' };
+    function showAlert(message, type = 'warning', title = 'Notice') {
+        document.getElementById('bizAlertAccent').style.background = alertColors[type] || alertColors.warning;
+        document.getElementById('bizAlertTitle').textContent = title;
+        document.getElementById('bizAlertMessage').textContent = message;
+        alertModal.style.display = 'flex';
+    }
+    function closeAlert() { alertModal.style.display = 'none'; }
+    document.getElementById('bizAlertClose')?.addEventListener('click', closeAlert);
+    document.getElementById('bizAlertBackdrop')?.addEventListener('click', closeAlert);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAlert(); });
 
     form.addEventListener('submit', async function (e) {
         const paymentIdInput = document.getElementById('razorpay_payment_id');
@@ -468,54 +509,87 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const razorpayKey    = "{{ $razorpayKeyId ?? '' }}";
-        const feeAmountPaise = {{ ($businessFee ?? 500) * 100 }};
-        const businessName   = form.querySelector('[name="business_name"]')?.value || '';
-        const ownerName      = form.querySelector('[name="owner_name"]')?.value || '';
-        const email          = form.querySelector('[name="email"]')?.value || '';
-        const phone          = (form.querySelector('[name="phone"]')?.value || '').trim();
+        const password = form.querySelector('[name="password"]')?.value || '';
+        const passwordConfirm = form.querySelector('[name="password_confirmation"]')?.value || '';
 
+        if (password.length < 6) {
+            showAlert('Password must be at least 6 characters long.', 'warning', 'Password Too Short');
+            form.querySelector('[name="password"]')?.focus();
+            return;
+        }
+
+        if (password !== passwordConfirm) {
+            showAlert('The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)', 'warning', 'Password Mismatch');
+            form.querySelector('[name="password_confirmation"]')?.focus();
+            return;
+        }
+
+        const phone = (form.querySelector('[name="phone"]')?.value || '').trim();
         if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-            alert("{{ __('messages.mobile_10_digits_required') ?? 'મોબાઈલ નંબર બરાબર ૧૦ અંકનો હોવો જરૂરી છે.' }}");
+            showAlert("{{ __('messages.mobile_10_digits_required') ?? 'મોબાઈલ નંબર બરાબર ૧૦ અંકનો હોવો જરૂરી છે.' }}", 'warning', 'Invalid Mobile Number');
             form.querySelector('[name="phone"]')?.focus();
+            return;
+        }
+
+        const logoInput = form.querySelector('[name="logo"]');
+        if (logoInput && (!logoInput.files || logoInput.files.length === 0)) {
+            showAlert('Please upload your Business Logo or Visiting Card.', 'warning', 'Logo Required');
+            logoInput.focus();
             return;
         }
 
         if (submitBtn) {
             submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Validating details...</span>';
+        }
+
+        // ── Server-Side Pre-Validation before opening Razorpay ──
+        try {
+            const formData = new FormData(form);
+            const preValRes = await fetch("{{ route('register.business.pre_validate') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                body: formData
+            });
+            const preValData = await preValRes.json();
+
+            if (!preValRes.ok || !preValData.success) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHtml;
+                }
+                const errorsList = preValData.errors ? preValData.errors.join('\n• ') : (preValData.message || 'Please correct errors before payment.');
+                showAlert('• ' + errorsList, 'error', 'Please correct these details');
+                return false;
+            }
+        } catch (err) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+            showAlert('Unable to validate details with server. Please try again.', 'error', 'Network Error');
+            return false;
+        }
+
+        if (submitBtn) {
             submitBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Opening payment...</span>';
         }
+
+        const razorpayKey    = "{{ $razorpayKeyId ?? '' }}";
+        const feeAmountPaise = {{ ($businessFee ?? 500) * 100 }};
+        const businessName   = form.querySelector('[name="business_name"]')?.value || '';
+        const ownerName      = form.querySelector('[name="owner_name"]')?.value || '';
+        const email          = form.querySelector('[name="email"]')?.value || '';
 
         const resetSubmitBtn = function () {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
+                submitBtn.innerHTML = originalBtnHtml;
             }
         };
-
-        // Make sure the email is not already taken before taking payment
-        try {
-            const checkRes = await fetch("{{ route('register.business.check_email') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ email: email })
-            });
-            const checkData = await checkRes.json();
-            if (!checkRes.ok || !checkData.success) {
-                resetSubmitBtn();
-                alert(checkData.message || 'This email address cannot be used. Please use a different email.');
-                form.querySelector('[name="email"]')?.focus();
-                return;
-            }
-        } catch (err) {
-            resetSubmitBtn();
-            alert("{{ __('messages.network_error_retry') }}");
-            return;
-        }
 
         const options = {
             "key":         razorpayKey || "rzp_test_key",
@@ -533,10 +607,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 "ondismiss": function () {
                     // User closed Razorpay without paying — reset button
                     sessionStorage.removeItem('biz_rzp_inprogress');
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
-                    }
+                    resetSubmitBtn();
                 }
             },
             "prefill": {
@@ -552,10 +623,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const rzp = new Razorpay(options);
             rzp.on('payment.failed', function () {
                 sessionStorage.removeItem('biz_rzp_inprogress');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
-                }
+                resetSubmitBtn();
             });
             rzp.open();
         }
@@ -568,11 +636,8 @@ document.addEventListener('DOMContentLoaded', function () {
             script.onload = launchRazorpay;
             script.onerror = function () {
                 sessionStorage.removeItem('biz_rzp_inprogress');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<span>{{ __('messages.pay_and_register_business', ['amount' => number_format($businessFee ?? 500)]) }}</span> &rarr;';
-                }
-                alert('Razorpay Payment Gateway failed to load. Please check your internet connection.');
+                resetSubmitBtn();
+                showAlert('Razorpay Payment Gateway failed to load. Please check your internet connection.', 'error', 'Payment Error');
             };
             document.head.appendChild(script);
         }
