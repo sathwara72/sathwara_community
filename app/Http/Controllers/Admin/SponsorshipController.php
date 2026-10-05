@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Transaction;
+use App\Services\PaymentMailer;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventSponsor;
@@ -151,14 +153,17 @@ class SponsorshipController extends Controller
         ]);
 
         // Dispatch Sponsorship Receipt Email if email is present
-        if (!empty($validated['email'])) {
-            try {
-                $st = !empty($validated['sponsorship_type_id']) ? SponsorshipType::find($validated['sponsorship_type_id']) : null;
-                Mail::to($validated['email'])->send(new SponsorshipReceiptMail($event, $sponsor, $st, $amount, $validated['payment_status'], null));
-            } catch (\Throwable $th) {
-                Log::error('Admin Sponsor Receipt Mail Error: ' . $th->getMessage());
-            }
+        if ($validated['payment_status'] === 'received') {
+            Transaction::recordOffice('sponsorship', (float) $amount, $sponsor, $sponsor->name, $sponsor->mobile);
         }
+
+        $st = !empty($validated['sponsorship_type_id']) ? SponsorshipType::find($validated['sponsorship_type_id']) : null;
+        PaymentMailer::send($validated['email'] ?? null, new SponsorshipReceiptMail($event, $sponsor, $st, $amount, $validated['payment_status'], null), 'Sponsorship (added by admin)', [
+            'Event' => $event->title,
+            'Sponsor' => $sponsor->name,
+            'Amount' => '₹' . number_format((float) $amount, 2),
+            'Mobile' => $sponsor->mobile,
+        ]);
 
         return redirect()->route('admin.events.show', ['event' => $event->id, 'tab' => 'sponsorship', 'subtab' => 'sponsors'])
             ->with('success', __('messages.sponsor_registered_successfully') ?? 'Sponsor registered successfully.');
@@ -194,6 +199,11 @@ class SponsorshipController extends Controller
         }
 
         $sponsor->update($validated);
+
+        // Marked as received at the office for the first time: record the payment
+        if ($validated['payment_status'] === 'received' && !$sponsor->transactions()->exists()) {
+            Transaction::recordOffice('sponsorship', (float) $sponsor->amount, $sponsor, $sponsor->name, $sponsor->mobile);
+        }
 
         return redirect()->route('admin.events.show', ['event' => $sponsor->event_id, 'tab' => 'sponsorship', 'subtab' => 'sponsors'])
             ->with('success', __('messages.sponsor_updated_successfully') ?? 'Sponsor details updated successfully.');
@@ -248,7 +258,7 @@ class SponsorshipController extends Controller
     {
         $event = Event::findOrFail($eventId);
         $sponsors = EventSponsor::where('event_id', $event->id)
-            ->with(['sponsorshipType', 'user'])
+            ->with(['sponsorshipType', 'user', 'transactions'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -275,6 +285,7 @@ class SponsorshipController extends Controller
                 'City / Area',
                 'Address',
                 'Payment Status',
+                'Transaction ID',
                 'Approval Status',
                 'Notes',
                 'Registered Date',
@@ -293,6 +304,7 @@ class SponsorshipController extends Controller
                     $s->city ?? '-',
                     $s->address ?? '-',
                     ucfirst($s->payment_status),
+                    $s->transactions->pluck('transaction_no')->implode(', '),
                     ucfirst($s->status),
                     $s->notes ?? '-',
                     $s->created_at ? $s->created_at->format('Y-m-d H:i:s') : '-',

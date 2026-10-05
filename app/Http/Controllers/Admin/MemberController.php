@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\PaymentMailer;
+use App\Models\Setting;
+use App\Mail\ApplicationRejectedMail;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\MemberProfile;
@@ -185,14 +188,13 @@ class MemberController extends Controller
         ]);
 
         // Dispatch Membership Receipt Email if email is present
-        if (!empty($user->email)) {
-            try {
-                $fee = (float)\App\Models\Setting::get('member_signup_fee', '1000');
-                Mail::to($user->email)->send(new MembershipPurchaseReceiptMail($user, $profile, $fee, 'paid', null));
-            } catch (\Throwable $th) {
-                Log::error('Admin Member Receipt Mail Error: ' . $th->getMessage());
-            }
-        }
+        $fee = (float) \App\Models\Setting::get('member_signup_fee', '1000');
+        \App\Models\Transaction::recordOffice('membership', $fee, $user, $user->name, $profile->phone ?? null);
+        PaymentMailer::send($user->email, new MembershipPurchaseReceiptMail($user, $profile, $fee, 'paid', null), 'Membership (added by admin)', [
+            'Member' => $user->name,
+            'Amount' => '₹' . number_format($fee, 2),
+            'Phone' => $profile->phone ?? null,
+        ]);
 
         return redirect()->route('admin.members.index')->with('success', 'Member created successfully.');
     }
@@ -363,9 +365,9 @@ class MemberController extends Controller
             'rejection_reason' => $request->rejection_reason,
         ]);
 
-        // Send Email Notice
+        $this->sendRejectionEmail($member->email, 'membership', $member->name, $member->name, $request->rejection_reason);
 
-        return redirect()->back()->with('warning', 'Member registration rejected.');
+        return redirect()->back()->with('warning', 'Member registration rejected and the member has been emailed the reason.');
     }
 
     /**
@@ -569,4 +571,24 @@ class MemberController extends Controller
 
         return view('admin.members.print', compact('members'));
     }
+
+    /**
+     * Email the applicant why they were rejected. A mail failure never blocks the admin action.
+     */
+    private function sendRejectionEmail(?string $email, string $kind, string $name, string $applicationName, string $reason): void
+    {
+        if (empty($email)) {
+            return;
+        }
+
+        try {
+            Mail::to($email)->send(new ApplicationRejectedMail(
+                $kind, $name, $applicationName, $reason,
+                Setting::get('contact_email'), Setting::get('contact_phone')
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Rejection email failed: ' . $e->getMessage(), ['email' => $email, 'kind' => $kind]);
+        }
+    }
+
 }

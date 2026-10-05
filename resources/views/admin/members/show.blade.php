@@ -277,6 +277,8 @@
             </div>
         </div>
 
+        @include('admin.partials.transactions_card', ['transactions' => $member->transactions()->with('recorder')->get()])
+
         <!-- Reject Member Modal -->
         <template x-teleport="body">
             <div x-show="showRejectModal"

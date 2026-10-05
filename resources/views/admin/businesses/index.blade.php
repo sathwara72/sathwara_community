@@ -130,6 +130,17 @@
                             </a>
                         </div>
 
+                        @if($canEditBusiness)
+                            @include('admin.partials.fee_settings_popup', [
+                                'title' => 'Business Fees',
+                                'action' => route('admin.fees.business'),
+                                'fields' => [
+                                    ['name' => 'business_registration_fee', 'label' => 'New business registration', 'value' => \App\Models\Setting::get('business_registration_fee', '500'), 'help' => 'Free: businesses register without paying (still needs approval).'],
+                                    ['name' => 'business_renewal_fee', 'label' => 'Yearly renewal', 'value' => \App\Models\Setting::get('business_renewal_fee', \App\Models\Setting::get('business_registration_fee', '500')), 'help' => 'Free: businesses renew from their panel with one click.'],
+                                ],
+                            ])
+                        @endif
+
                         <!-- Export CSV Button -->
                         <a href="{{ route('admin.businesses.export', request()->all()) }}"
                             class="h-8.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-200/60 shadow-xs transition-colors inline-flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap">
@@ -242,8 +253,7 @@
                                             </form>
                                         @endif
                                         @if($b->status === 'pending' && $canEditBusiness)
-                                            <form method="POST" action="{{ route('admin.businesses.reject', $b->id) }}">@csrf
-                                                <button
+                                            <a href="{{ route('admin.businesses.show', ['id' => $b->id, 'reject' => 1]) }}"
                                                     class="w-7.5 h-7.5 flex items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                                                     title="{{ __('messages.reject') }}">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -251,8 +261,7 @@
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             d="M6 18L18 6M6 6l12 12" />
                                                     </svg>
-                                                </button>
-                                            </form>
+                                                </a>
                                         @endif
                                         @if($b->status === 'approved' && $b->membership_status === 'active' && $canEditBusiness)
                                             <form method="POST" action="{{ route('admin.businesses.deactivate', $b->id) }}">@csrf

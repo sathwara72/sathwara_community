@@ -44,17 +44,37 @@
                 </form>
             @endif
 
-            <!-- Reject Action (Only if pending) -->
+            <!-- Reject Action (Only if pending): asks for a reason that is emailed to the owner -->
             @if($business->status === 'pending')
-                <form method="POST" action="{{ route('admin.businesses.reject', $business->id) }}" class="inline">
-                    @csrf
-                    <button type="submit" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-colors flex items-center gap-1.5">
+                <div x-data="{ open: {{ request()->boolean('reject') || $errors->has('rejection_reason') ? 'true' : 'false' }} }" class="inline">
+                    <button type="button" @click="open = true" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-colors flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                         <span>{{ __('messages.reject') }}</span>
                     </button>
-                </form>
+                    <template x-teleport="body">
+                        <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+                            <div @click.away="open = false" class="bg-white rounded-2xl p-5 border border-slate-100 shadow-2xl max-w-md w-full space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <h3 class="text-sm font-black text-rose-600">Reject Business Application</h3>
+                                    <button type="button" @click="open = false" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+                                </div>
+                                <form method="POST" action="{{ route('admin.businesses.reject', $business->id) }}" class="space-y-3">
+                                    @csrf
+                                    <p class="text-xs text-slate-600 font-semibold">Reason for rejecting <strong class="text-slate-900">{{ $business->business_name }}</strong> (emailed to the owner):</p>
+                                    <textarea name="rejection_reason" required rows="3" placeholder="e.g. Logo is unclear or address is incomplete..."
+                                        class="w-full text-xs font-semibold p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-rose-500 outline-none">{{ old('rejection_reason') }}</textarea>
+                                    @error('rejection_reason') <p class="text-xs text-rose-600 font-bold">{{ $message }}</p> @enderror
+                                    <div class="pt-2 border-t border-slate-100 flex justify-end gap-2">
+                                        <button type="button" @click="open = false" class="px-4 py-2 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl">Cancel</button>
+                                        <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs">Reject Business</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             @endif
 
             <!-- Mark Inactive / Active Action (Only if approved) -->
@@ -92,6 +112,12 @@
     </div>
 
     <!-- Contact & Overview Grid -->
+    @if($business->status === 'rejected' && $business->rejection_reason)
+        <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+            <strong>{{ __('messages.rejection_reason') }}:</strong> {{ $business->rejection_reason }}
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 py-2">
         <div>
             <h5 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">{{ __('messages.status') }}</h5>
@@ -227,6 +253,65 @@
     </div>
 </div>
 
+@include('admin.partials.transactions_card', ['transactions' => $business->transactions()->with('recorder')->get()])
+
+<!-- Membership History -->
+<div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4 mt-6">
+    <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shadow-sm border border-emerald-100">📅</div>
+        <div>
+            <h4 class="text-base font-black text-slate-900 leading-tight">Membership History</h4>
+            <p class="text-xs text-slate-500 font-medium mt-0.5">Every approval, renewal and admin change of this listing's 1-year membership.</p>
+        </div>
+    </div>
+
+    @if($business->memberships->isEmpty())
+        <p class="text-xs text-slate-500 font-medium">No membership period yet — the business has not been approved.</p>
+    @else
+        <div class="overflow-x-auto border border-slate-200 rounded-2xl">
+            <table class="w-full text-left border-collapse min-w-[680px]">
+                <thead>
+                    <tr class="bg-slate-50 text-[11px] font-black uppercase text-slate-600 tracking-wider border-b border-slate-200 whitespace-nowrap">
+                        <th class="py-3 px-4">Started</th>
+                        <th class="py-3 px-4">Expires</th>
+                        <th class="py-3 px-4">How</th>
+                        <th class="py-3 px-4">Payment</th>
+                        <th class="py-3 px-4">Recorded By</th>
+                        <th class="py-3 px-4 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                    @foreach($business->memberships as $membership)
+                        <tr>
+                            <td class="py-3 px-4 font-mono whitespace-nowrap">{{ $membership->started_at->format('d-M-Y') }}</td>
+                            <td class="py-3 px-4 font-mono whitespace-nowrap">{{ $membership->expires_at->format('d-M-Y') }}</td>
+                            <td class="py-3 px-4">{{ ['approval' => 'Approved', 'payment' => 'Renewal payment', 'free_renewal' => 'Free renewal', 'auto_free_renewal' => 'Free renewal (automatic)', 'admin' => 'Admin change'][$membership->source] ?? ucfirst($membership->source) }}</td>
+                            <td class="py-3 px-4">
+                                @if($membership->amount)
+                                    ₹{{ number_format((float) $membership->amount, 2) }}
+                                    <span class="block text-[10px] text-slate-400 font-mono">{{ $membership->payment_id }}</span>
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="py-3 px-4">{{ $membership->recorder->name ?? '—' }}</td>
+                            <td class="py-3 px-4 text-center">
+                                @if($membership->isCurrent())
+                                    <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold">Current</span>
+                                @elseif($membership->expires_at->isPast())
+                                    <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200 font-extrabold">Expired</span>
+                                @else
+                                    <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-extrabold">Replaced</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+</div>
+
 <!-- Renewal Payment Links (Business Only) -->
 <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5 mt-6">
     <div class="flex items-center justify-between border-b border-slate-100 pb-4 flex-wrap gap-3">
@@ -263,7 +348,7 @@
                     <div class="relative">
                         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">₹</span>
                         <input type="number" name="amount" min="1" step="1"
-                               value="{{ old('amount', \App\Models\Setting::get('business_registration_fee', '500')) }}"
+                               value="{{ old('amount', \App\Models\Setting::get('business_renewal_fee', \App\Models\Setting::get('business_registration_fee', '500'))) }}"
                                required
                                class="h-10 w-40 text-sm font-black pl-8 pr-3 bg-white border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-primary-500 shadow-sm">
                     </div>

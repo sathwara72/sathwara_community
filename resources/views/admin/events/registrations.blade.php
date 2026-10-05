@@ -108,6 +108,7 @@
                     'payment_status' => $reg->payment_status ?? 'unpaid',
                     'payment_amount' => $reg->payment_amount ?? 0,
                     'payment_id' => $reg->payment_id ?? '-',
+                    'transaction_nos' => $reg->transactions->pluck('transaction_no')->implode(', '),
                     'date' => $reg->created_at->format('d-M-Y h:i A'),
                     'form_data' => $fd,
                 ];
@@ -211,6 +212,12 @@
                                 <span class="font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded inline-block mt-0.5"
                                       :class="selectedRegistration.payment_status === 'paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200'"
                                       x-text="'₹' + selectedRegistration.payment_amount + ' (' + (selectedRegistration.payment_status === 'paid' ? '{{ $isGu ? 'ચૂકવેલ' : 'PAID' }}' : '{{ $isGu ? 'બાકી' : 'UNPAID' }}') + ')'"></span>
+                            </div>
+                        </template>
+                        <template x-if="selectedRegistration.transaction_nos">
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{{ $isGu ? 'વ્યવહાર ID' : 'Transaction ID' }}</span>
+                                <span class="font-mono font-extrabold text-slate-800 text-xs block" x-text="selectedRegistration.transaction_nos"></span>
                             </div>
                         </template>
                     </div>

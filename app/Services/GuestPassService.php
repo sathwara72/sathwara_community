@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Services\RazorpayVerifier;
+use App\Services\PaymentMailer;
 use App\Mail\EventPassPurchasedMail;
 use App\Models\Area;
 use App\Models\Event;
@@ -261,6 +263,10 @@ class GuestPassService
             return [EventRegistration::where('razorpay_order_id', $orderId)->first(), false];
         }
 
+        if ($paymentId && $amount > 0) {
+            app(RazorpayVerifier::class)->record($paymentId, 'guest_event_pass', $amount, $registration, $registration->form_data['full_name'] ?? null, $mobile);
+        }
+
         PassTokenService::getOrGenerateTokens($registration);
 
         $this->notifyAdmins($event, $registration, $registration->form_data['full_name']);
@@ -293,11 +299,14 @@ class GuestPassService
             $passes[] = sprintf('%03d', $i);
         }
 
-        try {
-            Mail::to($email)->send(new EventPassPurchasedMail($event, $registration, $user, $passes, $personCount));
-        } catch (\Throwable $e) {
-            Log::error('Guest pass: pass email failed: ' . $e->getMessage(), ['registration_id' => $registration->id]);
-        }
+        PaymentMailer::send($email, new EventPassPurchasedMail($event, $registration, $user, $passes, $personCount), 'Event pass (no login)', [
+            'Event' => $event->title,
+            'Name' => $registration->form_data['full_name'] ?? null,
+            'Persons' => $personCount,
+            'Amount' => '₹' . number_format((float) $registration->payment_amount, 2),
+            'Payment ID' => $registration->payment_id,
+            'Mobile' => $registration->form_data['mobile'] ?? null,
+        ]);
     }
 
     private function keyId(): string

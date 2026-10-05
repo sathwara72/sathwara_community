@@ -55,4 +55,9 @@ class EventSponsor extends Model
     {
         return $query->where('status', 'pending');
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'payable')->latest('id');
+    }
 }

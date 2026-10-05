@@ -35,8 +35,11 @@ class CheckAdminPermission
                 return $next($request);
             }
 
-            $modPrefix = str_replace('_manage', '', $permission);
-            if ($userPerms->contains(fn($p) => str_starts_with($p, $modPrefix . '_') || str_starts_with($p, 'event_') || str_starts_with($p, 'about_'))) {
+            // Granular permissions (members_add, event_view_3, about_edit...) open only their own module
+            $modPrefix = preg_replace('/_(manage|view)$/', '', $permission);
+            if ($userPerms->contains(fn($p) => str_starts_with($p, $modPrefix . '_')
+                || ($permission === 'events_manage' && str_starts_with($p, 'event_'))
+                || ($permission === 'settings_manage' && str_starts_with($p, 'about_')))) {
                 return $next($request);
             }
         }
