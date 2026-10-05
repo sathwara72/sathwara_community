@@ -35,12 +35,14 @@ Route::middleware('guest')->group(function () {
         ->name('password.otp.verify.form');
 
     Route::post('verify-otp', [OtpPasswordResetController::class, 'verifyOtp'])
+        ->middleware('throttle:10,10')
         ->name('password.otp.verify.submit');
 
     Route::get('reset-password', [OtpPasswordResetController::class, 'showResetPasswordForm'])
         ->name('password.reset');
 
     Route::post('reset-password', [OtpPasswordResetController::class, 'resetPassword'])
+        ->middleware('throttle:10,10')
         ->name('password.store');
 });
 

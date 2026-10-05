@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\RegisterEmailOtpMail;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
@@ -11,8 +10,6 @@ use App\Services\PassTokenService;
 use App\Services\ReceiptNumberService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 
@@ -21,17 +18,17 @@ use Illuminate\Support\Facades\Validator;
  */
 class GuestPassController extends Controller
 {
-    private const SESSION_OTP = 'guest_pass.otp';
-    private const SESSION_VERIFIED = 'guest_pass.verified';
+    private const SESSION_GUEST = 'guest_pass.guest';
 
     public function __construct(private GuestPassService $guestPasses)
     {
     }
 
     /**
-     * Step 1: email an OTP to the address the guest gave us.
+     * Step 1: take the buyer's email, mobile and area. No login needed, even for registered members:
+     * a member's purchase is linked to their account by email when the pass is issued.
      */
-    public function sendOtp(Request $request, $id): JsonResponse
+    public function saveDetails(Request $request, $id): JsonResponse
     {
         $event = $this->purchasableEvent($id);
         if ($event instanceof JsonResponse) {
@@ -42,6 +39,10 @@ class GuestPassController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => $emailRules,
             'mobile' => ['required', 'string'],
+            'area_id' => ['required', 'integer', 'exists:areas,id'],
+        ], [
+            'area_id.required' => 'Please select your area.',
+            'area_id.exists' => 'Please select a valid area.',
         ]);
 
         if ($validator->fails()) {
@@ -58,82 +59,18 @@ class GuestPassController extends Controller
             return $this->error('Please enter a valid 10-digit mobile number.', 422);
         }
 
-        $pending = session(self::SESSION_OTP);
-        $cooldown = (int) config('guest_pass.otp_resend_seconds');
-        if ($pending && ($pending['email'] ?? null) === $email && now()->timestamp - ($pending['sent_at'] ?? 0) < $cooldown) {
-            $wait = $cooldown - (now()->timestamp - $pending['sent_at']);
-            return $this->error("Please wait {$wait} seconds before requesting another OTP.", 429);
-        }
-
-        $otp = (string) random_int(100000, 999999);
-
-        try {
-            Mail::to($email)->send(new RegisterEmailOtpMail($otp, $email));
-        } catch (\Throwable $e) {
-            Log::error('Guest pass OTP mail failed: ' . $e->getMessage());
-            return $this->error('Failed to send the verification email. Please try again in a moment.', 500);
-        }
-
-        session()->forget(self::SESSION_VERIFIED);
-        session([self::SESSION_OTP => [
+        session([self::SESSION_GUEST => [
             'email' => $email,
             'mobile' => $mobile,
-            'hash' => $this->hashOtp($otp),
-            'sent_at' => now()->timestamp,
-            'expires_at' => now()->addMinutes((int) config('guest_pass.otp_ttl_minutes'))->timestamp,
-            'attempts' => 0,
+            'area_id' => (int) $request->input('area_id'),
+            'expires_at' => now()->addMinutes((int) config('guest_pass.details_ttl_minutes'))->timestamp,
         ]]);
 
-        return response()->json(['success' => true, 'message' => "We sent a 6-digit code to {$email}."]);
+        return response()->json(['success' => true, 'email' => $email]);
     }
 
     /**
-     * Step 2: check the OTP. On success this browser session may buy passes for a while.
-     */
-    public function verifyOtp(Request $request, $id): JsonResponse
-    {
-        $event = $this->purchasableEvent($id);
-        if ($event instanceof JsonResponse) {
-            return $event;
-        }
-
-        $validator = Validator::make($request->all(), ['otp' => ['required', 'digits:6']]);
-        if ($validator->fails()) {
-            return $this->error('Please enter the 6-digit code.', 422);
-        }
-
-        $pending = session(self::SESSION_OTP);
-        if (!$pending) {
-            return $this->error('No active code found. Please request a new OTP.', 400);
-        }
-        if (now()->timestamp > $pending['expires_at']) {
-            session()->forget(self::SESSION_OTP);
-            return $this->error('This code has expired. Please request a new OTP.', 400);
-        }
-
-        $pending['attempts']++;
-        if ($pending['attempts'] > (int) config('guest_pass.otp_max_attempts')) {
-            session()->forget(self::SESSION_OTP);
-            return $this->error('Too many wrong attempts. Please request a new OTP.', 429);
-        }
-        session([self::SESSION_OTP => $pending]);
-
-        if (!hash_equals($pending['hash'], $this->hashOtp($request->input('otp')))) {
-            return $this->error('Incorrect code. Please try again.', 400);
-        }
-
-        session()->forget(self::SESSION_OTP);
-        session([self::SESSION_VERIFIED => [
-            'email' => $pending['email'],
-            'mobile' => $pending['mobile'],
-            'expires_at' => now()->addMinutes((int) config('guest_pass.verified_ttl_minutes'))->timestamp,
-        ]]);
-
-        return response()->json(['success' => true, 'message' => 'Email verified.', 'email' => $pending['email']]);
-    }
-
-    /**
-     * Step 3: validate the purchase and, for paid events, create the Razorpay order for it.
+     * Step 2: validate the purchase and, for paid events, create the Razorpay order for it.
      * The amount is always computed here, never taken from the browser.
      */
     public function createOrder(Request $request, $id): JsonResponse
@@ -143,9 +80,9 @@ class GuestPassController extends Controller
             return $event;
         }
 
-        $verified = $this->verifiedGuest();
+        $verified = $this->guestDetails();
         if (!$verified) {
-            return $this->error('Please verify your email first.', 403);
+            return $this->error('Please enter your email and mobile number first.', 403);
         }
 
         $personCount = $this->validPersonCount($request);
@@ -166,6 +103,7 @@ class GuestPassController extends Controller
                 $event,
                 $verified['email'],
                 $verified['mobile'],
+                $verified['area_id'],
                 $this->cleanName($request),
                 $personCount
             );
@@ -186,7 +124,7 @@ class GuestPassController extends Controller
     }
 
     /**
-     * Step 4: create the registration (free events), or confirm the Razorpay payment and create it.
+     * Step 3: create the registration (free events), or confirm the Razorpay payment and create it.
      */
     public function complete(Request $request, $id): JsonResponse
     {
@@ -195,9 +133,9 @@ class GuestPassController extends Controller
             return $event;
         }
 
-        $verified = $this->verifiedGuest();
+        $verified = $this->guestDetails();
         if (!$verified) {
-            return $this->error('Please verify your email first.', 403);
+            return $this->error('Please enter your email and mobile number first.', 403);
         }
 
         if ((float) $event->pass_fee <= 0) {
@@ -213,6 +151,7 @@ class GuestPassController extends Controller
                 $event,
                 $verified['email'],
                 $verified['mobile'],
+                $verified['area_id'],
                 $this->cleanName($request),
                 $personCount
             );
@@ -340,18 +279,18 @@ class GuestPassController extends Controller
     }
 
     /**
-     * @return array{email: string, mobile: string}|null
+     * @return array{email: string, mobile: string, area_id: ?int}|null
      */
-    private function verifiedGuest(): ?array
+    private function guestDetails(): ?array
     {
-        $verified = session(self::SESSION_VERIFIED);
+        $guest = session(self::SESSION_GUEST);
 
-        if (!$verified || now()->timestamp > ($verified['expires_at'] ?? 0)) {
-            session()->forget(self::SESSION_VERIFIED);
+        if (!$guest || now()->timestamp > ($guest['expires_at'] ?? 0)) {
+            session()->forget(self::SESSION_GUEST);
             return null;
         }
 
-        return ['email' => $verified['email'], 'mobile' => $verified['mobile']];
+        return ['email' => $guest['email'], 'mobile' => $guest['mobile'], 'area_id' => $guest['area_id'] ?? null];
     }
 
     /**
@@ -389,11 +328,6 @@ class GuestPassController extends Controller
         $name = trim(strip_tags((string) $request->input('name')));
 
         return $name !== '' ? $name : null;
-    }
-
-    private function hashOtp(string $otp): string
-    {
-        return hash_hmac('sha256', $otp, (string) config('app.key'));
     }
 
     private function error(string $message, int $status): JsonResponse

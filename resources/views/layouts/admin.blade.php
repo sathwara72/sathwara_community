@@ -346,6 +346,7 @@
                 $hasAbout = $user->hasRole('Administrator') || $userPerms->contains('about_manage') || $userPerms->contains(fn($p) => str_starts_with($p, 'about_'));
                 $hasAnnouncements = $user->hasRole('Administrator') || $userPerms->contains('announcements_manage') || $userPerms->contains(fn($p) => str_starts_with($p, 'announcements_'));
                 $hasSettings = $user->hasRole('Administrator') || $userPerms->contains('settings_manage') || $userPerms->contains(fn($p) => str_starts_with($p, 'settings_'));
+                $hasTransactions = $user->hasRole('Administrator') || $userPerms->contains('transactions_view');
             @endphp
 
             @role('Administrator')
@@ -358,6 +359,16 @@
                 <span>{{ __('messages.sub_admins_access') }}</span>
             </a>
             @endrole
+
+            @if($hasTransactions)
+                <a href="{{ route('admin.transactions.index') }}"
+                    class="flex items-center space-x-3 px-4 py-2.5 text-xs font-bold rounded-lg {{ Route::is('admin.transactions.*') ? 'bg-primary-500 text-white' : 'text-slate-400 hover:bg-zinc-900 hover:text-white' }} transition-colors">
+                    <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                    </svg>
+                    <span>{{ __('messages.transactions') }}</span>
+                </a>
+            @endif
 
             @if($hasMembers)
                 <a href="{{ route('admin.members.index') }}"

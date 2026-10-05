@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Transaction;
+use App\Services\PaymentMailer;
+use App\Models\Setting;
+use App\Mail\ApplicationRejectedMail;
+use App\Services\RazorpayVerifier;
 use App\Http\Controllers\Controller;
 use App\Mail\BusinessPaymentLinkMail;
 use App\Mail\BusinessRenewalReceiptMail;
@@ -23,7 +28,7 @@ class BusinessController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Business::with('category');
+        $query = Business::with(['category', 'area']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -60,6 +65,7 @@ class BusinessController extends Controller
         $business = Business::findOrFail($id);
         $business->update([
             'status' => 'approved',
+            'rejection_reason' => null,
             'membership_status' => 'active',
             'approved_at' => now(),
         ]);
@@ -70,16 +76,21 @@ class BusinessController extends Controller
     /**
      * Reject Business
      */
-    public function reject($id)
+    public function reject(Request $request, $id)
     {
+        $request->validate(['rejection_reason' => 'required|string|max:2000']);
+
         $business = Business::findOrFail($id);
         $business->update([
             'status' => 'rejected',
+            'rejection_reason' => $request->rejection_reason,
             'membership_status' => 'inactive',
             'approved_at' => null,
         ]);
 
-        return redirect()->back()->with('warning', 'Business directory entry rejected.');
+        $this->sendRejectionEmail($business->email, 'business', $business->owner_name ?: $business->business_name, $business->business_name, $request->rejection_reason);
+
+        return redirect()->route('admin.businesses.show', $business->id)->with('warning', 'Business directory entry rejected and the owner has been emailed the reason.');
     }
 
     /**
@@ -224,19 +235,25 @@ class BusinessController extends Controller
         $business->payment_amount = $link->amount;
         $business->save();
 
+        $payer = $business->owner_name . ' (' . $business->business_name . ')';
+        if ($link->razorpay_payment_id) {
+            app(RazorpayVerifier::class)->record($link->razorpay_payment_id, 'business_renewal', (float) $link->amount, $business, $payer, $business->phone);
+        } else {
+            Transaction::recordOffice('business_renewal', (float) $link->amount, $business, $payer, $business->phone);
+        }
+
         Log::info('Business payment link manually marked paid by admin', [
             'business_id' => $business->id,
             'link_id' => $link->id,
             'admin_id' => auth()->id(),
         ]);
 
-        if (!empty($business->email)) {
-            try {
-                Mail::to($business->email)->send(new BusinessRenewalReceiptMail($business, $link));
-            } catch (\Throwable $e) {
-                Log::error('Business Renewal Receipt Mail Error: ' . $e->getMessage());
-            }
-        }
+        PaymentMailer::send($business->email, new BusinessRenewalReceiptMail($business, $link), 'Business renewal', [
+            'Business' => $business->business_name,
+            'Amount' => '₹' . number_format((float) $link->amount, 2),
+            'Payment ID' => $link->razorpay_payment_id,
+            'Phone' => $business->phone,
+        ]);
 
         return redirect()->back()->with('success', 'Business renewal marked as paid and receipt emailed.');
     }
@@ -459,7 +476,7 @@ class BusinessController extends Controller
             "Expires"             => "0"
         ];
 
-        $query = Business::with('category');
+        $query = Business::with(['category', 'area']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -483,31 +500,37 @@ class BusinessController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_business_name'),
                 __('messages.csv_owner_name'),
                 __('messages.csv_category'),
                 __('messages.csv_phone'),
                 __('messages.csv_email'),
+                __('messages.csv_area'),
                 __('messages.csv_city'),
                 __('messages.csv_state'),
                 __('messages.csv_status'),
-                __('messages.csv_created_at')
+                __('messages.csv_membership_started'),
+                __('messages.csv_membership_expires')
             ]);
 
+            $sr = 0;
             foreach ($businesses as $b) {
                 $statusKey = strtolower($b->status ?? '');
                 fputcsv($file, [
-                    $b->id,
+                    ++$sr,
                     $b->business_name,
                     $b->owner_name,
                     $b->category ? $b->category->name : '',
                     $b->phone ?? '',
                     $b->email ?? '',
+                    $b->area ? $b->area->name : '',
                     $b->city ?? '',
                     $b->state ?? '',
                     __('messages.' . $statusKey) != 'messages.' . $statusKey ? __('messages.' . $statusKey) : ucfirst($b->status),
-                    $b->created_at ? $b->created_at->format('Y-m-d H:i') : '',
+                    // Membership runs one year from approval / last renewal
+                    $b->approved_at ? $b->approved_at->format('d-M-Y') : '',
+                    $b->approved_at ? $b->approved_at->copy()->addYear()->format('d-M-Y') : '',
                 ]);
             }
             fclose($file);
@@ -515,4 +538,24 @@ class BusinessController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    /**
+     * Email the applicant why they were rejected. A mail failure never blocks the admin action.
+     */
+    private function sendRejectionEmail(?string $email, string $kind, string $name, string $applicationName, string $reason): void
+    {
+        if (empty($email)) {
+            return;
+        }
+
+        try {
+            Mail::to($email)->send(new ApplicationRejectedMail(
+                $kind, $name, $applicationName, $reason,
+                Setting::get('contact_email'), Setting::get('contact_phone')
+            ));
+        } catch (\Throwable $e) {
+            Log::error('Rejection email failed: ' . $e->getMessage(), ['email' => $email, 'kind' => $kind]);
+        }
+    }
+
 }

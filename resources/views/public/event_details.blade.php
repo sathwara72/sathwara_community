@@ -813,6 +813,7 @@
                                                     <!-- Modal Body / Form -->
                                                     <form method="POST" action="{{ route('events.public_register', $event->id) }}" id="publicEventRegisterForm" class="p-6 space-y-5">
                                                         @csrf
+                                                        <input type="hidden" name="redirect_to" value="{{ request()->fullUrl() }}">
                                                         <input type="hidden" name="razorpay_payment_id" id="event_razorpay_payment_id">
                                                         <input type="hidden" name="person_count" :value="count">
 

@@ -529,6 +529,7 @@
                                         @else
                                             <form method="POST" action="{{ route('member.events.register', $event->id) }}" class="space-y-3">
                                                 @csrf
+                                                <input type="hidden" name="redirect_to" value="{{ request()->fullUrl() }}">
                                                 <div x-data="{ count: 1 }" class="space-y-1.5">
                                                     <label class="text-[11px] font-bold text-slate-700 flex items-center justify-between">
                                                         <span>{{ __('messages.ketla_person_attending') }}</span>

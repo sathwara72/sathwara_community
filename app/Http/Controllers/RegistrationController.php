@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\PaymentMailer;
 use App\Models\User;
 use App\Models\MemberProfile;
 use App\Models\FamilyMember;
@@ -14,15 +15,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use App\Mail\VerifyEmailOtpMail;
-use App\Mail\RegisterEmailOtpMail;
 use App\Mail\MembershipPurchaseReceiptMail;
 use App\Mail\BusinessCreateReceiptMail;
 use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rule;
 use App\Services\AdminNotifier;
 use App\Models\Setting;
-use Illuminate\Support\Facades\Http;
 use App\Models\BusinessPaymentLink;
 
 class RegistrationController extends Controller
@@ -36,138 +34,6 @@ class RegistrationController extends Controller
         $signupFee = (float) \App\Models\Setting::get('member_signup_fee', '1000');
         $razorpayKeyId = \App\Models\Setting::get('razorpay_key_id', env('RAZORPAY_KEY_ID', ''));
         return view('public.register_member', compact('areas', 'signupFee', 'razorpayKeyId'));
-    }
-
-    /**
-     * Send OTP for Member Registration Email Verification
-     */
-    public function sendRegistrationOtp(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first('email'),
-            ], 422);
-        }
-
-        $email = strtolower(trim($request->email));
-
-        // Check if email already registered
-        if (User::where('email', $email)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This email address is already in use by another registered account.',
-            ], 422);
-        }
-
-        $otp = (string) mt_rand(100000, 999999);
-
-        // Save OTP to session explicitly
-        session([
-            'reg_otp_email' => $email,
-            'reg_otp_code' => $otp,
-            'reg_otp_expires' => now()->addMinutes(10),
-            'reg_otp_attempts' => 0,
-        ]);
-        session()->save();
-
-        Log::info("Member Registration OTP sent to {$email} | Session ID: " . session()->getId());
-
-        try {
-            Mail::to($email)->send(new RegisterEmailOtpMail($otp, $email));
-        } catch (\Exception $e) {
-            Log::error("Failed to send Member Registration Email OTP: " . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send verification email. Please check your SMTP mail configuration.',
-            ], 500);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => __('messages.otp_sent_success'),
-        ]);
-    }
-
-    /**
-     * Verify OTP for Member Registration Email
-     */
-    public function verifyRegistrationOtp(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'otp' => 'required|string|size:6',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please enter a valid 6-digit OTP code.',
-            ], 422);
-        }
-
-        $sessionEmail = session('reg_otp_email');
-        $sessionOtp = session('reg_otp_code');
-        $sessionExpires = session('reg_otp_expires');
-
-        $inputEmail = strtolower(trim($request->email));
-        $inputOtp = trim($request->otp);
-
-        Log::info("Member OTP Verify attempt | Session ID: " . session()->getId() .
-            " | session_email=[{$sessionEmail}] input_email=[{$inputEmail}]");
-
-        if (!$sessionEmail || !$sessionOtp || !$sessionExpires) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No active OTP session found. Please click Send OTP to request a new code.',
-            ], 400);
-        }
-
-        if ($sessionEmail !== $inputEmail) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email address mismatch. Please request a new OTP for this email.',
-            ], 400);
-        }
-
-        if (now()->greaterThan($sessionExpires)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'OTP has expired. Please click Send OTP to receive a new code.',
-            ], 400);
-        }
-
-        $attempts = (int) session('reg_otp_attempts', 0) + 1;
-        session(['reg_otp_attempts' => $attempts]);
-
-        if ($attempts > 5) {
-            session()->forget(['reg_otp_code', 'reg_otp_email', 'reg_otp_expires', 'reg_otp_attempts']);
-            return response()->json([
-                'success' => false,
-                'message' => 'Too many failed OTP attempts. Please click Send OTP to request a new code.',
-            ], 429);
-        }
-
-        if ($inputOtp !== (string) $sessionOtp) {
-            return response()->json([
-                'success' => false,
-                'message' => __('messages.otp_invalid'),
-            ], 400);
-        }
-
-        // Mark email as verified in session
-        session(['reg_email_verified' => $inputEmail]);
-        session()->forget(['reg_otp_code', 'reg_otp_expires', 'reg_otp_attempts']);
-        session()->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => __('messages.email_verified'),
-        ]);
     }
 
     /**
@@ -201,15 +67,6 @@ class RegistrationController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()->all(),
-            ], 422);
-        }
-
-        // Verify that email OTP was verified in session
-        $verifiedEmail = session('reg_email_verified');
-        if (empty($verifiedEmail) || strtolower(trim($request->email)) !== strtolower(trim($verifiedEmail))) {
-            return response()->json([
-                'success' => false,
-                'errors' => [__('messages.please_verify_email')],
             ], 422);
         }
 
@@ -249,14 +106,6 @@ class RegistrationController extends Controller
             'razorpay_payment_id' => 'nullable|string|max:255',
         ]);
 
-        // Server-side check that email was verified via OTP
-        $verifiedEmail = session('reg_email_verified');
-        if (empty($verifiedEmail) || strtolower(trim($validated['email'])) !== strtolower(trim($verifiedEmail))) {
-            return redirect()->back()->withInput()->withErrors([
-                'email' => __('messages.please_verify_email'),
-            ]);
-        }
-
         $signupFee = (float) \App\Models\Setting::get('member_signup_fee', '1000');
         $paymentId = $request->input('razorpay_payment_id');
 
@@ -283,6 +132,7 @@ class RegistrationController extends Controller
             'payment_status' => $paymentStatus,
             'payment_amount' => $signupFee,
         ]);
+        app(\App\Services\RazorpayVerifier::class)->record($paymentId, 'membership', $signupFee, $user, $user->name, $validated['phone']);
         $user->member_code = 'SSAM' . sprintf('%04d', $user->id);
         $user->save();
 
@@ -335,17 +185,13 @@ class RegistrationController extends Controller
             color: 'primary'
         );
 
-        // Clear OTP verification session
-        session()->forget(['reg_otp_email', 'reg_otp_code', 'reg_otp_expires', 'reg_email_verified']);
-
         // Dispatch Membership Purchase Receipt Email
-        if (!empty($user->email)) {
-            try {
-                Mail::to($user->email)->send(new MembershipPurchaseReceiptMail($user, $user->memberProfile, $signupFee, $paymentStatus, $paymentId));
-            } catch (\Throwable $th) {
-                Log::error('Membership Receipt Mail Error: ' . $th->getMessage());
-            }
-        }
+        PaymentMailer::send($user->email, new MembershipPurchaseReceiptMail($user, $user->memberProfile, $signupFee, $paymentStatus, $paymentId), 'Membership registration', [
+            'Member' => $user->name,
+            'Amount' => '₹' . number_format($signupFee, 2),
+            'Payment ID' => $paymentId,
+            'Phone' => $user->memberProfile->phone ?? null,
+        ]);
 
         // Log the user in and redirect to account status page
         auth()->login($user);
@@ -376,137 +222,6 @@ class RegistrationController extends Controller
     }
 
     /**
-     * Send OTP for Business Registration Email Verification
-     */
-    public function sendBusinessRegistrationOtp(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => $validator->errors()->first('email'),
-            ], 422);
-        }
-
-        $email = strtolower(trim($request->email));
-
-        // Check if email already registered in businesses
-        if (Business::where('email', $email)->whereNotNull('email_verified_at')->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This email address is already registered with another business account.',
-            ], 422);
-        }
-
-        $otp = (string) mt_rand(100000, 999999);
-
-        session([
-            'biz_reg_otp_email'   => $email,
-            'biz_reg_otp_code'    => $otp,
-            'biz_reg_otp_expires' => now()->addMinutes(10),
-            'biz_reg_otp_attempts' => 0,
-        ]);
-        session()->save();
-
-        Log::info("Business Registration OTP sent to {$email} | Session ID: " . session()->getId());
-
-        try {
-            Mail::to($email)->send(new RegisterEmailOtpMail($otp, $email));
-        } catch (\Exception $e) {
-            Log::error('Failed to send Business Registration Email OTP: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send verification email. Please check your SMTP mail configuration.',
-            ], 500);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'OTP sent successfully. Please check your email.',
-        ]);
-    }
-
-    /**
-     * Verify OTP for Business Registration Email
-     */
-    public function verifyBusinessRegistrationOtp(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'otp'   => 'required|string|size:6',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please enter a valid 6-digit OTP code.',
-            ], 422);
-        }
-
-        $sessionEmail   = session('biz_reg_otp_email');
-        $sessionOtp     = session('biz_reg_otp_code');
-        $sessionExpires = session('biz_reg_otp_expires');
-
-        $inputEmail = strtolower(trim($request->email));
-        $inputOtp   = trim($request->otp);
-
-        Log::info("Business OTP Verify attempt | Session ID: " . session()->getId() .
-            " | session_email=[{$sessionEmail}] input_email=[{$inputEmail}]");
-
-        if (!$sessionEmail || !$sessionOtp || !$sessionExpires) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No active OTP session found. Please click Send OTP to request a new code.',
-            ], 400);
-        }
-
-        if ($sessionEmail !== $inputEmail) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email address mismatch. Please request a new OTP for this email.',
-            ], 400);
-        }
-
-        if (now()->greaterThan($sessionExpires)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'OTP has expired. Please click Send OTP to receive a new code.',
-            ], 400);
-        }
-
-        $attempts = (int) session('biz_reg_otp_attempts', 0) + 1;
-        session(['biz_reg_otp_attempts' => $attempts]);
-
-        if ($attempts > 5) {
-            session()->forget(['biz_reg_otp_code', 'biz_reg_otp_email', 'biz_reg_otp_expires', 'biz_reg_otp_attempts']);
-            return response()->json([
-                'success' => false,
-                'message' => 'Too many failed OTP attempts. Please click Send OTP to request a new code.',
-            ], 429);
-        }
-
-        if ($inputOtp !== (string) $sessionOtp) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid OTP code. Please check your email and try again.',
-            ], 400);
-        }
-
-        // Mark email as verified in session
-        session(['biz_reg_email_verified' => $inputEmail]);
-        session()->forget(['biz_reg_otp_code', 'biz_reg_otp_expires', 'biz_reg_otp_attempts']);
-        session()->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Email verified successfully.',
-        ]);
-    }
-
-    /**
      * Show Public Business Registration Form
      */
     public function showBusinessRegister()
@@ -516,26 +231,38 @@ class RegistrationController extends Controller
         $businessFee = (float) \App\Models\Setting::get('business_registration_fee', '500');
         $razorpayKeyId = \App\Models\Setting::get('razorpay_key_id', env('RAZORPAY_KEY_ID', ''));
 
-        $existingBusiness = null;
-        if (auth()->check()) {
-            $user = auth()->user();
-            $formattedMemberId = '#' . sprintf('%05d', $user->id);
-            $existingBusiness = Business::where('user_id', $user->id)
-                ->orWhere('member_id', (string) $user->id)
-                ->orWhere('member_id', $formattedMemberId)
-                ->orWhere('member_id', '#' . $user->id)
-                ->first();
-        }
-
-        return view('public.register_business', compact('categories', 'areas', 'existingBusiness', 'businessFee', 'razorpayKeyId'));
+        return view('public.register_business', compact('categories', 'areas', 'businessFee', 'razorpayKeyId'));
     }
 
     /**
-     * Handle Business Registration Submission
+     * Validate the Business Registration form before opening Razorpay, so nobody pays for a
+     * registration that the final submit would reject.
      */
-    public function submitBusinessRegister(Request $request)
+    public function preValidateBusiness(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), $this->businessRegistrationRules(), $this->businessRegistrationMessages());
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()->all(),
+            ], 422);
+        }
+
+        $check = $this->checkBusinessRegistration($request);
+        if ($check['error']) {
+            return response()->json([
+                'success' => false,
+                'errors' => [$check['error'][1]],
+            ], 422);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    private function businessRegistrationRules(): array
+    {
+        return [
             'member_id'           => 'nullable|string|max:255',
             'business_name'       => 'required|string|max:255',
             'owner_name'          => 'required|string|max:255',
@@ -555,24 +282,96 @@ class RegistrationController extends Controller
             'logo'                => 'required|file|mimes:jpeg,jpg,png,webp,gif,bmp,pdf|max:10240',
             'gallery'             => 'nullable|array|max:6',
             'gallery.*'           => 'nullable|file|mimes:jpeg,jpg,png,webp,gif,bmp|max:10240',
-            'razorpay_payment_id' => 'nullable|string|max:255',
-        ], [
+        ];
+    }
+
+    private function businessRegistrationMessages(): array
+    {
+        return [
             'logo.required' => 'Please upload your Business Logo or Visiting Card.',
             'logo.mimes'    => 'Business Logo must be an image file (JPG, PNG, WEBP) or a PDF document.',
             'logo.max'      => 'Business Logo file size must not exceed 10MB.',
             'email.required' => 'Business email is required and will be used for your Business Panel login.',
             'password.required' => 'Please set a password for your Business Panel account.',
             'password.min' => 'Password must be at least 6 characters.',
-            'password.confirmed' => 'The password and confirmation do not match.',
-        ]);
+            'password.confirmed' => 'The password and confirmation do not match. (પાસવર્ડ અને કન્ફર્મ પાસવર્ડ સરખા નથી.)',
+        ];
+    }
 
-        // Server-side check that business email was verified via OTP
-        $verifiedEmail = session('biz_reg_email_verified');
-        if (empty($verifiedEmail) || strtolower(trim($request->email)) !== strtolower(trim($verifiedEmail))) {
-            return redirect()->back()->withInput()->withErrors([
-                'email' => 'Please verify your business email address via OTP before submitting.',
-            ]);
+    /**
+     * Rules beyond field validation, shared by pre-validation and the final submit: unique business
+     * email and the Member ID must exist.
+     *
+     * @return array{error: ?array{0: string, 1: string}, user_id: ?int, member_id: ?string}
+     */
+    private function checkBusinessRegistration(Request $request): array
+    {
+        $result = ['error' => null, 'user_id' => null, 'member_id' => null];
+
+        // Business email doubles as the Business Panel login, so it must be unique
+        if (Business::where('email', strtolower(trim((string) $request->email)))->exists()) {
+            $result['error'] = ['email', 'This email address is already registered with another business account.'];
+            return $result;
         }
+
+        $memberUser = null;
+        if ($request->filled('member_id')) {
+            $result['member_id'] = trim($request->member_id);
+            $memberUser = $this->findMemberByCode($result['member_id']);
+
+            if (!$memberUser) {
+                $result['error'] = ['member_id', __('messages.member_id_not_found') ?? 'The entered Member ID does not exist in our database. Please check your Member ID.'];
+                return $result;
+            }
+        } elseif (auth()->check()) {
+            $memberUser = auth()->user();
+        }
+
+        // A member may register any number of businesses
+        $result['user_id'] = $memberUser?->id;
+
+        return $result;
+    }
+
+    /**
+     * Find a member by what they type as "Member ID": member code (e.g. SSAM0123), numeric id or phone.
+     */
+    private function findMemberByCode(string $memberId): ?User
+    {
+        $memberUser = User::where('member_code', $memberId)
+            ->orWhere('member_code', strtoupper($memberId))
+            ->first();
+
+        $numericId = (int) preg_replace('/[^0-9]/', '', $memberId);
+        if (!$memberUser && $numericId > 0) {
+            $memberUser = User::find($numericId);
+        }
+
+        if (!$memberUser) {
+            $profile = MemberProfile::where('id', $numericId)
+                ->orWhere('phone', $memberId)
+                ->first();
+            $memberUser = $profile?->user;
+        }
+
+        return $memberUser;
+    }
+
+    /**
+     * Handle Business Registration Submission
+     */
+    public function submitBusinessRegister(Request $request)
+    {
+        $request->validate($this->businessRegistrationRules() + [
+            'razorpay_payment_id' => 'nullable|string|max:255',
+        ], $this->businessRegistrationMessages());
+
+        $check = $this->checkBusinessRegistration($request);
+        if ($check['error']) {
+            return redirect()->back()->withInput()->withErrors([$check['error'][0] => $check['error'][1]]);
+        }
+        $userId = $check['user_id'];
+        $rawMemberId = $check['member_id'];
 
         $businessFee = (float) \App\Models\Setting::get('business_registration_fee', '500');
         $paymentId = $request->input('razorpay_payment_id');
@@ -585,65 +384,6 @@ class RegistrationController extends Controller
             ]);
         }
         $paymentStatus = $paymentVerification['status'];
-
-        $userId = null;
-        $rawMemberId = null;
-
-        if ($request->filled('member_id')) {
-            $rawMemberId = trim($request->member_id);
-            $numericId = (int) preg_replace('/[^0-9]/', '', $rawMemberId);
-
-            $memberUser = null;
-            if ($numericId > 0) {
-                $memberUser = User::find($numericId);
-            }
-
-            if (!$memberUser) {
-                $profile = MemberProfile::where('id', $numericId)
-                    ->orWhere('phone', $rawMemberId)
-                    ->first();
-                if ($profile) {
-                    $memberUser = $profile->user;
-                }
-            }
-
-            if (!$memberUser) {
-                return back()->withInput()->withErrors([
-                    'member_id' => __('messages.member_id_not_found') ?? 'The entered Member ID does not exist in our database. Please check your Member ID.',
-                ]);
-            }
-
-            $userId = $memberUser->id;
-        }
-
-        if (!$userId && auth()->check()) {
-            $userId = auth()->id();
-        }
-
-        // Single Business per Member Constraint Check
-        if ($userId) {
-            $formattedMemberId = '#' . sprintf('%05d', $userId);
-            $existingBusiness = Business::where('user_id', $userId)
-                ->orWhere('member_id', (string) $userId)
-                ->orWhere('member_id', $formattedMemberId)
-                ->orWhere('member_id', '#' . $userId)
-                ->first();
-
-            if ($existingBusiness) {
-                return back()->withInput()->withErrors([
-                    'member_id' => "Each member is allowed to register only 1 business. You have already registered '{$existingBusiness->business_name}'. (દરેક સભ્ય માત્ર ૧ જ વ્યવસાય રજીસ્ટર કરી શકે છે.)",
-                ]);
-            }
-        }
-
-        if ($rawMemberId) {
-            $existingBusiness = Business::where('member_id', $rawMemberId)->first();
-            if ($existingBusiness) {
-                return back()->withInput()->withErrors([
-                    'member_id' => "A business ('{$existingBusiness->business_name}') has already been registered with Member ID '{$rawMemberId}'. Only 1 business registration per member is allowed.",
-                ]);
-            }
-        }
 
         // Upload Logo
         $logoPath = $request->file('logo')->store('businesses/logos', 'public');
@@ -670,7 +410,7 @@ class RegistrationController extends Controller
             'address'          => $request->address,
             'phone'            => $request->phone,
             'whatsapp'         => $request->whatsapp ?? $request->phone,
-            'email'            => $request->email,
+            'email'            => strtolower(trim($request->email)),
             'password'         => $request->password, // cast to hashed automatically
             'email_verified_at' => now(),
             'website'          => $request->website,
@@ -685,9 +425,7 @@ class RegistrationController extends Controller
             'payment_status'   => $paymentStatus,
             'payment_amount'   => $businessFee,
         ]);
-
-        // Clear OTP verification session
-        session()->forget(['biz_reg_otp_email', 'biz_reg_otp_code', 'biz_reg_otp_expires', 'biz_reg_email_verified']);
+        app(\App\Services\RazorpayVerifier::class)->record($paymentId, 'business_registration', $businessFee, $newBusiness, $newBusiness->owner_name . ' (' . $newBusiness->business_name . ')', $newBusiness->phone);
 
         AdminNotifier::send(
             permission: 'businesses_manage',
@@ -701,15 +439,25 @@ class RegistrationController extends Controller
 
         // Dispatch Business Registration Receipt Email
         $recipientEmail = $request->email ?? ($userId ? User::find($userId)?->email : null);
-        if (!empty($recipientEmail)) {
-            try {
-                Mail::to($recipientEmail)->send(new BusinessCreateReceiptMail($newBusiness, $userId ? User::find($userId) : null, $businessFee, $paymentStatus, $paymentId));
-            } catch (\Throwable $th) {
-                Log::error('Business Receipt Mail Error: ' . $th->getMessage());
-            }
+        PaymentMailer::send($recipientEmail, new BusinessCreateReceiptMail($newBusiness, $userId ? User::find($userId) : null, $businessFee, $paymentStatus, $paymentId), 'Business registration', [
+            'Business' => $newBusiness->business_name,
+            'Owner' => $newBusiness->owner_name,
+            'Amount' => '₹' . number_format($businessFee, 2),
+            'Payment ID' => $paymentId,
+            'Phone' => $newBusiness->phone,
+        ]);
+
+        if ($request->input('redirect_to') === 'dashboard') {
+            $redirectTarget = redirect()->route('member.dashboard');
+        } elseif ($request->filled('redirect_to') && parse_url($request->input('redirect_to'), PHP_URL_HOST) === $request->getHost()) {
+            $redirectTarget = redirect($request->input('redirect_to'));
+        } elseif ($request->headers->has('referer')) {
+            $redirectTarget = redirect()->back();
+        } else {
+            $redirectTarget = redirect()->route('register.business');
         }
 
-        $response = redirect()->route('business.directory')
+        $response = $redirectTarget
             ->with('success', 'Your business directory registration has been submitted successfully and is pending admin approval.');
 
         if ($paymentStatus === 'paid') {
@@ -744,62 +492,18 @@ class RegistrationController extends Controller
             return response()->json(['found' => false, 'message' => '']);
         }
 
-        $numericId = (int) preg_replace('/[^0-9]/', '', $memberId);
-        $memberUser = null;
-
-        // 1. Try by member_code (e.g. SSAM0123) – exact or case-insensitive match
-        $memberUser = User::where('member_code', $memberId)
-            ->orWhere('member_code', strtoupper($memberId))
-            ->first();
-
-        // 2. Try numeric ID lookup
-        if (!$memberUser && $numericId > 0) {
-            $memberUser = User::find($numericId);
-        }
-
-        // 3. Try MemberProfile by id or phone
-        if (!$memberUser) {
-            $profile = MemberProfile::where('id', $numericId)
-                ->orWhere('phone', $memberId)
-                ->first();
-            if ($profile) {
-                $memberUser = $profile->user;
-            }
-        }
+        $memberUser = $this->findMemberByCode($memberId);
 
         if ($memberUser) {
             $memberUser->load('memberProfile');
             $name = $memberUser->memberProfile
                 ? trim($memberUser->memberProfile->first_name . ' ' . $memberUser->memberProfile->last_name)
                 : $memberUser->name;
-            $memberCode        = $memberUser->member_code ?: ('#' . sprintf('%05d', $memberUser->id));
-            $formattedMemberId = '#' . sprintf('%05d', $memberUser->id);
-
-            // Get the currently authenticated business ID (if on business profile page)
-            $currentBusinessId = $request->query('business_id');
-            if (!$currentBusinessId && auth()->guard('business')->check()) {
-                $currentBusinessId = auth()->guard('business')->id();
+            // Visitors who are not logged in only see a masked name, so the lookup cannot list members
+            if (!auth()->check() && !auth()->guard('business')->check()) {
+                $name = $this->maskName($name);
             }
-
-
-            // Check if member already registered a business (skip own business)
-            $existingBusiness = Business::where(function ($q) use ($memberUser, $memberId, $formattedMemberId) {
-                    $q->where('user_id', $memberUser->id)
-                      ->orWhere('member_id', $memberId)
-                      ->orWhere('member_id', (string) $memberUser->id)
-                      ->orWhere('member_id', $formattedMemberId)
-                      ->orWhere('member_id', $memberUser->member_code);
-                })
-                ->when($currentBusinessId, fn($q) => $q->where('id', '!=', $currentBusinessId))
-                ->first();
-
-            if ($existingBusiness) {
-                return response()->json([
-                    'found' => false,
-                    'has_business' => true,
-                    'message' => "❌ Member {$name} has already registered a business ('{$existingBusiness->business_name}'). Each member is allowed to register only 1 business."
-                ]);
-            }
+            $memberCode = $memberUser->member_code ?: ('#' . sprintf('%05d', $memberUser->id));
 
             return response()->json([
                 'found' => true,
@@ -813,6 +517,17 @@ class RegistrationController extends Controller
             'found' => false,
             'message' => 'Member ID does not exist in database.'
         ]);
+    }
+
+    /**
+     * "Karan Sathwara" -> "K**** S*******"
+     */
+    private function maskName(string $name): string
+    {
+        return collect(preg_split('/\s+/u', trim($name)))
+            ->filter()
+            ->map(fn ($word) => mb_substr($word, 0, 1) . str_repeat('*', max(1, mb_strlen($word) - 1)))
+            ->implode(' ');
     }
 
     /**
@@ -874,55 +589,18 @@ class RegistrationController extends Controller
     }
 
     /**
-     * Verify a Razorpay payment ID and ensure it has not been replayed.
+     * Verify the Razorpay payment for a registration fee. A fee that is due must be paid.
+     *
+     * @return array{valid: bool, status: string, error: ?string}
      */
     protected function verifyRazorpayPayment(?string $paymentId, float $expectedAmount): array
     {
-        if (empty($paymentId)) {
-            return ['valid' => true, 'status' => 'unpaid', 'error' => null];
-        }
+        $result = app(\App\Services\RazorpayVerifier::class)->verify($paymentId, $expectedAmount);
 
-        // 1. Replay attack check: Check if payment_id is already used in previous registrations
-        $alreadyUsed = User::where('payment_id', $paymentId)->exists()
-            || Business::where('payment_id', $paymentId)->exists()
-            || BusinessPaymentLink::where('razorpay_payment_id', $paymentId)->exists();
-
-        if ($alreadyUsed) {
-            return ['valid' => false, 'status' => 'unpaid', 'error' => 'This payment transaction ID has already been utilized.'];
-        }
-
-        // 2. Server-side verification with Razorpay API (if API credentials are set)
-        $keyId = Setting::get('razorpay_key_id', env('RAZORPAY_KEY_ID', ''));
-        $keySecret = Setting::get('razorpay_key_secret', env('RAZORPAY_KEY_SECRET', ''));
-
-        if (!empty($keyId) && !empty($keySecret) && !app()->environment('testing')) {
-            try {
-                $response = Http::withBasicAuth($keyId, $keySecret)
-                    ->timeout(10)
-                    ->get("https://api.razorpay.com/v1/payments/{$paymentId}");
-
-                if (!$response->successful()) {
-                    Log::error('Razorpay payment fetch failed: ' . $response->body());
-                    return ['valid' => false, 'status' => 'unpaid', 'error' => 'Payment could not be verified with Razorpay.'];
-                }
-
-                $data = $response->json();
-                $paymentStatus = $data['status'] ?? '';
-                $amountPaid = (float) (($data['amount'] ?? 0) / 100);
-
-                if (!in_array($paymentStatus, ['captured', 'authorized'])) {
-                    return ['valid' => false, 'status' => 'unpaid', 'error' => 'Payment transaction was not successful on Razorpay.'];
-                }
-
-                if ($amountPaid < $expectedAmount) {
-                    return ['valid' => false, 'status' => 'unpaid', 'error' => "Payment amount (₹{$amountPaid}) does not match the required fee (₹{$expectedAmount})."];
-                }
-            } catch (\Throwable $e) {
-                Log::error('Razorpay verification exception: ' . $e->getMessage());
-                return ['valid' => false, 'status' => 'unpaid', 'error' => 'Failed to connect to Razorpay to verify payment. Please try again.'];
-            }
-        }
-
-        return ['valid' => true, 'status' => 'paid', 'error' => null];
+        return [
+            'valid' => $result['valid'],
+            'status' => $expectedAmount > 0 ? 'paid' : 'unpaid',
+            'error' => $result['error'],
+        ];
     }
 }

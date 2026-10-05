@@ -111,16 +111,17 @@ class AreaController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
                 __('messages.csv_area_name'),
                 __('messages.csv_pincode'),
                 __('messages.csv_assigned_members_count'),
                 __('messages.csv_created_at')
             ]);
 
+            $sr = 0;
             foreach ($areas as $area) {
                 fputcsv($file, [
-                    $area->id,
+                    ++$sr,
                     $area->name,
                     $area->pincode ?? 'N/A',
                     $area->member_profiles_count ?? 0,

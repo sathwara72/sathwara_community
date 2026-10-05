@@ -74,6 +74,7 @@
         if (!this.editAdmin.permissions) this.editAdmin.permissions = [];
         if (e.target.checked) {
             if (!this.editAdmin.permissions.includes(permKey)) this.editAdmin.permissions.push(permKey);
+            if (permKey.endsWith('_view')) return; // view-only modules have no action rights
             [modPrefix + '_view', modPrefix + '_add', modPrefix + '_edit', modPrefix + '_delete'].forEach(p => {
                 if (!this.editAdmin.permissions.includes(p)) this.editAdmin.permissions.push(p);
             });
@@ -293,6 +294,7 @@
                                         <span class="text-[9px] text-slate-400 font-medium">({{ __('messages.full') }})</span>
                                     </label>
 
+                                    @unless(str_ends_with($permKey, '_view'))
                                     <div class="flex items-center gap-1 shrink-0 flex-wrap">
                                         <label class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors text-[9px] font-bold select-none">
                                             <input type="checkbox" name="permissions[]" value="{{ $modPrefix }}_view" class="w-3 h-3 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer">
@@ -326,6 +328,7 @@
                                             </span>
                                         </label>
                                     </div>
+                                    @endunless
                                 </div>
                             @endforeach
                         </div>
@@ -409,6 +412,7 @@
                                         <span class="text-[9px] text-slate-400 font-medium">({{ __('messages.full') }})</span>
                                     </label>
 
+                                    @unless(str_ends_with($permKey, '_view'))
                                     <div class="flex items-center gap-1 shrink-0 flex-wrap">
                                         <label class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors text-[9px] font-bold select-none">
                                             <input type="checkbox" name="permissions[]" value="{{ $modPrefix }}_view" 
@@ -454,6 +458,7 @@
                                             </span>
                                         </label>
                                     </div>
+                                    @endunless
                                 </div>
                             @endforeach
                         </div>

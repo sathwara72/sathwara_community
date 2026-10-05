@@ -88,4 +88,9 @@ class EventRegistration extends Model
     {
         return $this->hasMany(PassToken::class, 'event_registration_id');
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'payable')->latest('id');
+    }
 }

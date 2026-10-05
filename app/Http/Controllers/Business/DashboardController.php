@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers\Business;
 
+use App\Services\PaymentMailer;
+use App\Services\RazorpayVerifier;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Area;
 use App\Models\BusinessCategory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use App\Mail\VerifyEmailOtpMail;
 use App\Models\BusinessPaymentLink;
 use App\Models\Setting;
 use App\Services\RazorpayPaymentLinkService;
@@ -65,6 +67,7 @@ class DashboardController extends Controller
             'address'       => 'required|string',
             'phone'         => 'required|digits:10',
             'whatsapp'      => 'nullable|digits:10',
+            'email'         => ['required', 'email', 'max:255', Rule::unique('businesses', 'email')->ignore($business->id)->whereNull('deleted_at')],
             'website'       => 'nullable|url|max:255',
             'facebook'      => 'nullable|string|max:255',
             'instagram'     => 'nullable|string|max:255',
@@ -84,7 +87,10 @@ class DashboardController extends Controller
             $rules['password'] = 'required|string|min:6|confirmed';
         }
 
+        $request->merge(['email' => strtolower(trim((string) $request->email))]);
+
         $request->validate($rules, [
+            'email.unique'              => 'This email is already registered with another business.',
             'current_password.required' => 'Please enter your current password.',
             'password.confirmed'        => 'The new password and confirmation do not match.',
             'password.min'              => 'Password must be at least 6 characters.',
@@ -92,7 +98,7 @@ class DashboardController extends Controller
 
         $data = $request->only([
             'member_id', 'business_name', 'owner_name', 'category_id', 'area_id',
-            'description', 'address', 'phone', 'whatsapp',
+            'description', 'address', 'phone', 'whatsapp', 'email',
             'website', 'facebook', 'instagram', 'youtube', 'linkedin',
         ]);
 
@@ -167,96 +173,6 @@ class DashboardController extends Controller
     }
 
     /**
-     * Send OTP to new Business Email (for profile email change)
-     */
-    public function sendProfileEmailOtp(Request $request)
-    {
-        $request->validate(['email' => 'required|email|max:255']);
-
-        $email    = strtolower(trim($request->email));
-        $business = $this->business();
-
-        if (Business::where('email', $email)
-            ->where('id', '!=', $business->id)
-            ->whereNotNull('email_verified_at')
-            ->exists()
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This email is already registered with another business.',
-            ], 422);
-        }
-
-        $otp = (string) mt_rand(100000, 999999);
-
-        session([
-            'biz_profile_otp_email'   => $email,
-            'biz_profile_otp_code'    => $otp,
-            'biz_profile_otp_expires' => now()->addMinutes(10),
-        ]);
-        session()->save();
-
-        try {
-            Mail::to($email)->send(new VerifyEmailOtpMail($otp, $email));
-        } catch (\Exception $e) {
-            Log::error('Business Profile Email OTP Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to send OTP email.'], 500);
-        }
-
-        return response()->json(['success' => true, 'message' => 'OTP sent. Please check your email.']);
-    }
-
-    /**
-     * Verify OTP and update Business Email
-     */
-    public function verifyProfileEmailOtp(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'otp'   => 'required|string|size:6',
-        ]);
-
-        $sessionEmail   = session('biz_profile_otp_email');
-        $sessionOtp     = session('biz_profile_otp_code');
-        $sessionExpires = session('biz_profile_otp_expires');
-        $inputEmail     = strtolower(trim($request->email));
-        $inputOtp       = trim($request->otp);
-
-        if (!$sessionEmail || !$sessionOtp || !$sessionExpires) {
-            return response()->json(['success' => false, 'message' => 'No active OTP session. Please request a new OTP.'], 400);
-        }
-        if ($sessionEmail !== $inputEmail) {
-            return response()->json(['success' => false, 'message' => 'Email mismatch. Please request a new OTP.'], 400);
-        }
-        if (now()->greaterThan($sessionExpires)) {
-            return response()->json(['success' => false, 'message' => 'OTP has expired. Please request a new code.'], 400);
-        }
-
-        $attempts = (int) session('biz_profile_otp_attempts', 0) + 1;
-        session(['biz_profile_otp_attempts' => $attempts]);
-
-        if ($attempts > 5) {
-            session()->forget(['biz_profile_otp_email', 'biz_profile_otp_code', 'biz_profile_otp_expires', 'biz_profile_otp_attempts']);
-            return response()->json(['success' => false, 'message' => 'Too many failed OTP attempts. Please request a new code.'], 429);
-        }
-
-        if ($inputOtp !== (string) $sessionOtp) {
-            return response()->json(['success' => false, 'message' => 'Invalid OTP. Please try again.'], 400);
-        }
-
-        // Update email
-        $business = $this->business();
-        $business->update([
-            'email'             => $inputEmail,
-            'email_verified_at' => now(),
-        ]);
-
-        session()->forget(['biz_profile_otp_email', 'biz_profile_otp_code', 'biz_profile_otp_expires', 'biz_profile_otp_attempts']);
-
-        return response()->json(['success' => true, 'message' => 'Email updated and verified successfully.']);
-    }
-
-    /**
      * Update Business Password
      */
     public function updatePassword(Request $request)
@@ -310,18 +226,29 @@ class DashboardController extends Controller
             return redirect()->route('business.renewal')->with('info', __('Your business listing is currently active and does not require renewal yet.'));
         }
 
+        $renewalFee = (float) Setting::get('business_renewal_fee', Setting::get('business_registration_fee', '500'));
+
+        // Renewal set to Free by the admin: renew without any payment or transaction
+        if ($renewalFee <= 0) {
+            $business->approved_at = now();
+            $business->status = 'approved';
+            $business->membership_status = 'active';
+            $business->save();
+
+            return redirect()->route('business.renewal')->with('success', __('Business membership renewed successfully! Your listing is now active for 1 year.'));
+        }
+
         $request->validate([
             'razorpay_payment_id' => 'required|string|max:255',
         ]);
 
         $paymentId = $request->razorpay_payment_id;
-        $alreadyUsed = BusinessPaymentLink::where('razorpay_payment_id', $paymentId)->exists()
-            || \App\Models\User::where('payment_id', $paymentId)->exists();
-        if ($alreadyUsed) {
-            return redirect()->route('business.renewal')->with('error', 'This payment transaction ID has already been utilized.');
+
+        $verification = app(RazorpayVerifier::class)->verify($paymentId, $renewalFee);
+        if (!$verification['valid']) {
+            return redirect()->route('business.renewal')->with('error', $verification['error']);
         }
 
-        $renewalFee = (float) Setting::get('business_renewal_fee', Setting::get('business_registration_fee', '500'));
 
         $link = BusinessPaymentLink::create([
             'business_id' => $business->id,
@@ -343,19 +270,20 @@ class DashboardController extends Controller
         $business->payment_amount = $renewalFee;
         $business->save();
 
+        app(RazorpayVerifier::class)->record($paymentId, 'business_renewal', $renewalFee, $business, $business->owner_name . ' (' . $business->business_name . ')', $business->phone);
+
         Log::info('Business renewed via online payment', [
             'business_id' => $business->id,
             'payment_id' => $request->razorpay_payment_id,
             'amount' => $renewalFee,
         ]);
 
-        if (!empty($business->email)) {
-            try {
-                Mail::to($business->email)->send(new BusinessRenewalReceiptMail($business, $link));
-            } catch (\Throwable $e) {
-                Log::error('Business Renewal Receipt Mail Error: ' . $e->getMessage());
-            }
-        }
+        PaymentMailer::send($business->email, new BusinessRenewalReceiptMail($business, $link), 'Business renewal', [
+            'Business' => $business->business_name,
+            'Amount' => '₹' . number_format((float) $link->amount, 2),
+            'Payment ID' => $link->razorpay_payment_id,
+            'Phone' => $business->phone,
+        ]);
 
         return redirect()->route('business.renewal')->with('success', __('Business membership renewed successfully! Your listing is now active for 1 year.'));
     }
@@ -408,7 +336,14 @@ class DashboardController extends Controller
                 ->where('razorpay_link_id', $paymentLinkId)
                 ->first();
 
-            if ($link && ($status === 'paid' || !empty($paymentId))) {
+            // The redirect URL can be typed by anyone, so the link's real status comes from Razorpay
+            $remote = $link && $link->status !== 'paid' ? app(RazorpayVerifier::class)->fetchPaymentLink($paymentLinkId) : null;
+            if ($remote) {
+                $status = $remote['status'] ?? null;
+                $paymentId = $remote['payments'][0]['payment_id'] ?? $paymentId;
+            }
+
+            if ($link && ($link->status === 'paid' || ($remote && $status === 'paid'))) {
                 if ($link->status !== 'paid') {
                     $link->status = 'paid';
                     $link->paid_at = now();
@@ -423,13 +358,14 @@ class DashboardController extends Controller
                     $business->payment_amount = $link->amount;
                     $business->save();
 
-                    if (!empty($business->email)) {
-                        try {
-                            Mail::to($business->email)->send(new BusinessRenewalReceiptMail($business, $link));
-                        } catch (\Throwable $e) {
-                            Log::error('Business Renewal Callback Receipt Mail Error: ' . $e->getMessage());
-                        }
-                    }
+                    app(RazorpayVerifier::class)->record($business->payment_id, 'business_renewal', (float) $link->amount, $business, $business->owner_name . ' (' . $business->business_name . ')', $business->phone);
+
+                    PaymentMailer::send($business->email, new BusinessRenewalReceiptMail($business, $link), 'Business renewal', [
+                        'Business' => $business->business_name,
+                        'Amount' => '₹' . number_format((float) $link->amount, 2),
+                        'Payment ID' => $link->razorpay_payment_id,
+                        'Phone' => $business->phone,
+                    ]);
                 }
 
                 return redirect()->route('business.renewal')->with('success', __('Business membership renewed successfully! Your listing is now active for 1 year.'));

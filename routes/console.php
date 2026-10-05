@@ -9,4 +9,5 @@ Artisan::command('inspire', function () {
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('business:deactivate-expired')->daily();
+// Ends expired business memberships (free renewal: renews automatically; paid: closes and emails the owner)
+Schedule::command('business:deactivate-expired')->hourly();

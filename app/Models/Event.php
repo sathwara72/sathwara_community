@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class Event extends Model
 {
@@ -44,6 +46,23 @@ class Event extends Model
         'total_pass_limit' => 'integer',
         'form_fee' => 'decimal:2',
     ];
+
+    /**
+     * Content-Disposition for an export of this event, named "{id}_{event name}_{type}_{date}.csv".
+     * The event name may be Gujarati, so an ASCII fallback is sent for older clients.
+     */
+    public function exportDisposition(string $type): string
+    {
+        $name = trim(preg_replace('/[^\p{L}\p{M}\p{N}]+/u', '_', (string) $this->title), '_');
+        $suffix = '_' . $type . '_' . date('Y-m-d') . '.csv';
+        $fallback = trim(Str::slug(Str::ascii((string) $this->title), '_'), '_');
+
+        return HeaderUtils::makeDisposition(
+            HeaderUtils::DISPOSITION_ATTACHMENT,
+            $this->id . ($name !== '' ? '_' . $name : '') . $suffix,
+            $this->id . ($fallback !== '' ? '_' . $fallback : '') . $suffix
+        );
+    }
 
     public function allowsGuestPassPurchase(): bool
     {

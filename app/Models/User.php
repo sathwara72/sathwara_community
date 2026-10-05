@@ -129,4 +129,9 @@ class User extends Authenticatable
             $q->whereIn('name', ['Administrator', 'Sub-Admin']);
         });
     }
+
+    public function transactions()
+    {
+        return $this->morphMany(Transaction::class, 'payable')->latest('id');
+    }
 }

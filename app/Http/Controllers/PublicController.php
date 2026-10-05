@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ReceiptNumberService;
+use App\Services\PaymentMailer;
+use App\Services\RazorpayVerifier;
 use App\Models\Setting;
 use App\Models\Slider;
 use App\Models\Agenda;
@@ -289,6 +292,28 @@ class PublicController extends Controller
         // Capture form data depending on event type
         $formData = [];
         if ($isStudentForm) {
+            // The same fields the form marks compulsory are compulsory here, so nothing incomplete is saved
+            $inamValidator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'student_name' => 'required|string|max:255',
+                'education_type' => 'required|in:School,College,Diploma,ITI,Other',
+                'education' => 'required|string|max:255',
+                'school_college' => 'required|string|max:255',
+                'total_marks' => 'required|numeric|gt:0',
+                'received_marks' => 'required|numeric|min:0|lte:total_marks',
+                'marksheet_file' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
+            ], [
+                'education.required' => 'Please select the standard / course.',
+                'school_college.required' => 'Please enter the school / college name.',
+                'total_marks.required' => 'Please enter the total marks.',
+                'received_marks.required' => 'Please enter the obtained marks.',
+                'received_marks.lte' => 'Obtained marks cannot be more than total marks.',
+            ]);
+            if ($inamValidator->fails()) {
+                // Also flashed as 'error' because the registration page shows flash messages, not field errors
+                return redirect()->back()->withInput()->withErrors($inamValidator)
+                    ->with('error', implode(' ', $inamValidator->errors()->all()));
+            }
+
             $profile = $user ? $user->memberProfile : null;
 
             // Handle Marksheet File Upload
@@ -313,7 +338,7 @@ class PublicController extends Controller
                 'education' => $request->input('education', $request->input('standard')),
                 'total_marks' => $request->input('total_marks'),
                 'received_marks' => $request->input('received_marks'),
-                'percentage' => $request->input('percentage'),
+                'percentage' => round(((float) $request->input('received_marks') / (float) $request->input('total_marks')) * 100, 2),
                 'marksheet_url' => $marksheetUrl,
                 'school_college' => $request->input('school_college'),
                 'person_count' => max(1, (int) $request->input('person_count', 1)),
@@ -424,9 +449,15 @@ class PublicController extends Controller
             $formData['contact_number'] = substr(preg_replace('/[^0-9]/', '', $formData['contact_number']), 0, 10);
         }
 
-        $redirectTarget = $request->input('redirect_to') === 'dashboard'
-            ? redirect()->route('member.dashboard')
-            : redirect()->route('event.details', $event->id);
+        if ($request->input('redirect_to') === 'dashboard') {
+            $redirectTarget = redirect()->route('member.dashboard');
+        } elseif ($request->filled('redirect_to') && parse_url($request->input('redirect_to'), PHP_URL_HOST) === $request->getHost()) {
+            $redirectTarget = redirect($request->input('redirect_to'));
+        } elseif ($request->headers->has('referer')) {
+            $redirectTarget = redirect()->back();
+        } else {
+            $redirectTarget = redirect()->route('event.details', $event->id);
+        }
 
         // Check if matching registration exists for this specific student/participant or user
         $existingRegistration = null;
@@ -458,6 +489,13 @@ class PublicController extends Controller
             }
         }
 
+        // A marksheet is compulsory: a new upload, or the one already on the submission being edited
+        if ($isStudentForm && empty($formData['marksheet_url']) && empty($existingRegistration?->form_data['marksheet_url'])) {
+            return redirect()->back()->withInput()
+                ->withErrors(['marksheet_file' => 'Please upload the marksheet (image or PDF).'])
+                ->with('error', 'Please upload the marksheet (image or PDF).');
+        }
+
         // Enforce event-wide total pass purchase limit (general pass registrations only)
         if (!$isStudentForm && !$isYuvaMeloCandidateForm && !empty($event->total_pass_limit)) {
             $totalSoldPasses = (int) $event->total_passes_count;
@@ -483,12 +521,19 @@ class PublicController extends Controller
         }
 
         $paymentId = $request->input('razorpay_payment_id');
-        $paymentStatus = (!empty($paymentId) || $totalAmount <= 0) ? 'paid' : 'unpaid';
 
-        // Enforce online payment for pass purchases when a fee is configured
-        if (!$isStudentForm && !$isYuvaMeloCandidateForm && $totalAmount > 0 && empty($paymentId)) {
-            return $redirectTarget->with('error', 'Payment is required to purchase event passes. Please complete the online payment.');
+        // A Yuva Melo candidate who already paid the form fee is only editing their details
+        $feeAlreadyPaid = $isYuvaMeloCandidateForm && $existingRegistration && $existingRegistration->payment_status === 'paid';
+        $amountDue = ($isStudentForm || $feeAlreadyPaid) ? 0 : $totalAmount;
+
+        $verification = app(RazorpayVerifier::class)->verify($paymentId, $amountDue);
+        if (!$verification['valid']) {
+            return $redirectTarget->with('error', $verification['error']);
         }
+        if ($amountDue <= 0) {
+            $paymentId = null; // nothing was due, so never store an unverified payment id
+        }
+        $paymentStatus = 'paid';
 
         if ($existingRegistration) {
             if (!empty($existingRegistration->form_data['registration_no'])) {
@@ -527,6 +572,8 @@ class PublicController extends Controller
                     'payment_amount' => $totalAmount > 0 ? $totalAmount : $existingRegistration->payment_amount,
                     'status' => 'approved',
                 ]);
+                app(RazorpayVerifier::class)->record($paymentId, 'yuva_melo_fee', $amountDue, $existingRegistration, $formData['full_name'] ?? ($user->name ?? null), $formData['mobile_no'] ?? null);
+                $this->sendYuvaMeloFeeReceipt($event, $existingRegistration, $user, $amountDue, $paymentId);
                 return $redirectTarget->with('success', 'Yuva Melo registration details updated successfully.');
             }
 
@@ -544,20 +591,22 @@ class PublicController extends Controller
                 'payment_status' => ($paymentStatus === 'paid' || $existingRegistration->payment_status === 'paid') ? 'paid' : 'unpaid',
                 'payment_amount' => $newTotalAmount > 0 ? $newTotalAmount : $existingRegistration->payment_amount,
             ]);
+            app(RazorpayVerifier::class)->record($paymentId, 'event_pass', $amountDue, $existingRegistration, $formData['full_name'] ?? ($user->name ?? null), $formData['contact_number'] ?? null);
 
             // Dispatch Pass Email for All Passes
             $recipientEmail = $formData['email'] ?? ($user ? $user->email : null);
-            if (!empty($recipientEmail)) {
-                $passes = [];
-                for ($i = 1; $i <= $newTotalPersons; $i++) {
-                    $passes[] = sprintf('%03d', $i);
-                }
-                try {
-                    \Illuminate\Support\Facades\Mail::to($recipientEmail)->send(new \App\Mail\EventPassPurchasedMail($event, $existingRegistration, $user, $passes, $newTotalPersons));
-                } catch (\Throwable $th) {
-                    \Illuminate\Support\Facades\Log::error('Event Pass Mail Error: ' . $th->getMessage());
-                }
+            $passes = [];
+            for ($i = 1; $i <= $newTotalPersons; $i++) {
+                $passes[] = sprintf('%03d', $i);
             }
+            PaymentMailer::send($recipientEmail, new \App\Mail\EventPassPurchasedMail($event, $existingRegistration, $user, $passes, $newTotalPersons), 'Event pass', [
+                'Event' => $event->title,
+                'Name' => $formData['full_name'] ?? ($user->name ?? null),
+                'Persons' => $newTotalPersons,
+                'Amount' => '₹' . number_format((float) $amountDue, 2),
+                'Payment ID' => $paymentId,
+                'Phone' => $formData['mobile'] ?? $formData['contact_number'] ?? null,
+            ]);
 
             $receiptData = $this->buildPassPurchaseReceipt($event, $existingRegistration, $user, $personCount, $totalAmount);
 
@@ -606,6 +655,10 @@ class PublicController extends Controller
             'payment_status' => $paymentStatus,
             'payment_amount' => $totalAmount,
         ]);
+        app(RazorpayVerifier::class)->record($paymentId, $isYuvaMeloCandidateForm ? 'yuva_melo_fee' : 'event_pass', $amountDue, $newRegistration, $formData['full_name'] ?? ($user->name ?? null), $formData['contact_number'] ?? $formData['mobile_no'] ?? null);
+        if ($isYuvaMeloCandidateForm) {
+            $this->sendYuvaMeloFeeReceipt($event, $newRegistration, $user, $amountDue, $paymentId);
+        }
 
         $registrantName = $formData['student_name'] ?? $formData['full_name'] ?? ($user->name ?? 'Participant');
         $referenceNo = $inamNumber ?? $yuvaMeloNumber ?? $passNumber;
@@ -635,18 +688,19 @@ class PublicController extends Controller
         // Dispatch Pass Email for General Pass Registration
         if (!$isStudentForm && !$isYuvaMeloCandidateForm && $paymentStatus === 'paid') {
             $recipientEmail = $formData['email'] ?? ($user ? $user->email : null);
-            if (!empty($recipientEmail)) {
-                $finalPersons = max(1, (int) ($formData['person_count'] ?? 1));
-                $passes = [];
-                for ($i = 1; $i <= $finalPersons; $i++) {
-                    $passes[] = sprintf('%03d', $i);
-                }
-                try {
-                    \Illuminate\Support\Facades\Mail::to($recipientEmail)->send(new \App\Mail\EventPassPurchasedMail($event, $newRegistration, $user, $passes, $finalPersons));
-                } catch (\Throwable $th) {
-                    \Illuminate\Support\Facades\Log::error('Event Pass Mail Error: ' . $th->getMessage());
-                }
+            $finalPersons = max(1, (int) ($formData['person_count'] ?? 1));
+            $passes = [];
+            for ($i = 1; $i <= $finalPersons; $i++) {
+                $passes[] = sprintf('%03d', $i);
             }
+            PaymentMailer::send($recipientEmail, new \App\Mail\EventPassPurchasedMail($event, $newRegistration, $user, $passes, $finalPersons), 'Event pass', [
+                'Event' => $event->title,
+                'Name' => $formData['full_name'] ?? ($user->name ?? null),
+                'Persons' => $finalPersons,
+                'Amount' => '₹' . number_format((float) $amountDue, 2),
+                'Payment ID' => $paymentId,
+                'Phone' => $formData['mobile'] ?? $formData['contact_number'] ?? null,
+            ]);
         }
 
         $receiptData = (!$isStudentForm && !$isYuvaMeloCandidateForm && $paymentStatus === 'paid')
@@ -719,11 +773,12 @@ class PublicController extends Controller
     {
         $categories = BusinessCategory::withCount([
             'businesses' => function ($query) {
-                $query->where('status', 'approved');
+                $query->active();
             }
         ])->get();
 
-        $query = Business::where('status', 'approved');
+        // Only approved listings with an active (paid, unexpired) membership are public
+        $query = Business::active();
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -753,7 +808,8 @@ class PublicController extends Controller
         $business = Business::with('user.memberProfile')->findOrFail($id);
 
 
-        if ($business->status !== 'approved') {
+        $isPublic = $business->isPubliclyListed();
+        if (!$isPublic) {
             $user = auth()->user();
             $isOwner = $user && (
                 $user->id === $business->user_id ||
@@ -854,7 +910,7 @@ class PublicController extends Controller
 
         $registration->delete();
 
-        return redirect()->route('event.details', $event->id)->with('success', 'Registration deleted successfully.');
+        return redirect()->back(fallback: route('event.details', $event->id))->with('success', 'Registration deleted successfully.');
     }
 
     /**
@@ -893,13 +949,18 @@ class PublicController extends Controller
 
         $paymentId = $request->input('razorpay_payment_id');
 
-        // Check if payment was required but not completed
-        if (!empty($validated['amount']) && (float) $validated['amount'] > 0 && empty($paymentId)) {
+        // Payment is required (and checked with Razorpay) whenever the sponsorship has an amount
+        $sponsorAmount = !empty($validated['amount']) ? (float) $validated['amount'] : 0.0;
+        $verification = app(RazorpayVerifier::class)->verify($paymentId, $sponsorAmount);
+        if (!$verification['valid']) {
             return redirect()->back()
                 ->withInput()
-                ->with('error', app()->getLocale() === 'gu'
+                ->with('error', empty($paymentId) && app()->getLocale() === 'gu'
                     ? 'ઓનલાઇન પેમેન્ટ પૂર્ણ થયું નથી. સ્પોન્સરશિપ નોંધણી માટે પેમેન્ટ પૂર્ણ કરવું જરૂરી છે.'
-                    : 'Online payment was not completed. Payment is required to register sponsorship.');
+                    : $verification['error']);
+        }
+        if ($sponsorAmount <= 0) {
+            $paymentId = null;
         }
 
         $logoPath = null;
@@ -926,6 +987,7 @@ class PublicController extends Controller
             'payment_id' => $paymentId,
             'status' => 'pending',
         ]);
+        app(RazorpayVerifier::class)->record($paymentId, 'sponsorship', $sponsorAmount, $sponsor, $sponsor->name, $sponsor->mobile);
 
         AdminNotifier::send(
             permission: 'events_manage',
@@ -939,14 +1001,14 @@ class PublicController extends Controller
 
         // Dispatch Sponsorship Receipt Email
         $recipientEmail = $validated['email'] ?? (auth()->check() ? auth()->user()->email : null);
-        if (!empty($recipientEmail)) {
-            try {
-                $st = !empty($validated['sponsorship_type_id']) ? SponsorshipType::find($validated['sponsorship_type_id']) : null;
-                Mail::to($recipientEmail)->send(new SponsorshipReceiptMail($event, $sponsor, $st, $sponsor->amount, $paymentStatus, $paymentId));
-            } catch (\Throwable $th) {
-                Log::error('Sponsorship Receipt Mail Error: ' . $th->getMessage());
-            }
-        }
+        $st = !empty($validated['sponsorship_type_id']) ? SponsorshipType::find($validated['sponsorship_type_id']) : null;
+        PaymentMailer::send($recipientEmail, new SponsorshipReceiptMail($event, $sponsor, $st, $sponsor->amount, $paymentStatus, $paymentId), 'Sponsorship', [
+            'Event' => $event->title,
+            'Sponsor' => $sponsor->name,
+            'Amount' => '₹' . number_format((float) $sponsor->amount, 2),
+            'Payment ID' => $paymentId,
+            'Mobile' => $sponsor->mobile,
+        ]);
 
         $response = redirect()->route('event.details', $event->id)
             ->with('success', __('messages.sponsor_registered_public_success') ?? 'Thank you for your sponsorship! We have received your details and will contact you shortly.');
@@ -974,6 +1036,27 @@ class PublicController extends Controller
         }
 
         return $response;
+    }
+
+    /**
+     * Email the receipt for a Yuva Melo form fee paid just now (nothing is sent when no fee was due).
+     */
+    private function sendYuvaMeloFeeReceipt(Event $event, EventRegistration $registration, $user, float $amount, ?string $paymentId): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $receiptNo = $registration->receipt_no ?: ReceiptNumberService::assign($registration, 'receipt_no');
+        $fd = $registration->form_data ?? [];
+
+        PaymentMailer::send($user?->email, new \App\Mail\YuvaMeloFeeReceiptMail($event, $registration, $receiptNo, $amount, $paymentId), 'Yuva Melo form fee', [
+            'Event' => $event->title,
+            'Candidate' => $fd['full_name'] ?? null,
+            'Amount' => '₹' . number_format($amount, 2),
+            'Payment ID' => $paymentId,
+            'Mobile' => $fd['mobile_no'] ?? null,
+        ]);
     }
 
     /**

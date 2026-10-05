@@ -219,7 +219,7 @@
                             {{ $biz->business_name ?? 'Business Panel' }}
                         </h4>
                         <div class="mt-0.5">
-                            @if($biz && $biz->status === 'approved' && $biz->membership_status === 'active')
+                            @if($biz && $biz->isPubliclyListed())
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Approved
                                 </span>

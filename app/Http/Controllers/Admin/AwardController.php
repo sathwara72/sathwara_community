@@ -13,7 +13,7 @@ class AwardController extends Controller
      */
     public function index(Request $request)
     {
-        $query = AwardApplication::with('user');
+        $query = AwardApplication::with('user.memberProfile');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -31,15 +31,6 @@ class AwardController extends Controller
         $applications = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
 
         return view('admin.awards.index', compact('applications'));
-    }
-
-    /**
-     * View Application Details
-     */
-    public function show($id)
-    {
-        $application = AwardApplication::with('user.memberProfile')->findOrFail($id);
-        return view('admin.awards.show', compact('application'));
     }
 
     /**
@@ -98,7 +89,7 @@ class AwardController extends Controller
             "Expires"             => "0"
         ];
 
-        $query = AwardApplication::with('user');
+        $query = AwardApplication::with('user.memberProfile');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -119,31 +110,37 @@ class AwardController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($file, [
-                __('messages.csv_id'),
+                __('messages.csv_sr_no'),
+                __('messages.csv_member_code'),
                 __('messages.csv_student_name'),
-                __('messages.csv_parent_member'),
+                __('messages.csv_parent_name'),
                 __('messages.csv_standard'),
                 __('messages.csv_school'),
-                __('messages.csv_total_marks'),
-                __('messages.csv_obtained_marks'),
-                __('messages.csv_percentage'),
+                __('messages.csv_achievement'),
+                __('messages.csv_award_name'),
+                __('messages.csv_contact_no'),
+                __('messages.csv_certificate_url'),
                 __('messages.csv_status'),
                 __('messages.csv_submission_date')
             ]);
 
+            $sr = 0;
             foreach ($applications as $app) {
                 $statusKey = strtolower($app->status ?? '');
+                $user = $app->user;
                 fputcsv($file, [
-                    $app->id,
+                    ++$sr,
+                    $user ? $user->formatted_member_id : '',
                     $app->student_name,
-                    $app->user ? $app->user->name : '',
+                    $user ? $user->name : '',
                     $app->standard ?? '',
                     $app->school ?? '',
-                    $app->total_marks ?? '',
-                    $app->received_marks ?? '',
-                    $app->percentage ? $app->percentage.'%' : '',
+                    $app->achievement ?? '',
+                    $app->award_name ?? '',
+                    $user->memberProfile->phone ?? ($user->phone ?? ''),
+                    $app->certificate_path ? asset('storage/' . $app->certificate_path) : '',
                     __('messages.' . $statusKey) != 'messages.' . $statusKey ? __('messages.' . $statusKey) : ucfirst($app->status),
-                    $app->created_at ? $app->created_at->format('Y-m-d H:i') : '',
+                    $app->created_at ? $app->created_at->format('d-M-Y') : '',
                 ]);
             }
             fclose($file);
