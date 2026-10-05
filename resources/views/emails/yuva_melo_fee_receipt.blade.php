@@ -1,4 +1,4 @@
-@php($fd = $registration->form_data ?? [])
+@php $fd = $registration->form_data ?? []; @endphp
 <!DOCTYPE html>
 <html>
 <head>

@@ -54,8 +54,8 @@ class GalleryController extends Controller
         }
 
         $request->validate([
-            'image' => 'nullable|file|mimes:zip,jpeg,png,jpg,gif,svg,webp,mp4,mov,webm,ogg,m4v,avi,mkv|max:102400',
-            'images.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp,mp4,mov,webm,ogg,m4v,avi,mkv,zip|max:102400',
+            'image' => 'nullable|file|mimes:zip,jpeg,png,jpg,gif,webp,mp4,mov,webm,ogg,m4v,avi,mkv|max:102400',
+            'images.*' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp,mp4,mov,webm,ogg,m4v,avi,mkv,zip|max:102400',
             'caption' => 'nullable|string|max:255',
         ], [
             'images.*.uploaded' => 'One of the files failed to upload. Please verify that your file is under 100MB and your drive has free space.',
@@ -90,7 +90,7 @@ class GalleryController extends Controller
                         \RecursiveIteratorIterator::LEAVES_ONLY
                     );
 
-                    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'mov', 'webm', 'ogg', 'm4v'];
+                    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm', 'ogg', 'm4v'];
                     $uploadedCount = 0;
 
                     foreach ($files as $name => $f) {

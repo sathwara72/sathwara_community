@@ -74,6 +74,36 @@ class EventRegistration extends Model
         return $query->where('registration_type', 'yuva_melo')->orWhereNotNull('yuva_melo_number');
     }
 
+    /**
+     * Compulsory details missing from an Inam or Yuva Melo submission (old entries were saved
+     * before these were enforced). Empty for complete submissions and for passes.
+     *
+     * @return array<int, string>
+     */
+    public function missingDetails(): array
+    {
+        $fd = $this->form_data ?? [];
+
+        if (!empty($fd['student_name'])) {
+            $required = [
+                'education' => 'Standard / Course', 'school_college' => 'School / College',
+                'total_marks' => 'Total marks', 'received_marks' => 'Obtained marks', 'marksheet_url' => 'Marksheet',
+            ];
+        } elseif (!empty($fd['surname']) || !empty($fd['first_name'])) {
+            $required = [
+                'surname' => 'Surname', 'first_name' => 'First name', 'gender' => 'Gender', 'birth_date' => 'Birth date',
+                'age' => 'Age', 'address' => 'Address', 'mobile_no' => 'Mobile', 'qualification' => 'Qualification',
+                'occupation' => 'Occupation', 'father_name' => "Father's name", 'grandfather_name' => "Grandfather's name",
+                'mother_name' => "Mother's name", 'native_place' => 'Native place', 'maternal_uncle_name' => "Maternal uncle's name",
+                'maternal_grandfather_name' => "Maternal grandfather's name",
+            ];
+        } else {
+            return [];
+        }
+
+        return array_values(array_filter($required, fn ($label, $key) => !isset($fd[$key]) || $fd[$key] === '' || $fd[$key] === null, ARRAY_FILTER_USE_BOTH));
+    }
+
     public function event()
     {
         return $this->belongsTo(Event::class);

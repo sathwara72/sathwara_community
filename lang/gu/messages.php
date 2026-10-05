@@ -937,7 +937,7 @@ return [
     'mod_members_approvals' => 'સભ્યો મંજૂરીઓ',
     'mod_area_management' => 'વિસ્તાર વ્યવસ્થાપન',
     'mod_business_listings' => 'વ્યવસાય નિર્દેશિકા',
-    'mod_events_awards' => 'ઈવેન્ટ્સ મેનેજર',
+    'mod_events_awards' => 'કાર્યક્રમો',
     'mod_general_gallery' => 'સામાન્ય ગેલેરી',
     'mod_hero_sliders' => 'હોમ પેજ: હિરો સ્લાઇડર્સ',
     'mod_core_agendas' => 'હોમ પેજ: મુખ્ય એજન્ડા',

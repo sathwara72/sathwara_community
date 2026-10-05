@@ -801,7 +801,7 @@
                         <!-- Registration Form -->
                         <form method="POST" action="{{ route('events.public_register', $event->id) }}"
                             id="eventDynamicRegisterForm"
-                            enctype="multipart/form-data" class="space-y-4" novalidate>
+                            enctype="multipart/form-data" class="space-y-4" @if($event->event_type === 'yuva_melo') novalidate @endif>
                             @csrf
                             <input type="hidden" name="registration_id" id="editing_registration_id" :value="editingRegistrationId">
                             <input type="hidden" name="razorpay_payment_id" id="dynamic_razorpay_payment_id">

@@ -105,10 +105,6 @@ class User extends Authenticatable
         return $this->hasMany(Business::class);
     }
 
-    public function awardApplications()
-    {
-        return $this->hasMany(AwardApplication::class);
-    }
 
     public function eventRegistrations()
     {

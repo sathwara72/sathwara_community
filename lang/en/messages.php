@@ -937,7 +937,7 @@ return [
     'mod_members_approvals' => 'Members Approvals',
     'mod_area_management' => 'Area Management',
     'mod_business_listings' => 'Business Listings',
-    'mod_events_awards' => 'Events Manager',
+    'mod_events_awards' => 'Events',
     'mod_general_gallery' => 'General Gallery',
     'mod_hero_sliders' => 'Home Page: Hero Sliders',
     'mod_core_agendas' => 'Home Page: Core Agendas',

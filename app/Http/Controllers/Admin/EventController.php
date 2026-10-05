@@ -333,8 +333,8 @@ class EventController extends Controller
         $event = Event::findOrFail($id);
 
         $request->validate([
-            'image' => 'nullable|file|mimes:zip,jpeg,png,jpg,gif,svg,webp,mp4,mov,webm,ogg,m4v,avi,mkv|max:102400',
-            'images.*' => 'nullable|file|mimes:zip,jpeg,png,jpg,gif,svg,webp,mp4,mov,webm,ogg,m4v,avi,mkv|max:102400',
+            'image' => 'nullable|file|mimes:zip,jpeg,png,jpg,gif,webp,mp4,mov,webm,ogg,m4v,avi,mkv|max:102400',
+            'images.*' => 'nullable|file|mimes:zip,jpeg,png,jpg,gif,webp,mp4,mov,webm,ogg,m4v,avi,mkv|max:102400',
         ]);
 
         $uploadedCount = 0;
@@ -364,7 +364,7 @@ class EventController extends Controller
                         \RecursiveIteratorIterator::LEAVES_ONLY
                     );
 
-                    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'mov', 'webm', 'ogg', 'm4v'];
+                    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm', 'ogg', 'm4v'];
 
                     foreach ($files as $name => $f) {
                         if (!$f->isDir()) {
@@ -431,7 +431,7 @@ class EventController extends Controller
                                 new \RecursiveDirectoryIterator($tempPath),
                                 \RecursiveIteratorIterator::LEAVES_ONLY
                             );
-                            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4', 'mov', 'webm', 'ogg', 'm4v'];
+                            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm', 'ogg', 'm4v'];
                             foreach ($files as $name => $f) {
                                 if (!$f->isDir()) {
                                     $filePath = $f->getRealPath();
@@ -901,11 +901,25 @@ class EventController extends Controller
     {
         $registration = EventRegistration::findOrFail($id);
         $event = $registration->event;
+        $this->checkEditPermission($registration->event_id);
+
+        $isInam = !empty($registration->form_data['student_name']);
+        $request->validate([
+            'member_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'aadhaar_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'selfie' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'whatsapp_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'payment_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'marksheet_file' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
+            'total_marks' => $isInam ? 'required|numeric|gt:0' : 'nullable|numeric',
+            'received_marks' => $isInam ? 'required|numeric|min:0|lte:total_marks' : 'nullable|numeric',
+            'person_count' => 'nullable|integer|min:1|max:100',
+        ]);
 
         $formData = $registration->form_data ?? [];
 
-        // Merge inputs
-        $inputs = $request->except(['_token', 'member_photo', 'aadhaar_photo', 'selfie', 'whatsapp_image', 'payment_image', 'marksheet_file']);
+        // Merge inputs (only form fields; never request plumbing like redirect/method/payment fields)
+        $inputs = $request->except(['_token', '_method', 'redirect_to', 'registration_id', 'razorpay_payment_id', 'member_photo', 'aadhaar_photo', 'selfie', 'whatsapp_image', 'payment_image', 'marksheet_file']);
         foreach ($inputs as $k => $v) {
             if (!is_null($v)) {
                 $formData[$k] = $v;
@@ -923,18 +937,19 @@ class EventController extends Controller
         $fileFields = ['member_photo', 'aadhaar_photo', 'selfie', 'whatsapp_image', 'payment_image'];
         foreach ($fileFields as $field) {
             if ($request->hasFile($field)) {
-                $file = $request->file($field);
-                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('yuva_melo/' . $field, $filename, 'public');
+                $path = $request->file($field)->store('yuva_melo/' . $field, 'public');
                 $formData[$field . '_url'] = asset('storage/' . $path);
             }
         }
 
         if ($request->hasFile('marksheet_file')) {
-            $file = $request->file('marksheet_file');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('marksheets', $filename, 'public');
+            $path = $request->file('marksheet_file')->store('marksheets', 'public');
             $formData['marksheet_url'] = asset('storage/' . $path);
+        }
+
+        // Ranking uses the percentage, so it is always recalculated from the marks
+        if ($isInam) {
+            $formData['percentage'] = round(((float) $formData['received_marks'] / (float) $formData['total_marks']) * 100, 2);
         }
 
         if (!empty($formData['first_name']) || !empty($formData['surname'])) {

@@ -31,15 +31,12 @@ class CheckAdminPermission
                 return $next($request);
             }
 
-            if ($permission === 'settings_manage' && ($userPerms->contains('about_manage') || $userPerms->contains('timelines_manage') || $userPerms->contains('committee_manage') || $userPerms->contains('desk_manage'))) {
-                return $next($request);
-            }
-
             // Granular permissions (members_add, event_view_3, about_edit...) open only their own module
             $modPrefix = preg_replace('/_(manage|view)$/', '', $permission);
             if ($userPerms->contains(fn($p) => str_starts_with($p, $modPrefix . '_')
                 || ($permission === 'events_manage' && str_starts_with($p, 'event_'))
-                || ($permission === 'settings_manage' && str_starts_with($p, 'about_')))) {
+                // The About page also manages the timeline (same as the sidebar link)
+                || ($permission === 'about_manage' && ($p === 'settings_manage' || str_starts_with($p, 'timelines_'))))) {
                 return $next($request);
             }
         }

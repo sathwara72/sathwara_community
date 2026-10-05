@@ -5,7 +5,6 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\GuestPassController;
 use App\Http\Controllers\Member\DashboardController as MemberDashboard;
 use App\Http\Controllers\Member\FamilyController as MemberFamily;
-use App\Http\Controllers\Member\AwardController as MemberAward;
 use App\Http\Controllers\Member\EventController as MemberEvent;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
 use App\Http\Controllers\Admin\MemberController as AdminMember;
@@ -15,7 +14,6 @@ use App\Http\Controllers\Admin\GalleryController as AdminGallery;
 use App\Http\Controllers\Admin\ContentController as AdminContent;
 use App\Http\Controllers\Admin\SettingsController as AdminSettings;
 use App\Http\Controllers\Admin\EmailSettingsController as AdminEmailSettings;
-use App\Http\Controllers\Admin\AwardController as AdminAward;
 use App\Http\Controllers\Admin\AreaController as AdminArea;
 use App\Http\Controllers\Admin\SponsorshipController as AdminSponsorship;
 use App\Http\Controllers\Admin\AdminAuthController;
@@ -135,10 +133,6 @@ Route::middleware(['auth', 'role:Member', 'approved'])->prefix('member')->name('
     Route::post('/events/{id}/register', [PublicController::class, 'registerEvent'])->name('events.register');
     Route::delete('/events/registrations/{id}', [PublicController::class, 'deleteRegistration'])->name('events.registrations.destroy');
 
-    // Award Claims
-    Route::get('/awards', [MemberAward::class, 'index'])->name('awards.index');
-    Route::get('/awards/apply', [MemberAward::class, 'create'])->name('awards.create');
-    Route::post('/awards/apply', [MemberAward::class, 'store'])->name('awards.store');
 });
 
 // ================= ADMINISTRATOR AUTH & PANEL =================
@@ -255,12 +249,6 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::delete('/events/sponsors/{id}', [AdminSponsorship::class, 'destroySponsor'])->name('events.sponsors.destroy');
         Route::get('/events/{id}/sponsors/export', [AdminSponsorship::class, 'exportSponsorsCsv'])->name('events.sponsors.export');
 
-        // Student Awards Applications
-        Route::get('/awards', [AdminAward::class, 'index'])->name('awards.index');
-        Route::get('/awards/export', [AdminAward::class, 'exportCsv'])->name('awards.export');
-        Route::post('/awards/{id}/approve', [AdminAward::class, 'approve'])->name('awards.approve');
-        Route::post('/awards/{id}/reject', [AdminAward::class, 'reject'])->name('awards.reject');
-        Route::delete('/awards/{id}', [AdminAward::class, 'destroy'])->name('awards.destroy');
     });
 
     // General Gallery
@@ -327,12 +315,15 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::get('/transactions/export', [\App\Http\Controllers\Admin\TransactionController::class, 'exportCsv'])->name('transactions.export');
     });
 
+    // About Us page content (its own permission; does not open the rest of Settings)
+    Route::middleware(['permission_check:about_manage'])->group(function () {
+        Route::get('/settings/about', [AdminSettings::class, 'about'])->name('settings.about');
+        Route::post('/settings/about', [AdminSettings::class, 'updateAbout'])->name('settings.about.update');
+    });
+
     Route::middleware(['permission_check:settings_manage'])->group(function () {
         Route::get('/settings', [AdminSettings::class, 'index'])->name('settings.index');
         Route::post('/settings', [AdminSettings::class, 'update'])->name('settings.update');
-
-        Route::get('/settings/about', [AdminSettings::class, 'about'])->name('settings.about');
-        Route::post('/settings/about', [AdminSettings::class, 'updateAbout'])->name('settings.about.update');
 
         Route::get('/email-settings', [AdminEmailSettings::class, 'index'])->name('email_settings.index');
         Route::post('/email-settings', [AdminEmailSettings::class, 'update'])->name('email_settings.update');

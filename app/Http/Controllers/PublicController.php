@@ -319,9 +319,7 @@ class PublicController extends Controller
             // Handle Marksheet File Upload
             $marksheetUrl = null;
             if ($request->hasFile('marksheet_file')) {
-                $file = $request->file('marksheet_file');
-                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('marksheets', $filename, 'public');
+                $path = $request->file('marksheet_file')->store('marksheets', 'public');
                 $marksheetUrl = asset('storage/' . $path);
             }
 
@@ -332,7 +330,7 @@ class PublicController extends Controller
                 'email' => $user ? $user->email : '',
                 'mobile' => $profile->phone ?? '',
                 'address' => $profile->address ?? '',
-                'area' => $profile->area ?? $profile->city ?? '',
+                'area' => $profile?->area?->name ?? $profile?->city ?? '',
                 'student_name' => $request->input('student_name'),
                 'education_type' => $request->input('education_type'),
                 'education' => $request->input('education', $request->input('standard')),
@@ -346,6 +344,36 @@ class PublicController extends Controller
                 'remarks' => $request->input('remarks'),
             ];
         } elseif ($isYuvaMeloCandidateForm) {
+            // Same compulsory fields as the form's own checks; photos must be real images
+            $yuvaValidator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'surname' => 'required|string|max:100',
+                'first_name' => 'required|string|max:100',
+                'gender' => 'required|string|max:20',
+                'birth_date' => 'required|date|before:today',
+                'age' => 'required|integer|min:1|max:120',
+                'address' => 'required|string|max:1000',
+                'mobile_no' => 'required|digits:10',
+                'whatsapp' => 'nullable|digits:10',
+                'qualification' => 'required|string|max:255',
+                'occupation' => 'required|string|max:255',
+                'father_name' => 'required|string|max:255',
+                'grandfather_name' => 'required|string|max:255',
+                'mother_name' => 'required|string|max:255',
+                'native_place' => 'required|string|max:255',
+                'maternal_uncle_name' => 'required|string|max:255',
+                'maternal_grandfather_name' => 'required|string|max:255',
+                'area_id' => 'nullable|exists:areas,id',
+                'member_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'aadhaar_photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'selfie' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'whatsapp_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'payment_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            ]);
+            if ($yuvaValidator->fails()) {
+                return redirect()->back()->withInput()->withErrors($yuvaValidator)
+                    ->with('error', implode(' ', $yuvaValidator->errors()->all()));
+            }
+
             $formData = $request->only([
                 'state',
                 'district',
@@ -416,9 +444,7 @@ class PublicController extends Controller
             $fileFields = ['member_photo', 'aadhaar_photo', 'selfie', 'whatsapp_image', 'payment_image'];
             foreach ($fileFields as $field) {
                 if ($request->hasFile($field)) {
-                    $file = $request->file($field);
-                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                    $path = $file->storeAs('yuva_melo/' . $field, $filename, 'public');
+                    $path = $request->file($field)->store('yuva_melo/' . $field, 'public');
                     $formData[$field . '_url'] = asset('storage/' . $path);
                 }
             }

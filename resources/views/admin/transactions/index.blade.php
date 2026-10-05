@@ -3,7 +3,7 @@
 @section('page_title', __('messages.transactions'))
 
 @section('content')
-    @php($tc = \App\Http\Controllers\Admin\TransactionController::class)
+    @php $tc = \App\Http\Controllers\Admin\TransactionController::class; @endphp
     <div class="space-y-4">
         <!-- Filters -->
         <form method="GET" action="{{ route('admin.transactions.index') }}" class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-wrap items-end gap-2">
@@ -47,18 +47,6 @@
             </a>
         </form>
 
-        <!-- Totals -->
-        <div class="grid grid-cols-2 gap-3">
-            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Transactions</span>
-                <p class="text-xl font-black text-slate-900">{{ number_format($count) }}</p>
-            </div>
-            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Total received</span>
-                <p class="text-xl font-black text-emerald-700">₹{{ number_format((float) $total, 2) }}</p>
-            </div>
-        </div>
-
         <!-- Table -->
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-x-auto">
             <table class="w-full text-left border-collapse min-w-[900px]">
@@ -94,7 +82,7 @@
                                 @endif
                             </td>
                             <td class="py-3 px-4">
-                                @php($url = $tc::recordUrl($t))
+                                @php $url = $tc::recordUrl($t); @endphp
                                 @if($url)
                                     <a href="{{ $url }}" class="text-primary-600 hover:underline">{{ $tc::recordLabel($t) }}</a>
                                 @else

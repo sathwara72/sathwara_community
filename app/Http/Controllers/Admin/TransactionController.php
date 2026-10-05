@@ -19,12 +19,10 @@ class TransactionController extends Controller
     {
         $query = $this->filtered($request);
 
-        $total = (clone $query)->sum('amount');
-        $count = (clone $query)->count();
         $transactions = $query->with(['payable', 'recorder'])->orderByDesc('id')->paginate(25)->withQueryString();
         $purposes = Transaction::PURPOSES;
 
-        return view('admin.transactions.index', compact('transactions', 'purposes', 'total', 'count'));
+        return view('admin.transactions.index', compact('transactions', 'purposes'));
     }
 
     public function exportCsv(Request $request)

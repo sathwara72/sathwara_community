@@ -72,6 +72,8 @@ class SettingsController extends Controller
             'primary_color' => 'nullable|string|max:20',
             'contact_phone' => 'nullable|digits:10',
             'contact_email' => 'nullable|email|max:255',
+            'website_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'website_favicon' => 'nullable|file|mimes:png,ico,jpg,jpeg|max:512',
             'contact_whatsapp' => 'nullable|digits:10',
             'contact_address' => 'nullable|string|max:1000',
             'contact_map_iframe' => 'nullable|string',
@@ -79,14 +81,24 @@ class SettingsController extends Controller
             'social_twitter' => 'nullable|string|max:255',
             'social_instagram' => 'nullable|string|max:255',
             'social_youtube' => 'nullable|string|max:255',
-            'website_logo' => 'nullable|image|max:2048',
-            'website_favicon' => 'nullable|image|max:1024',
+            'member_signup_fee' => 'sometimes|required|numeric|min:0|max:1000000',
+            'business_registration_fee' => 'sometimes|required|numeric|min:0|max:1000000',
+            'razorpay_key_id' => 'nullable|string|max:255',
+            'razorpay_key_secret' => 'nullable|string|max:255',
+            'razorpay_webhook_secret' => 'nullable|string|max:255',
         ]);
 
         $activeTab = $request->input('active_tab', 'general');
-        $keys = $request->except(['_token', 'active_tab', 'website_logo', 'website_favicon']);
 
-        foreach ($keys as $key => $val) {
+        // Only the fields these Settings forms actually have; anything else sent is ignored
+        $allowed = [
+            'website_name', 'footer_text', 'seo_title', 'seo_description', 'primary_color',
+            'contact_phone', 'contact_email', 'contact_whatsapp', 'contact_address', 'contact_map_iframe',
+            'social_facebook', 'social_twitter', 'social_instagram', 'social_youtube',
+            'member_signup_fee', 'business_registration_fee',
+            'razorpay_key_id', 'razorpay_key_secret', 'razorpay_webhook_secret',
+        ];
+        foreach ($request->only($allowed) as $key => $val) {
             Setting::set($key, $val);
         }
 

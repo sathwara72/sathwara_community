@@ -566,6 +566,10 @@
                                                             Inam #{{ $inamNoFormatted }}
                                                         </span>
                                                         <span class="font-black text-slate-900 text-xs block leading-tight">{{ $userName }}</span>
+                                                        @php $missing = $reg->missingDetails(); @endphp
+                                                        @if($missing)
+                                                            <span class="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-black uppercase tracking-wider" title="Missing: {{ implode(', ', $missing) }}">Incomplete: {{ implode(', ', $missing) }}</span>
+                                                        @endif
                                                     </div>
                                                 </td>
 
@@ -695,6 +699,10 @@
                                         </div>
                                         <h4 class="text-xs font-black text-slate-900 truncate" title="{{ $userName }}">
                                             {{ $userName }}</h4>
+                                        @php $missing = $reg->missingDetails(); @endphp
+                                        @if($missing)
+                                            <span class="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-black uppercase tracking-wider" title="Missing: {{ implode(', ', $missing) }}">Incomplete: {{ implode(', ', $missing) }}</span>
+                                        @endif
                                         @if($parentName !== '-')
                                             <p class="text-[9px] text-slate-600 font-semibold truncate mt-0.5">👨‍👦 {{ $parentName }}
                                             </p>
