@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
 /**
- * Pass purchases by non-members (no login): email + mobile. Member emails must log in instead.
+ * Pass purchases without login: email + mobile + area. When the email belongs to a registered
+ * member, the pass is linked to that member's account.
  *
  * Payment is verified server-side: the amount is fixed by a Razorpay order we create,
  * and a registration is only created for an order that Razorpay reports as paid.
@@ -218,19 +219,22 @@ class GuestPassService
     ): array {
         $area = $areaId ? Area::find($areaId) : null;
 
-        // The email is not verified, so the pass is never attached to a member account.
+        // A registered member buying without logging in gets the pass on their account,
+        // so it also shows in their dashboard.
+        $member = User::whereRaw('LOWER(email) = ?', [strtolower($email)])->first();
+
         try {
-            $registration = DB::transaction(function () use ($event, $email, $mobile, $area, $name, $personCount, $amount, $paymentId, $orderId) {
+            $registration = DB::transaction(function () use ($event, $email, $mobile, $area, $name, $personCount, $amount, $paymentId, $orderId, $member) {
                 $passNumber = EventSequenceService::nextPassNumber($event->id);
 
                 return EventRegistration::create([
                     'event_id' => $event->id,
                     'pass_number' => $passNumber,
                     'registration_type' => 'pass',
-                    'user_id' => null,
+                    'user_id' => $member?->id,
                     'status' => 'approved',
                     'form_data' => [
-                        'full_name' => $name ?: 'Guest',
+                        'full_name' => $name ?: ($member?->name ?? 'Guest'),
                         'email' => $email,
                         'contact_number' => $mobile,
                         'mobile' => $mobile,
@@ -238,7 +242,7 @@ class GuestPassService
                         'area' => $area?->name ?? '',
                         'person_count' => $personCount,
                         'registration_no' => $passNumber,
-                        'is_guest' => true,
+                        'is_guest' => $member === null,
                         'email_verified' => false,
                         'submission_date' => now()->format('d-M-Y h:i A'),
                     ],
@@ -259,8 +263,8 @@ class GuestPassService
 
         PassTokenService::getOrGenerateTokens($registration);
 
-        $this->notifyAdmins($event, $registration, $name ?: 'Guest');
-        $this->sendPassEmail($event, $registration, $email, $personCount, null);
+        $this->notifyAdmins($event, $registration, $registration->form_data['full_name']);
+        $this->sendPassEmail($event, $registration, $email, $personCount, $member);
 
         return [$registration, true];
     }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
-use App\Models\User;
 use App\Services\GuestPassService;
 use App\Services\PassTokenService;
 use App\Services\ReceiptNumberService;
@@ -26,8 +25,8 @@ class GuestPassController extends Controller
     }
 
     /**
-     * Step 1: take the guest's email and mobile. Member emails must log in instead, so a guest
-     * cannot attach passes to someone else's account.
+     * Step 1: take the buyer's email, mobile and area. No login needed, even for registered members:
+     * a member's purchase is linked to their account by email when the pass is issued.
      */
     public function saveDetails(Request $request, $id): JsonResponse
     {
@@ -58,9 +57,6 @@ class GuestPassController extends Controller
         }
         if (!$mobile) {
             return $this->error('Please enter a valid 10-digit mobile number.', 422);
-        }
-        if (User::whereRaw('LOWER(email) = ?', [$email])->exists()) {
-            return $this->error(__('messages.guest_member_email_login'), 422);
         }
 
         session([self::SESSION_GUEST => [

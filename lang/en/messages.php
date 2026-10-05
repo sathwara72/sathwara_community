@@ -1452,7 +1452,6 @@ return [
     'guest_name_optional' => 'Your name (optional)',
     'guest_continue' => 'Continue',
     'guest_pass_sent_to' => 'Pass will be sent to',
-    'guest_member_email_login' => 'This email belongs to a registered member. Please login to buy passes.',
     'guest_change_email' => 'Change',
     'guest_processing' => 'Please wait...',
     'guest_pay_and_get_pass' => 'Pay & Get Pass',
