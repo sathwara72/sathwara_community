@@ -42,7 +42,9 @@ class BusinessController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->filled('status')) {
+        if ($request->status === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
@@ -53,8 +55,9 @@ class BusinessController extends Controller
         $approvedCount = Business::where('status', 'approved')->count();
         $rejectedCount = Business::where('status', 'rejected')->count();
         $totalCount = Business::count();
+        $deletedCount = Business::onlyTrashed()->count();
 
-        return view('admin.businesses.index', compact('businesses', 'categories', 'pendingCount', 'approvedCount', 'rejectedCount', 'totalCount'));
+        return view('admin.businesses.index', compact('businesses', 'categories', 'pendingCount', 'approvedCount', 'rejectedCount', 'totalCount', 'deletedCount'));
     }
 
     /**
@@ -126,9 +129,25 @@ class BusinessController extends Controller
     public function destroy($id)
     {
         $business = Business::findOrFail($id);
-        $business->delete();
+        $business->delete(); // soft delete: payments, history and files are kept and it can be restored
 
-        return redirect()->route('admin.businesses.index')->with('success', 'Business directory entry deleted.');
+        return redirect()->route('admin.businesses.index')->with('success', 'Business moved to Deleted. You can restore it from the Deleted tab.');
+    }
+
+    /**
+     * Bring back a soft-deleted business (unless its login email is now used by another business).
+     */
+    public function restore($id)
+    {
+        $business = Business::onlyTrashed()->findOrFail($id);
+
+        if ($business->email && Business::where('email', $business->email)->exists()) {
+            return redirect()->back()->with('error', "Cannot restore: another business now uses the login email {$business->email}. Change that business's email first.");
+        }
+
+        $business->restore();
+
+        return redirect()->route('admin.businesses.show', $business->id)->with('success', 'Business restored.');
     }
 
     /**
@@ -136,7 +155,8 @@ class BusinessController extends Controller
      */
     public function show($id)
     {
-        $business = Business::with(['category', 'paymentLinks'])->findOrFail($id);
+        // Deleted businesses can still be opened by admins (to review or restore them)
+        $business = Business::withTrashed()->with(['category', 'paymentLinks'])->findOrFail($id);
         return view('admin.businesses.show', compact('business'));
     }
 
@@ -490,7 +510,9 @@ class BusinessController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->filled('status')) {
+        if ($request->status === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
