@@ -137,15 +137,32 @@ class GuestPassPurchaseTest extends TestCase
         $this->assertSame(Area::where('name', 'Naroda')->value('id'), $registration->form_data['area_id']);
     }
 
-    public function test_member_email_must_log_in_instead_of_buying_as_guest(): void
+    public function test_member_can_buy_without_login_and_pass_is_linked_to_their_account(): void
     {
-        User::factory()->create(['email' => 'Guest@Gmail.com', 'status' => 'approved']);
+        $member = User::factory()->create(['name' => 'Karan Sathwara', 'email' => 'Guest@Gmail.com', 'status' => 'approved']);
         $event = $this->event();
-        $this->fakeOrder($event);
+        $this->enterDetails($event)->assertOk();
+        $this->fakeOrder($event, ['notes' => ['name' => '']]);
 
-        $this->enterDetails($event)->assertStatus(422);
-        $this->postJson(route('events.guest_pass.order', $event->id), ['person_count' => 1])->assertForbidden();
-        Http::assertNothingSent();
+        $this->postJson(route('events.guest_pass.complete', $event->id), $this->completePayload())->assertOk();
+
+        $registration = EventRegistration::firstOrFail();
+        $this->assertSame($member->id, $registration->user_id);
+        $this->assertFalse($registration->form_data['is_guest']);
+        $this->assertSame('Karan Sathwara', $registration->form_data['full_name']);
+        $this->assertTrue($member->eventRegistrations()->where('event_id', $event->id)->exists());
+        Mail::assertSent(EventPassPurchasedMail::class, fn ($m) => $m->hasTo('guest@gmail.com'));
+    }
+
+    public function test_free_pass_for_member_email_is_linked_too(): void
+    {
+        $member = User::factory()->create(['email' => 'guest@gmail.com', 'status' => 'approved']);
+        $event = $this->event(['pass_fee' => 0]);
+        $this->enterDetails($event)->assertOk();
+
+        $this->postJson(route('events.guest_pass.complete', $event->id), ['person_count' => 2])->assertOk();
+
+        $this->assertSame($member->id, EventRegistration::firstOrFail()->user_id);
     }
 
     public function test_cannot_create_order_without_entering_details(): void

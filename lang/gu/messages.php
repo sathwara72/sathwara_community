@@ -1452,7 +1452,6 @@ return [
     'guest_name_optional' => 'તમારું નામ (વૈકલ્પિક)',
     'guest_continue' => 'આગળ વધો',
     'guest_pass_sent_to' => 'પાસ આ ઇમેઇલ પર મોકલાશે',
-    'guest_member_email_login' => 'આ ઇમેઇલ નોંધાયેલા સભ્યનો છે. પાસ ખરીદવા માટે કૃપા કરીને લૉગિન કરો.',
     'guest_change_email' => 'બદલો',
     'guest_processing' => 'કૃપા કરીને રાહ જુઓ...',
     'guest_pay_and_get_pass' => 'ચુકવણી કરો અને પાસ મેળવો',
