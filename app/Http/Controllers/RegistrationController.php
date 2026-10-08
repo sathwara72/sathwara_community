@@ -525,7 +525,7 @@ class RegistrationController extends Controller
     }
 
     /**
-     * "Karan Sathwara" -> "K**** S*******"
+     * "Karan Satwara" -> "K**** S******"
      */
     private function maskName(string $name): string
     {
