@@ -463,7 +463,7 @@
             "key": razorpayKey || "rzp_test_key",
             "amount": feeAmountPaise,
             "currency": "INR",
-            "name": "{{ config('app.name', 'Sathwara Community') }}",
+            "name": "{{ config('app.name', 'Satwara Community') }}",
             "description": "Business Renewal - " + businessName,
             "handler": function (response) {
                 document.getElementById('rzp_payment_id').value = response.razorpay_payment_id;

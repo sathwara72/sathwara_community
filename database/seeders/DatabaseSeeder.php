@@ -49,7 +49,7 @@ class DatabaseSeeder extends Seeder
         $member = User::updateOrCreate(
             ['email' => 'member@community.com'],
             [
-                'name' => 'Karan Sathwara',
+                'name' => 'Karan Satwara',
                 'password' => Hash::make('password'),
                  'status' => 'approved',
                 'member_code' => 'MEMBER001',
@@ -63,7 +63,7 @@ class DatabaseSeeder extends Seeder
             [
                 'first_name' => 'Karan',
                 'middle_name' => 'Ramanlal',
-                'last_name' => 'Sathwara',
+                'last_name' => 'Satwara',
                 'gender' => 'Male',
                 'dob' => '1992-05-12',
                 'blood_group' => 'O+',
@@ -87,7 +87,7 @@ class DatabaseSeeder extends Seeder
         $pendingUser = User::updateOrCreate(
             ['email' => 'pending@community.com'],
             [
-                'name' => 'Vijay Sathwara',
+                'name' => 'Vijay Satwara',
                 'password' => Hash::make('password'),
                 'status' => 'pending',
                 'member_code' => 'PENDING001',
@@ -100,7 +100,7 @@ class DatabaseSeeder extends Seeder
             [
                 'first_name' => 'Vijay',
                 'middle_name' => 'Manilal',
-                'last_name' => 'Sathwara',
+                'last_name' => 'Satwara',
                 'gender' => 'Male',
                 'dob' => '1995-10-20',
                 'blood_group' => 'A+',
@@ -206,14 +206,14 @@ class DatabaseSeeder extends Seeder
         // 7. Management Desk
         ManagementDesk::truncate();
         ManagementDesk::create([
-            'name' => 'Ramanbhai Sathwara',
+            'name' => 'Ramanbhai Satwara',
             'designation' => 'President',
             'photo_path' => 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?q=80&w=300',
             'display_order' => 1,
             'status' => true
         ]);
         ManagementDesk::create([
-            'name' => 'Gitaben Sathwara',
+            'name' => 'Gitaben Satwara',
             'designation' => 'Secretary',
             'photo_path' => 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300',
             'display_order' => 2,
@@ -223,21 +223,21 @@ class DatabaseSeeder extends Seeder
         // 8. Committee Members
         CommitteeMember::truncate();
         CommitteeMember::create([
-            'name' => 'Kiritbhai Sathwara',
+            'name' => 'Kiritbhai Satwara',
             'designation' => 'Vice President',
             'photo_path' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300',
             'display_order' => 1,
             'status' => true
         ]);
         CommitteeMember::create([
-            'name' => 'Arvindbhai Sathwara',
+            'name' => 'Arvindbhai Satwara',
             'designation' => 'Treasurer',
             'photo_path' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300',
             'display_order' => 2,
             'status' => true
         ]);
         CommitteeMember::create([
-            'name' => 'Dineshbharthi Sathwara',
+            'name' => 'Dineshbharthi Satwara',
             'designation' => 'Executive Committee',
             'photo_path' => 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300',
             'display_order' => 3,
@@ -270,7 +270,7 @@ class DatabaseSeeder extends Seeder
         $event1 = Event::create([
             'title' => 'Annual Sports Festival 2026',
             'description' => 'Get ready for our annual sports championship! Cricket, Volleyball, Badminton, and races for children. Free registrations for all members.',
-            'venue' => 'Sathwara Ground, Satellite, Ahmedabad',
+            'venue' => 'Satwara Ground, Satellite, Ahmedabad',
             'date' => '2026-08-15',
             'time' => '08:00:00',
             'banner_path' => 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800',

@@ -10,7 +10,7 @@ NC='\033[0m'
 
 echo ""
 echo -e "${BOLD}==========================================${NC}"
-echo -e "${BOLD}  🚀 Sathwara Community — Local Deployment${NC}"
+echo -e "${BOLD}  🚀 Satwara Community — Local Deployment${NC}"
 echo -e "${BOLD}==========================================${NC}"
 
 echo -e "\n${CYAN}[1/5] Pulling latest code...${NC}"

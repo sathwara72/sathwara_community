@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'Business Panel') — {{ App\Models\Setting::get('website_name', 'Sathwara Community') }}</title>
+    <title>@yield('title', 'Business Panel') — {{ App\Models\Setting::get('website_name', 'Satwara Community') }}</title>
     @if(App\Models\Setting::get('website_favicon'))
         <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . App\Models\Setting::get('website_favicon')) }}">
     @endif
