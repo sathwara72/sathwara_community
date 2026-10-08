@@ -479,6 +479,7 @@ class RegistrationController extends Controller
             ]);
         } else {
             $response->with('registration_success', [
+                'id' => $newBusiness->id,
                 'business_name' => $newBusiness->business_name,
             ]);
         }

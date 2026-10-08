@@ -3,8 +3,9 @@
 @section('title', __('Business Portal Login') . ' — ' . App\Models\Setting::get('website_name', 'Shree Satwara Gnati Mandal, Ahmedabad'))
 
 @section('content')
-    <section class="py-4 md:py-6 bg-slate-50/70 flex-1 flex items-center justify-center">
-        <div class="max-w-sm w-full px-4 mx-auto">
+    <section class="relative overflow-hidden py-4 md:py-6 bg-slate-50/70 flex-1 flex items-center justify-center">
+        @include('partials.auth_background', ['variant' => 'business'])
+        <div class="relative z-10 max-w-sm w-full px-4 mx-auto">
 
             <!-- Main Business Login Card -->
             <div
@@ -14,6 +15,9 @@
                 <div
                     class="absolute -top-10 -right-10 w-32 h-32 bg-primary-500/10 blur-2xl rounded-full pointer-events-none">
                 </div>
+
+                <!-- Member / Business Login Switch -->
+                @include('partials.auth_type_tabs', ['active' => 'business', 'mode' => 'login'])
 
                 <!-- Card Header & Branding -->
                 <div class="text-center space-y-1">

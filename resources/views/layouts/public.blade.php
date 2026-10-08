@@ -828,9 +828,7 @@
                                     </svg>
                                 </div>
                                 <span
-                                    class="text-xs text-slate-600 leading-snug whitespace-pre-line group-hover:text-slate-900 transition-colors">
-                                    {{ App\Models\Setting::get('contact_address') }}
-                                </span>
+                                    class="text-xs text-slate-600 leading-snug whitespace-pre-line group-hover:text-slate-900 transition-colors">{{ trim(App\Models\Setting::get('contact_address')) }}</span>
                             </div>
                         @endif
 
