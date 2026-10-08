@@ -449,6 +449,7 @@
     @include('partials.global_loader')
     @include('partials.delete_confirm_modal')
     @include('components.purchase_receipt_modal')
+    @include('components.registration_success_modal')
     @stack('scripts')
 </body>
 

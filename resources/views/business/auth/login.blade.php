@@ -198,4 +198,74 @@
 
         </div>
     </section>
+    @if (session('account_status_popup'))
+        @php
+            $statusPopup = session('account_status_popup');
+            $officeEmail = App\Models\Setting::get('contact_email');
+            $officePhone = App\Models\Setting::get('contact_phone');
+        @endphp
+        <!-- Account Verification Status Modal -->
+        <div x-data="{ open: true }" x-cloak x-show="open"
+             class="fixed inset-0 flex items-center justify-center p-4"
+             style="position: fixed !important; inset: 0 !important; z-index: 999999 !important; background-color: rgba(15, 23, 42, 0.75) !important; backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; padding: 16px !important;"
+             x-transition.opacity>
+            <div @click.away="open = false"
+                 class="rounded-3xl border border-slate-100 shadow-2xl relative flex flex-col text-center"
+                 style="max-width: 420px !important; width: 100% !important; background-color: #ffffff !important; margin: auto !important; padding: 26px 20px 20px 20px !important;">
+
+                <button type="button" @click="open = false"
+                        class="absolute top-3.5 right-3.5 w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold"
+                        title="{{ __('messages.popup_close') }}">✕</button>
+
+                <div class="flex items-center justify-center pt-1">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center shadow-lg {{ $statusPopup === 'rejected' ? 'bg-gradient-to-tr from-rose-600 to-rose-400 shadow-rose-500/30' : 'bg-gradient-to-tr from-amber-500 to-amber-400 shadow-amber-500/30' }}">
+                        @if ($statusPopup === 'rejected')
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        @else
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-1.5">
+                    <h3 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-snug">
+                        @if ($statusPopup === 'rejected')
+                            {{ __('messages.biz_account_rejected_title') }}
+                        @else
+                            {{ __('messages.biz_account_pending_title') }}
+                        @endif
+                    </h3>
+                    <p class="text-xs font-medium text-slate-500 leading-relaxed">
+                        @if ($statusPopup === 'rejected')
+                            {{ __('messages.biz_account_rejected_text') }}
+                        @else
+                            {{ __('messages.biz_account_pending_text') }}
+                        @endif
+                    </p>
+                </div>
+
+                @if ($officeEmail || $officePhone)
+                    <div class="mt-4 space-y-2 text-left">
+                        @if ($officeEmail)
+                            <a href="mailto:{{ $officeEmail }}" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-primary-300 transition-colors">
+                                <svg class="w-4 h-4 text-primary-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                <span class="text-xs font-bold text-slate-700 break-all">{{ $officeEmail }}</span>
+                            </a>
+                        @endif
+                        @if ($officePhone)
+                            <a href="tel:{{ $officePhone }}" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-primary-300 transition-colors">
+                                <svg class="w-4 h-4 text-primary-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                                <span class="text-xs font-bold text-slate-700">{{ $officePhone }}</span>
+                            </a>
+                        @endif
+                    </div>
+                @endif
+
+                <button type="button" @click="open = false"
+                        class="mt-5 w-full bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs py-2.5 rounded-xl transition-all cursor-pointer">
+                    {{ __('messages.popup_ok') }}
+                </button>
+            </div>
+        </div>
+    @endif
 @endsection

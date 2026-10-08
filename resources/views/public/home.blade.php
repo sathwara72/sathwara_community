@@ -332,6 +332,104 @@
     </section>
 
 
+    <!-- Business & Member Join Highlight Sections -->
+    @php
+        $joinSections = [
+            [
+                'key' => 'business',
+                'image' => collect(['jpg', 'png', 'webp', 'svg'])->map(fn ($ext) => 'images/home-business.' . $ext)->first(fn ($path) => file_exists(public_path($path))),
+                'reverse' => false,
+                'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+                'chips' => [__('messages.business_directory'), 'WhatsApp', __('messages.gallery')],
+                'primary' => ['url' => route('register.business'), 'label' => __('messages.business_registration')],
+                'secondary' => ['url' => route('business.login'), 'label' => __('messages.business_login')],
+            ],
+            [
+                'key' => 'member',
+                'image' => collect(['jpg', 'png', 'webp', 'svg'])->map(fn ($ext) => 'images/home-member.' . $ext)->first(fn ($path) => file_exists(public_path($path))),
+                'reverse' => true,
+                'icon' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+                'chips' => [__('messages.member_directory'), __('messages.family_members'), __('messages.events')],
+                'primary' => auth()->check()
+                    ? ['url' => route('member.dashboard'), 'label' => __('messages.dashboard')]
+                    : ['url' => route('register.member'), 'label' => __('messages.member_registration')],
+                'secondary' => auth()->check() ? null : ['url' => route('login'), 'label' => __('messages.member_login')],
+            ],
+        ];
+    @endphp
+
+    @foreach($joinSections as $join)
+        <section class="py-6 sm:py-10 bg-transparent">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <!-- Business: image left / content right. Member: content left / image right -->
+                <div class="flex flex-col {{ $join['reverse'] ? 'md:flex-row-reverse' : 'md:flex-row' }} md:items-center gap-8 md:gap-10">
+
+                    <!-- Visual -->
+                    <div class="w-full md:w-1/2">
+                        @if($join['image'])
+                            <div class="rounded-3xl overflow-hidden shadow-xl border border-slate-200/80" style="aspect-ratio: 4 / 3;">
+                                <img src="{{ asset($join['image']) }}" alt="{{ __('messages.home_' . $join['key'] . '_title') }}" class="w-full h-full object-cover" loading="lazy">
+                            </div>
+                        @else
+                            <div class="relative rounded-3xl overflow-hidden bg-gradient-to-br {{ $join['key'] === 'business' ? 'from-slate-900 via-slate-950 to-slate-900' : 'from-primary-700 via-primary-600 to-primary-500' }} shadow-xl flex items-center justify-center" style="aspect-ratio: 4 / 3;">
+                                <div class="absolute -right-12 -bottom-12 w-56 h-56 {{ $join['key'] === 'business' ? 'bg-primary-500/20' : 'bg-white/15' }} rounded-full blur-3xl pointer-events-none"></div>
+                                <div class="absolute -left-12 -top-12 w-48 h-48 bg-amber-400/15 rounded-full blur-3xl pointer-events-none"></div>
+
+                                <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center shadow-2xl">
+                                    <svg class="w-12 h-12 sm:w-14 sm:h-14 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="{{ $join['icon'] }}"/>
+                                    </svg>
+                                </div>
+
+                                @foreach($join['chips'] as $i => $chip)
+                                    <span class="absolute {{ ['top-6 left-6', 'top-10 right-6', 'bottom-8 left-1/2 -translate-x-1/2'][$i] }} inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white shadow-lg text-[11px] sm:text-xs font-extrabold text-slate-800 whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 rounded-full {{ ['bg-emerald-500', 'bg-amber-500', 'bg-primary-500'][$i] }}"></span>
+                                        {{ $chip }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Content -->
+                    <div class="w-full md:w-1/2 space-y-5">
+                        <div class="space-y-2">
+                            <span class="text-sm font-extrabold text-primary-600 uppercase tracking-widest">{{ __('messages.home_' . $join['key'] . '_tag') }}</span>
+                            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{{ __('messages.home_' . $join['key'] . '_title') }}</h2>
+                            <p class="text-sm sm:text-base text-slate-600 font-medium leading-relaxed">{{ __('messages.home_' . $join['key'] . '_desc') }}</p>
+                        </div>
+
+                        <ul class="space-y-2.5">
+                            @foreach(range(1, 4) as $n)
+                                <li class="flex items-start gap-3">
+                                    <span class="mt-0.5 w-5 h-5 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                                        <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    </span>
+                                    <span class="text-sm font-semibold text-slate-700">{{ __('messages.home_' . $join['key'] . '_point_' . $n) }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        <div class="flex flex-col sm:flex-row gap-3 pt-1">
+                            <a href="{{ $join['primary']['url'] }}"
+                               class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary-500/25 transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                <span>{{ $join['primary']['label'] }}</span>
+                            </a>
+                            @if($join['secondary'])
+                                <a href="{{ $join['secondary']['url'] }}"
+                                   class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all duration-200 hover:-translate-y-0.5 whitespace-nowrap">
+                                    <span>{{ $join['secondary']['label'] }}</span>
+                                    <span class="text-amber-400">&rarr;</span>
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    @endforeach
+
     <!-- Upcoming Events Section -->
     <section class="py-6 sm:py-8 bg-transparent">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
