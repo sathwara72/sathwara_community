@@ -1,14 +1,18 @@
 @extends('layouts.public')
 
 @section('content')
-<section class="py-4 md:py-8 bg-slate-50/70 flex-1 flex items-center justify-center">
-    <div class="max-w-sm w-full px-4">
+<section class="relative overflow-hidden py-4 md:py-8 bg-slate-50/70 flex-1 flex items-center justify-center">
+    @include('partials.auth_background', ['variant' => 'member'])
+    <div class="relative z-10 max-w-sm w-full px-4">
         
         <!-- Compact Main Login Card -->
         <div class="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/80 shadow-lg relative overflow-hidden space-y-4">
             
             <!-- Ambient Accent Glow -->
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-primary-500/10 blur-2xl rounded-full pointer-events-none"></div>
+
+            <!-- Member / Business Login Switch -->
+            @include('partials.auth_type_tabs', ['active' => 'member', 'mode' => 'login'])
 
             <!-- Card Header & Branding -->
             <div class="text-center space-y-2">

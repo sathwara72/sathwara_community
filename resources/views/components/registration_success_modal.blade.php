@@ -1,10 +1,19 @@
 @php
-    $registrationSuccess = session('registration_success');
+    $registrationSuccess = session()->pull('registration_success');
+    $registrationPopupKey = 'registration_popup_shown_' . ($registrationSuccess['id'] ?? md5(json_encode($registrationSuccess)));
 @endphp
 
 @if ($registrationSuccess)
 <!-- ================= FREE REGISTRATION SUCCESS MODAL ================= -->
-<div x-data="{ showRegSuccess: true }"
+<div x-data="{
+        showRegSuccess: true,
+        init() {
+            try {
+                if (sessionStorage.getItem(@js($registrationPopupKey))) { this.showRegSuccess = false; }
+                else { sessionStorage.setItem(@js($registrationPopupKey), '1'); }
+            } catch (e) {}
+        }
+     }"
      x-cloak
      x-show="showRegSuccess"
      class="fixed inset-0 flex items-center justify-center p-4"

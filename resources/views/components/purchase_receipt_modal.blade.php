@@ -1,5 +1,6 @@
 @php
-    $sessionReceipt = session('purchase_receipt');
+    // pull() so the receipt can never be rendered twice from the session (e.g. on reload)
+    $sessionReceipt = session()->pull('purchase_receipt');
     $isGu = (app()->getLocale() === 'gu');
 @endphp
 
@@ -7,6 +8,19 @@
 <div x-data="{
     showReceiptModal: {{ $sessionReceipt ? 'true' : 'false' }},
     receipt: {{ $sessionReceipt ? json_encode($sessionReceipt) : 'null' }},
+
+    init() {
+        // Guard against the browser restoring a cached copy of this page on reload / back
+        if (!this.showReceiptModal || !this.receipt) return;
+        const shownKey = 'receipt_popup_shown_' + (this.receipt.receipt_no || this.receipt.payment_id || '');
+        try {
+            if (sessionStorage.getItem(shownKey)) {
+                this.showReceiptModal = false;
+            } else {
+                sessionStorage.setItem(shownKey, '1');
+            }
+        } catch (e) {}
+    },
 
     getViewUrl() {
         if (!this.receipt || !this.receipt.download_url) return '#';
