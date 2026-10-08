@@ -1511,5 +1511,14 @@ return [
     'translations_none_found' => 'No text found.',
     'translation_saved' => 'Text updated successfully.',
     'translation_reset_done' => 'Text restored to original.',
+    'translations_stat_total' => 'Total Lines',
+    'translations_ctrl_enter' => 'Press Ctrl + Enter to save a row quickly.',
+    'translations_col_key' => 'Text Key',
+    'translations_missing_badge' => 'Gujarati missing',
+    'translations_unsaved' => 'Unsaved',
+    'translations_show_original' => 'Show original',
+    'translations_hide_original' => 'Hide original',
+    'translations_saved_short' => 'Saved',
+    'translations_save_error' => 'Could not save. Please try again.',
 ];
 

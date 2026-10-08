@@ -1511,6 +1511,15 @@ return [
     'translations_none_found' => 'કોઈ ટેક્સ્ટ મળ્યો નથી.',
     'translation_saved' => 'ટેક્સ્ટ સફળતાપૂર્વક અપડેટ થયો.',
     'translation_reset_done' => 'ટેક્સ્ટ મૂળ પ્રમાણે પાછો લાવવામાં આવ્યો.',
+    'translations_stat_total' => 'કુલ લાઇન',
+    'translations_ctrl_enter' => 'ઝડપથી સાચવવા Ctrl + Enter દબાવો.',
+    'translations_col_key' => 'ટેક્સ્ટ કી',
+    'translations_missing_badge' => 'ગુજરાતી બાકી',
+    'translations_unsaved' => 'સાચવ્યું નથી',
+    'translations_show_original' => 'મૂળ ટેક્સ્ટ જુઓ',
+    'translations_hide_original' => 'મૂળ ટેક્સ્ટ છુપાવો',
+    'translations_saved_short' => 'સાચવ્યું',
+    'translations_save_error' => 'સાચવી શકાયું નહીં. ફરી પ્રયાસ કરો.',
 ];
 
 

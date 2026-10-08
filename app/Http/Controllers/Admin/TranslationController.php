@@ -34,6 +34,12 @@ class TranslationController extends Controller
             return $row;
         });
 
+        $stats = [
+            'total' => $rows->count(),
+            'edited' => $rows->where('edited', true)->count(),
+            'missing_gu' => $rows->filter(fn ($row) => trim($row['gu']) === '')->count(),
+        ];
+
         if ($search !== '') {
             $needle = mb_strtolower($search);
             $rows = $rows->filter(fn ($row) => str_contains(mb_strtolower($row['key']), $needle)
@@ -47,7 +53,7 @@ class TranslationController extends Controller
             $rows = $rows->filter(fn ($row) => trim($row['gu']) === '');
         }
 
-        $perPage = 30;
+        $perPage = 25;
         $page = LengthAwarePaginator::resolveCurrentPage();
         $translations = new LengthAwarePaginator(
             $rows->values()->forPage($page, $perPage),
@@ -57,9 +63,7 @@ class TranslationController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        $editedCount = Translation::where('group', $group)->distinct('key')->count('key');
-
-        return view('admin.translations.index', compact('translations', 'group', 'editedCount'));
+        return view('admin.translations.index', compact('translations', 'group', 'stats'));
     }
 
     /**
@@ -96,6 +100,10 @@ class TranslationController extends Controller
 
         Translation::flushCache();
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => __('messages.translation_saved')] + $this->rowState($group, $key, $defaults));
+        }
+
         return back()->with('success', __('messages.translation_saved'));
     }
 
@@ -112,7 +120,27 @@ class TranslationController extends Controller
         Translation::where('group', $request->group)->where('key', $request->key)->delete();
         Translation::flushCache();
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => __('messages.translation_reset_done')]
+                + $this->rowState($request->group, $request->key, $this->fileLines($request->group)));
+        }
+
         return back()->with('success', __('messages.translation_reset_done'));
+    }
+
+    /**
+     * Current text, original text and edited flags of one key (for in-place saves).
+     */
+    protected function rowState(string $group, string $key, array $defaults): array
+    {
+        $overrides = Translation::where('group', $group)->where('key', $key)->pluck('value', 'locale');
+        $state = [];
+        foreach (Translation::LOCALES as $locale) {
+            $state[$locale . '_default'] = $defaults[$locale][$key] ?? '';
+            $state[$locale . '_edited'] = $overrides->has($locale);
+            $state[$locale] = $overrides->get($locale, $state[$locale . '_default']);
+        }
+        return $state;
     }
 
     /**
