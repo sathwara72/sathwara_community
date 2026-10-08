@@ -15,7 +15,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Admin-edited translations override the lang files
+        $this->app->extend('translation.loader', fn ($loader) => new \App\Translation\DatabaseOverrideLoader($loader));
     }
 
     /**

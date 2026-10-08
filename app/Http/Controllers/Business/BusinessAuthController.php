@@ -67,6 +67,11 @@ class BusinessAuthController extends Controller
         // Check if business has a direct password set
         if ($business->password && Hash::check($password, $business->password)) {
             \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
+
+            if ($blocked = $this->blockUnapproved($business)) {
+                return $blocked;
+            }
+
             // Direct password match — log in
             Auth::guard('business')->login($business, $request->boolean('remember'));
             $request->session()->regenerate();
@@ -85,6 +90,10 @@ class BusinessAuthController extends Controller
                 $business->password = $password; // auto-hashed via cast
                 $business->save();
 
+                if ($blocked = $this->blockUnapproved($business)) {
+                    return $blocked;
+                }
+
                 Auth::guard('business')->login($business, $request->boolean('remember'));
                 $request->session()->regenerate();
 
@@ -98,6 +107,23 @@ class BusinessAuthController extends Controller
         throw ValidationException::withMessages([
             'login' => __('auth.failed'),
         ]);
+    }
+
+    /**
+     * Prevent login until the business has been approved by admin.
+     * Credentials are already verified at this point, so it is safe to reveal the status.
+     */
+    private function blockUnapproved(Business $business)
+    {
+        if ($business->status === 'approved') {
+            return null;
+        }
+
+        Log::info("Business Login blocked: {$business->business_name} (ID: {$business->id}) status is {$business->status}.");
+
+        return redirect()->route('business.login')
+            ->withInput(request()->only('login'))
+            ->with('account_status_popup', $business->status === 'rejected' ? 'rejected' : 'pending');
     }
 
     /**

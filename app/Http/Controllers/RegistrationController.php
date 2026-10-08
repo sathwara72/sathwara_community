@@ -477,6 +477,10 @@ class RegistrationController extends Controller
                 'created_at' => now()->format('d M, Y h:i A'),
                 'download_url' => route('receipts.business', $newBusiness->id),
             ]);
+        } else {
+            $response->with('registration_success', [
+                'business_name' => $newBusiness->business_name,
+            ]);
         }
 
         return $response;

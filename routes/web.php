@@ -251,6 +251,13 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
 
     });
 
+    // Website Text / Translations (English & Gujarati)
+    Route::middleware(['permission_check:translations_manage'])->group(function () {
+        Route::get('/translations', [\App\Http\Controllers\Admin\TranslationController::class, 'index'])->name('translations.index');
+        Route::post('/translations', [\App\Http\Controllers\Admin\TranslationController::class, 'update'])->name('translations.update');
+        Route::post('/translations/reset', [\App\Http\Controllers\Admin\TranslationController::class, 'reset'])->name('translations.reset');
+    });
+
     // General Gallery
     Route::middleware(['permission_check:gallery_manage'])->group(function () {
         Route::get('/gallery', [AdminGallery::class, 'index'])->name('gallery.index');
