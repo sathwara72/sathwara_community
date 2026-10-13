@@ -451,31 +451,39 @@
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">{{ $approvedSponsors->count() }}</span>
                             </div>
 
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                @foreach($approvedSponsors as $sp)
-                                    <div class="bg-slate-50/80 hover:bg-white p-3 rounded-2xl border border-slate-200/80 hover:border-primary-300 hover:shadow-md transition-all flex flex-col items-center text-center group">
-                                        @if($sp->logo_path)
-                                            <div class="w-16 h-16 rounded-xl bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden mb-2 shadow-2xs group-hover:scale-105 transition-transform">
-                                                <img src="{{ str_starts_with($sp->logo_path, 'http') ? $sp->logo_path : asset('storage/' . $sp->logo_path) }}"
-                                                     alt="{{ $sp->name }}" class="w-full h-full object-contain">
-                                            </div>
-                                        @else
-                                            <div class="w-16 h-16 rounded-xl bg-primary-100 text-primary-800 font-black text-xl flex items-center justify-center border border-primary-200 mb-2 group-hover:scale-105 transition-transform shadow-2xs">
-                                                {{ strtoupper(substr($sp->name, 0, 1)) }}
-                                            </div>
-                                        @endif
-                                        <div class="font-extrabold text-slate-900 text-xs w-full break-words leading-snug" title="{{ $sp->name }}">{{ $sp->name }}</div>
-                                        @if($sp->sponsorshipType)
-                                            <span class="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded mt-1 border border-primary-100/60 text-center break-words">
-                                                {{ $sp->sponsorshipType->title }}
-                                            </span>
-                                        @endif
-                                        @if($sp->city)
-                                            <span class="text-[9px] text-slate-400 font-medium mt-0.5 flex items-center justify-center gap-0.5">
-                                                <svg class="w-2.5 h-2.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                                <span>{{ $sp->city }}</span>
-                                            </span>
-                                        @endif
+                            <div class="space-y-5">
+                                @foreach($sponsorGroups as $group)
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-3">
+                                            <h3 class="text-sm sm:text-base font-black text-amber-800 uppercase tracking-wider shrink-0">
+                                                {{ $group['type']?->title ?? __('messages.general_sponsor') }}
+                                            </h3>
+                                            <div class="h-px flex-1 bg-gradient-to-r from-amber-200 to-transparent"></div>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            @foreach($group['sponsors'] as $sp)
+                                                <div class="bg-slate-50/80 hover:bg-white p-3 rounded-2xl border border-slate-200/80 hover:border-primary-300 hover:shadow-md transition-all flex flex-col items-center text-center group">
+                                                    @if($sp->logo_path)
+                                                        <div class="w-16 h-16 rounded-xl bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden mb-2 shadow-2xs group-hover:scale-105 transition-transform">
+                                                            <img src="{{ str_starts_with($sp->logo_path, 'http') ? $sp->logo_path : asset('storage/' . $sp->logo_path) }}"
+                                                                 alt="{{ $sp->name }}" class="w-full h-full object-contain">
+                                                        </div>
+                                                    @else
+                                                        <div class="w-16 h-16 rounded-xl bg-primary-100 text-primary-800 font-black text-xl flex items-center justify-center border border-primary-200 mb-2 group-hover:scale-105 transition-transform shadow-2xs">
+                                                            {{ strtoupper(substr($sp->name, 0, 1)) }}
+                                                        </div>
+                                                    @endif
+                                                    <div class="font-extrabold text-slate-900 text-xs w-full break-words leading-snug" title="{{ $sp->name }}">{{ $sp->name }}</div>
+                                                    @if($sp->city)
+                                                        <span class="text-[9px] text-slate-400 font-medium mt-0.5 flex items-center justify-center gap-0.5">
+                                                            <svg class="w-2.5 h-2.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                            <span>{{ $sp->city }}</span>
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>

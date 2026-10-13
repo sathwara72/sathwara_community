@@ -197,8 +197,8 @@ class PublicController extends Controller
         $sponsorshipTypes = SponsorshipType::where('event_id', $event->id)
             ->where('status', true)
             ->withCount(['approvedSponsors'])
-            ->orderBy('display_order')
             ->orderBy('amount', 'desc')
+            ->orderBy('display_order')
             ->get();
 
         $approvedSponsors = EventSponsor::where('event_id', $event->id)
@@ -208,7 +208,17 @@ class PublicController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('public.event_details', compact('event', 'gallery', 'registration', 'sponsorshipTypes', 'approvedSponsors'));
+        // Group sponsors under their sponsorship type, highest type amount first; untyped sponsors go last
+        $sponsorGroups = $approvedSponsors
+            ->groupBy(fn ($sp) => $sp->sponsorship_type_id ?? 0)
+            ->map(fn ($sponsors) => [
+                'type' => $sponsors->first()->sponsorshipType,
+                'sponsors' => $sponsors,
+            ])
+            ->sortByDesc(fn ($group) => $group['type'] ? (float) $group['type']->amount : -1)
+            ->values();
+
+        return view('public.event_details', compact('event', 'gallery', 'registration', 'sponsorshipTypes', 'approvedSponsors', 'sponsorGroups'));
     }
 
     /**
