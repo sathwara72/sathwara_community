@@ -225,6 +225,10 @@
                                                     <span>{{ $isGu ? 'ચૂકવણી બાકી (પે કરો)' : 'Pay Now' }}</span>
                                                     <span>&rarr;</span>
                                                 </a>
+                                            @elseif($event->isPassPurchaseClosed())
+                                                <span class="px-3 py-1.5 bg-slate-100 text-slate-500 font-bold text-xs rounded-lg inline-flex items-center shrink-0">
+                                                    {{ $isGu ? 'પાસ બુકિંગ બંધ' : 'Booking Closed' }}
+                                                </span>
                                             @else
                                                 <a href="{{ route('event.details', $event->id) }}"
                                                     onclick="event.stopPropagation()"

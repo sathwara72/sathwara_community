@@ -1182,6 +1182,8 @@ return [
     'form_start_date' => 'Form Start Date',
     'form_fillup_last_date' => 'Form Fill Up Last Date',
     'pass_purchase_last_date' => 'Pass Purchase Last Date',
+    'pass_purchase_closed_on' => 'Pass purchase for this event closed on :date.',
+    'form_fillup_closed_on' => 'Form fill-up closed on :date.',
     'total_pass_limit' => 'Total Pass Purchase Limit',
     'blank_for_unlimited' => 'Blank = Unlimited',
     'max_passes_reached_hint' => 'All passes for this event have been sold out.',

@@ -510,7 +510,11 @@
                                             $isFull = $event->max_participants && ($currentCount >= $event->max_participants);
                                         @endphp
 
-                                        @if($isFull)
+                                        @if($event->isPassPurchaseClosed())
+                                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold text-center">
+                                                {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
+                                            </div>
+                                        @elseif($isFull)
                                             <div class="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold text-center flex items-center justify-center gap-1">
                                                 <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                                 <span>Capacity Full</span>
@@ -566,14 +570,20 @@
                                     @if(($event->event_type ?? 'normal') === 'yuva_melo')
                                         <div class="space-y-3">
                                             <!-- Fill Yuva Form Button -->
+                                            @if($event->isFormFillupClosed())
+                                            <div class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold text-center">
+                                                {{ __('messages.form_fillup_closed_on', ['date' => date('d-M-Y', strtotime($event->form_end_date))]) }}
+                                            </div>
+                                            @else
                                             <a href="{{ route('member.events.register_form', $event->id) }}"
                                                 class="w-full flex items-center justify-center px-4 py-3 bg-primary-600 hover:bg-primary-700 active:scale-95 text-white text-xs font-black rounded-xl shadow-xs transition-all text-center gap-1.5">
                                                 <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                                                 <span>{{ __('messages.fill_yuva_form') ?? 'Fill Yuva Melo Form' }}</span>
                                                 <span>&rarr;</span>
                                             </a>
+                                            @endif
 
-                                            @if(($event->pass_fee ?? 0) > 0)
+                                            @if(($event->pass_fee ?? 0) > 0 && !$event->isPassPurchaseClosed())
                                                 <div class="pt-2.5 border-t border-slate-100 space-y-2">
                                                     <div class="flex items-center justify-between text-[11px]">
                                                         <span class="text-slate-500 font-bold inline-flex items-center gap-1">
@@ -597,7 +607,7 @@
                                                 Registered
                                             </span>
                                         </div>
-                                        @if(($event->event_type ?? 'normal') === 'inam_vitaran')
+                                        @if(($event->event_type ?? 'normal') === 'inam_vitaran' && !$event->isFormFillupClosed())
                                             <a href="{{ route('member.events.register_form', $event->id) }}"
                                                 class="w-full flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all duration-150 text-center gap-1.5">
                                                 <svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
@@ -616,7 +626,11 @@
                                             $isFull = $event->max_participants && ($currentCount >= $event->max_participants);
                                         @endphp
 
-                                        @if($isFull)
+                                        @if($event->isFormFillupClosed())
+                                            <div class="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold text-center">
+                                                {{ __('messages.form_fillup_closed_on', ['date' => date('d-M-Y', strtotime($event->form_end_date))]) }}
+                                            </div>
+                                        @elseif($isFull)
                                             <div
                                                 class="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold text-center flex items-center justify-center gap-1">
                                                 <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

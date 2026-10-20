@@ -1182,6 +1182,8 @@ return [
     'form_start_date' => 'ફોર્મ શરૂઆતની તારીખ',
     'form_fillup_last_date' => 'ફોર્મ ભરવાની છેલ્લી તારીખ',
     'pass_purchase_last_date' => 'પાસ ખરીદીની છેલ્લી તારીખ',
+    'pass_purchase_closed_on' => 'આ કાર્યક્રમ માટે પાસ ખરીદી :date ના રોજ બંધ થઈ ગઈ છે.',
+    'form_fillup_closed_on' => 'ફોર્મ ભરવાની છેલ્લી તારીખ :date પૂર્ણ થઈ ગઈ છે.',
     'total_pass_limit' => 'કુલ પાસ ખરીદી મર્યાદા',
     'blank_for_unlimited' => 'ખાલી = અમર્યાદિત',
     'max_passes_reached_hint' => 'આ કાર્યક્રમ માટેના તમામ પાસ વેચાઈ ગયા છે.',

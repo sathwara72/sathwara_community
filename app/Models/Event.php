@@ -69,6 +69,20 @@ class Event extends Model
         return $this->pass_purchase_access === 'anyone';
     }
 
+    // Pass purchase is closed once the day after registration_end_date begins
+    public function isPassPurchaseClosed(): bool
+    {
+        return !empty($this->registration_end_date)
+            && now()->toDateString() > $this->registration_end_date->toDateString();
+    }
+
+    // Form fill-up is closed once the day after form_end_date begins
+    public function isFormFillupClosed(): bool
+    {
+        return !empty($this->form_end_date)
+            && now()->toDateString() > \Carbon\Carbon::parse($this->form_end_date)->toDateString();
+    }
+
     public function registrations()
     {
         return $this->hasMany(EventRegistration::class);

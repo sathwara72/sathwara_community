@@ -355,10 +355,16 @@
                             </p>
 
                             <div class="pt-1 flex items-center">
-                                <a href="{{ route('events.public_register_form', $event->id) }}"
-                                    class="inline-flex items-center justify-center px-6 py-3 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-sm font-extrabold rounded-xl shadow-xs transition-all cursor-pointer">
-                                    <span>{{ __('messages.fill_yuva_form') ?? 'Fill Yuva Melo Registration Form' }}</span>
-                                </a>
+                                @if($event->isFormFillupClosed())
+                                    <div class="px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold">
+                                        {{ __('messages.form_fillup_closed_on', ['date' => date('d-M-Y', strtotime($event->form_end_date))]) }}
+                                    </div>
+                                @else
+                                    <a href="{{ route('events.public_register_form', $event->id) }}"
+                                        class="inline-flex items-center justify-center px-6 py-3 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-sm font-extrabold rounded-xl shadow-xs transition-all cursor-pointer">
+                                        <span>{{ __('messages.fill_yuva_form') ?? 'Fill Yuva Melo Registration Form' }}</span>
+                                    </a>
+                                @endif
                             </div>
                         </div>
                     @endif
@@ -579,6 +585,7 @@
                                             @php
                                                 $isFeeRequired = (float)($event->pass_fee ?? 0) > 0;
                                                 $hasPaidPass = $registration && (!$isFeeRequired || ($registration->payment_status === 'paid'));
+                                                $passPurchaseClosed = $event->isPassPurchaseClosed();
                                             @endphp
 
                                             @if($hasPaidPass)
@@ -612,7 +619,7 @@
                                                 @endphp
 
                                                 <!-- Action Buttons Side-by-Side -->
-                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                                <div class="grid grid-cols-1 {{ $passPurchaseClosed ? '' : 'sm:grid-cols-2' }} gap-2.5 pt-1">
                                                     <!-- View My Passes Button -->
                                                     <button type="button" 
                                                             @click="showViewPassesModal = true"
@@ -620,12 +627,23 @@
                                                         <span>{{ __('messages.view_my_passes', ['count' => $regPersons]) }}</span>
                                                     </button>
 
+                                                    @unless($passPurchaseClosed)
                                                     <!-- Purchase More Passes Button -->
                                                     <button type="button" 
                                                             @click="count = 1; showPassModal = true;"
                                                             class="w-full flex items-center justify-center px-4 py-3 bg-primary-600 hover:bg-primary-500 active:scale-95 text-white text-xs sm:text-sm font-extrabold rounded-xl shadow-md shadow-primary-500/20 transition-all text-center cursor-pointer">
                                                         <span>{{ __('messages.purchase_more_passes') }}</span>
                                                     </button>
+                                                    @endunless
+                                                </div>
+                                                @if($passPurchaseClosed)
+                                                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold text-center">
+                                                        {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
+                                                    </div>
+                                                @endif
+                                            @elseif($passPurchaseClosed)
+                                                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold text-center">
+                                                    {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
                                                 </div>
                                             @else
                                                 <!-- Purchase Pass Button -->
