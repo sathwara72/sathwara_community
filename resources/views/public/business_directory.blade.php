@@ -7,6 +7,31 @@
     'breadcrumb' => __('messages.business_directory')
 ])
 
+<!-- Business Register & Login Bar -->
+<section class="bg-white border-b border-slate-200/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="text-xs sm:text-sm font-bold text-slate-600 text-center sm:text-left">
+            {{ __('messages.add_your_business') }} &mdash; <span class="font-medium text-slate-500">{{ __('messages.promote_org') }}</span>
+        </p>
+        <div class="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            <a href="{{ route('register.business') }}"
+               class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary-500/25 transition-all duration-200 whitespace-nowrap">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>{{ __('messages.business_registration') }}</span>
+            </a>
+            <a href="{{ route('business.login') }}"
+               class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all duration-200 whitespace-nowrap">
+                <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                </svg>
+                <span>{{ __('messages.business_login') }}</span>
+            </a>
+        </div>
+    </div>
+</section>
+
 <!-- Search and Directory Grid -->
 <section class="py-10 bg-transparent">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

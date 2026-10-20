@@ -74,8 +74,7 @@
                     {{ __('messages.about_the_business') }}
                 </h2>
                 @if($business->description)
-                    <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line font-medium">
-                        {!! e($business->description) !!}</p>
+                    <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line font-medium">{{ trim($business->description) }}</p>
                 @else
                     <div
                         class="text-center py-4 text-slate-400 font-bold text-xs bg-slate-50 rounded-xl border border-slate-100">

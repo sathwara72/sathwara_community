@@ -34,6 +34,7 @@ class SubAdminController extends Controller
             'announcements_manage'=> __('messages.mod_announcements_news'),
             'settings_manage'     => __('messages.mod_global_settings'),
             'transactions_view'   => __('messages.mod_transactions'),
+            'translations_manage' => __('messages.mod_translations'),
         ];
     }
 

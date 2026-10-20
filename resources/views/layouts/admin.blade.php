@@ -347,6 +347,7 @@
                 $hasAnnouncements = $user->hasRole('Administrator') || $userPerms->contains('announcements_manage') || $userPerms->contains(fn($p) => str_starts_with($p, 'announcements_'));
                 $hasSettings = $user->hasRole('Administrator') || $userPerms->contains('settings_manage') || $userPerms->contains(fn($p) => str_starts_with($p, 'settings_'));
                 $hasTransactions = $user->hasRole('Administrator') || $userPerms->contains('transactions_view');
+                $hasTranslations = $user->hasRole('Administrator') || $userPerms->contains('translations_manage');
             @endphp
 
             @role('Administrator')
@@ -507,10 +508,23 @@
                 </a>
             @endif
 
-            @if($hasSettings)
+            @if($hasSettings || $hasTranslations)
                 <div class="pt-4 pb-1 text-[10px] font-extrabold uppercase text-slate-500 tracking-widest px-4">
                     {{ __('messages.configuration') }}
                 </div>
+            @endif
+
+            @if($hasTranslations)
+                <a href="{{ route('admin.translations.index') }}"
+                    class="flex items-center space-x-3 px-4 py-2.5 text-xs font-bold rounded-lg {{ Route::is('admin.translations.*') ? 'bg-primary-500 text-white' : 'text-slate-400 hover:bg-zinc-900 hover:text-white' }} transition-colors">
+                    <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                    </svg>
+                    <span>{{ __('messages.website_text_translations') }}</span>
+                </a>
+            @endif
+
+            @if($hasSettings)
                 <a href="{{ route('admin.settings.index') }}"
                     class="flex items-center space-x-3 px-4 py-2.5 text-xs font-bold rounded-lg {{ ((Route::is('admin.settings.*') && !Route::is('admin.settings.about*')) || Route::is('admin.email_settings.*')) ? 'bg-primary-500 text-white' : 'text-slate-400 hover:bg-zinc-900 hover:text-white' }} transition-colors">
                     <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

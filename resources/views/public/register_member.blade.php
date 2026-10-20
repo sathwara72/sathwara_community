@@ -8,10 +8,19 @@
 ]) --}}
 
 <!-- Registration Body -->
-<section class="py-4 bg-slate-50/50">
-    <div class="max-w-6xl mx-auto px-3 sm:px-4">
+<section class="relative overflow-hidden py-4 bg-slate-50/50">
+    @include('partials.auth_background', ['variant' => 'member'])
+    <div class="relative z-10 max-w-6xl mx-auto px-3 sm:px-4">
+        <!-- Registration Type Heading -->
+        @include('partials.registration_hero', ['variant' => 'member'])
+
+        <!-- Member / Business Registration Switch -->
+        <div class="max-w-md mx-auto mb-5 shadow-lg rounded-xl">
+            @include('partials.auth_type_tabs', ['active' => 'member', 'mode' => 'register'])
+        </div>
+
         
-        <div class="bg-white border border-slate-200/80 rounded-lg p-4 md:p-5 shadow-sm">
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-4 md:p-5 shadow-xl" style="border-top: 4px solid #dc2626;">
             
             <!-- Form Header & Guidance -->
             <div class="mb-5 border-b border-slate-100 pb-3 flex items-center justify-between flex-wrap gap-2">

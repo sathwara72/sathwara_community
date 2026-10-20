@@ -1,16 +1,19 @@
 @extends('layouts.public')
 
 @section('content')
-@include('partials.page_header', [
-    'title' => __('messages.register_your_business'),
-    'subtitle' => __('messages.promote_your_work'),
-    'breadcrumb' => __('messages.business_registration_breadcrumb')
-])
-
 <!-- Form Body -->
-<section class="py-6 bg-slate-50/50">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-white border border-slate-200/60 rounded-2xl p-5 md:p-6 shadow-xs">
+<section class="relative overflow-hidden py-6 bg-slate-50/50">
+    @include('partials.auth_background', ['variant' => 'business'])
+    <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Registration Type Heading -->
+        @include('partials.registration_hero', ['variant' => 'business'])
+
+        <!-- Member / Business Registration Switch -->
+        <div class="max-w-md mx-auto mb-5 shadow-lg rounded-xl">
+            @include('partials.auth_type_tabs', ['active' => 'business', 'mode' => 'register'])
+        </div>
+
+        <div class="bg-white border border-slate-200/60 rounded-2xl p-5 md:p-6 shadow-xl" style="border-top: 4px solid #f59e0b;">
             
             <!-- Validation errors -->
             @if ($errors->any())

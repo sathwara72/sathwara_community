@@ -65,7 +65,7 @@ class TransactionController extends Controller
     }
 
     /**
-     * "Member: Karan Sathwara", "Business: Sathwara Shop", "Pass: Garba Night #003" ...
+     * "Member: Karan Satwara", "Business: Satwara Shop", "Pass: Garba Night #003" ...
      */
     public static function recordLabel(Transaction $t): string
     {
