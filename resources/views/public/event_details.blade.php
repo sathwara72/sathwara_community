@@ -537,10 +537,20 @@
                                 </div>
                             @else
                                 <!-- Active Event Registration check for all event types -->
+                                @php
+                                    $isFeeRequired = (float)($event->pass_fee ?? 0) > 0;
+                                    $hasPaidPass = auth()->check() && $registration && (!$isFeeRequired || ($registration->payment_status === 'paid'));
+                                    $passPurchaseClosed = $event->isPassPurchaseClosed();
+                                @endphp
                                 <div x-data="{ showPassModal: false, showViewPassesModal: false, count: 1, passFee: {{ (float)($event->pass_fee ?? 0) }} }"
                                      @close-all-modals.window="showPassModal = false; showViewPassesModal = false"
                                      class="space-y-4">
-                                    @if(auth()->guest() && $event->allowsGuestPassPurchase())
+                                    @if($passPurchaseClosed && !$hasPaidPass)
+                                        <!-- Pass purchase last date has passed -->
+                                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold text-center">
+                                            {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
+                                        </div>
+                                    @elseif(auth()->guest() && $event->allowsGuestPassPurchase())
                                         @include('public.partials.guest_pass_purchase', ['event' => $event])
                                     @elseif(auth()->guest())
                                         <div class="space-y-3.5">
@@ -567,7 +577,9 @@
                                     @else
                                         <!-- Normal, Inam Vitaran and Yuva Melo Attendee Passes -->
                                         <div class="space-y-3.5">
-                                            @if(($event->pass_fee ?? 0) > 0)
+                                            @if($passPurchaseClosed)
+                                                {{-- Booking closed: only the member's existing passes are shown --}}
+                                            @elseif(($event->pass_fee ?? 0) > 0)
                                                 <div class="bg-primary-50 border border-primary-200 rounded-2xl p-3.5 flex items-center justify-between">
                                                     <div>
                                                         <span class="text-sm font-black text-primary-900 block">{{ __('messages.pass_fee_per_person') }}</span>
@@ -581,12 +593,6 @@
                                                     <span class="text-xs font-black text-emerald-700 uppercase bg-emerald-100 px-3 py-1 rounded-lg">{{ __('messages.free_entry') }}</span>
                                                 </div>
                                             @endif
-
-                                            @php
-                                                $isFeeRequired = (float)($event->pass_fee ?? 0) > 0;
-                                                $hasPaidPass = $registration && (!$isFeeRequired || ($registration->payment_status === 'paid'));
-                                                $passPurchaseClosed = $event->isPassPurchaseClosed();
-                                            @endphp
 
                                             @if($hasPaidPass)
                                                 @php
@@ -641,10 +647,6 @@
                                                         {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
                                                     </div>
                                                 @endif
-                                            @elseif($passPurchaseClosed)
-                                                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold text-center">
-                                                    {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
-                                                </div>
                                             @else
                                                 <!-- Purchase Pass Button -->
                                                 <button type="button" 
