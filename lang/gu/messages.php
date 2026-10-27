@@ -188,6 +188,7 @@ return [
     'rel_sister' => 'બહેન (Sister)',
     'rel_other' => 'અન્ય (Other)',
     'family_dob_after_member' => 'સભ્યની જન્મ તારીખ મુખ્ય સભ્યની જન્મ તારીખ પછીની હોવી જોઈએ.',
+    'family_dob_before_member' => 'પિતા / માતાની જન્મ તારીખ મુખ્ય સભ્યની જન્મ તારીખ પહેલાંની હોવી જોઈએ.',
     'view_family_tree' => 'કુટુંબ વૃક્ષ જુઓ',
     'family_tree_title' => 'કુટુંબ વૃક્ષ પૂર્વાવલોકન',
     'family_tree_subtitle' => 'તમારા નોંધાયેલા પરિવારના સભ્યોનું દ્રશ્ય માળખું',

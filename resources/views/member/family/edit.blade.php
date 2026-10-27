@@ -3,6 +3,13 @@
 @section('page_title', 'Edit Family Member')
 
 @section('content')
+@php
+    // DOB picker limits: Father / Mother are older than the member, everyone else younger
+    $memberDob = auth()->user()->memberProfile?->dob;
+    $dobChildMin = $memberDob ? \Carbon\Carbon::parse($memberDob)->addDay()->format('Y-m-d') : '';
+    $dobChildMax = \Carbon\Carbon::yesterday()->format('Y-m-d');
+    $dobParentMax = $memberDob ? \Carbon\Carbon::parse($memberDob)->subDay()->format('Y-m-d') : $dobChildMax;
+@endphp
 <div class="max-w-xl bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm">
     <h2 class="text-sm sm:text-base font-black text-slate-900 pb-2.5 border-b border-slate-100 flex items-center gap-2 mb-4">
         ✏️ {{ __('messages.edit_family_member') }}
@@ -24,15 +31,18 @@
             rel: '{{ old('relationship', $member->relationship) }}',
             gender: '{{ old('gender', $member->gender) }}',
             maritalStatus: '{{ old('marital_status', $member->marital_status) }}',
+            isParentRel(value) {
+                return ['Father', 'Mother', 'પિતા', 'માતા'].includes(value);
+            },
             init() {
                 this.$watch('rel', value => {
-                    if (['Wife', 'Daughter-in-law', 'Daughter', 'Granddaughter (Son\'s Daughter)', 'Granddaughter (Daughter\'s Daughter)', 'પત્ની', 'દીકરી', 'વહુ', 'પૌત્રી', 'દોહિત્રી'].includes(value)) {
+                    if (['Wife', 'Daughter-in-law', 'Daughter', 'Granddaughter (Son\'s Daughter)', 'Granddaughter (Daughter\'s Daughter)', 'પત્ની', 'દીકરી', 'વહુ', 'પૌત્રી', 'દોહિત્રી', 'Mother', 'માતા'].includes(value)) {
                         this.gender = 'Female';
-                    } else if (['Husband', 'Son', 'Son-in-law', 'Grandson (Son\'s Son)', 'Grandson (Daughter\'s Son)', 'पति', 'પતિ', 'દીકરો', 'જમાઈ', 'પૌત્ર', 'દોહિત્ર'].includes(value)) {
+                    } else if (['Husband', 'Son', 'Son-in-law', 'Grandson (Son\'s Son)', 'Grandson (Daughter\'s Son)', 'पति', 'પતિ', 'દીકરો', 'જમાઈ', 'પૌત્ર', 'દોહિત્ર', 'Father', 'પિતા'].includes(value)) {
                         this.gender = 'Male';
                     }
                     
-                    if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'પત્ની', 'पति', 'પતિ', 'વહુ', 'જમાઈ'].includes(value)) {
+                    if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'પત્ની', 'पति', 'પતિ', 'વહુ', 'જમાઈ', 'Father', 'Mother', 'પિતા', 'માતા'].includes(value)) {
                         this.maritalStatus = 'Married';
                     }
                 });
@@ -55,6 +65,8 @@
                     $isFemaleMember = strtolower($userGender) === 'female';
                     $hasExistingSpouse = isset($family) && $family->contains(fn($m) => in_array($m->relationship, ['Wife', 'Husband', 'Spouse', 'પત્ની', 'પતિ']));
                     $isCurrentSpouse = in_array($rel, ['Wife', 'Husband', 'Spouse', 'પત્ની', 'પતિ']);
+                    $hasFather = isset($family) && $family->contains(fn($m) => in_array($m->relationship, ['Father', 'પિતા']));
+                    $hasMother = isset($family) && $family->contains(fn($m) => in_array($m->relationship, ['Mother', 'માતા']));
                 @endphp
                 <select name="relationship" required x-model="rel" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
                     @if(!$hasExistingSpouse || $isCurrentSpouse)
@@ -63,6 +75,12 @@
                         @else
                             <option value="Wife" {{ in_array($rel, ['Wife', 'Spouse', 'પત્ની']) ? 'selected' : '' }}>{{ __('messages.rel_wife') }}</option>
                         @endif
+                    @endif
+                    @if(!$hasFather || in_array($rel, ['Father', 'પિતા']))
+                        <option value="Father" {{ in_array($rel, ['Father', 'પિતા']) ? 'selected' : '' }}>{{ __('messages.rel_father') }}</option>
+                    @endif
+                    @if(!$hasMother || in_array($rel, ['Mother', 'માતા']))
+                        <option value="Mother" {{ in_array($rel, ['Mother', 'માતા']) ? 'selected' : '' }}>{{ __('messages.rel_mother') }}</option>
                     @endif
                     <option value="Son" {{ in_array($rel, ['Son', 'દીકરો']) ? 'selected' : '' }}>{{ __('messages.rel_son') }}</option>
                     <option value="Daughter" {{ in_array($rel, ['Daughter', 'દીકરી']) ? 'selected' : '' }}>{{ __('messages.rel_daughter') }}</option>
@@ -122,7 +140,7 @@
 
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-700 block">{{ __('messages.dob') }}</label>
-                <input type="date" name="dob" value="{{ old('dob', $member->dob) }}" min="{{ auth()->user()->memberProfile && auth()->user()->memberProfile->dob ? \Carbon\Carbon::parse(auth()->user()->memberProfile->dob)->addDay()->format('Y-m-d') : '' }}" max="{{ \Carbon\Carbon::yesterday()->format('Y-m-d') }}" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
+                <input type="date" name="dob" value="{{ old('dob', $member->dob) }}" :min="isParentRel(rel) ? '' : '{{ $dobChildMin }}'" :max="isParentRel(rel) ? '{{ $dobParentMax }}' : '{{ $dobChildMax }}'" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
             </div>
         </div>
 

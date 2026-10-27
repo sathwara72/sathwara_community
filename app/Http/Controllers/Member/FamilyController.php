@@ -8,6 +8,48 @@ use Illuminate\Http\Request;
 
 class FamilyController extends Controller
 {
+    private const PARENTS = ['Father', 'Mother', 'પિતા', 'માતા'];
+
+    /**
+     * Father / Mother: at most one of each, and older than the member.
+     * Returns an error message, or null when fine.
+     */
+    private function parentProblem(Request $request, $user, ?int $exceptId = null): ?string
+    {
+        $rel = $request->relationship;
+        if (!in_array($rel, self::PARENTS, true)) {
+            return null;
+        }
+
+        $same = in_array($rel, ['Father', 'પિતા'], true) ? ['Father', 'પિતા'] : ['Mother', 'માતા'];
+        $exists = $user->familyMembers()
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->whereIn('relationship', $same)
+            ->exists();
+
+        return $exists ? 'You can only add 1 ' . $same[0] . '.' : null;
+    }
+
+    /**
+     * DOB rules: children and others are younger than the member; Father / Mother are older.
+     */
+    private function dobRules(Request $request, $memberDob): array
+    {
+        $rules = ['nullable', 'date', 'before:today'];
+        if ($memberDob) {
+            $rules[] = in_array($request->relationship, self::PARENTS, true) ? 'before:' . $memberDob : 'after:' . $memberDob;
+        }
+
+        return $rules;
+    }
+
+    private function dobMessages(Request $request): array
+    {
+        return in_array($request->relationship, self::PARENTS, true)
+            ? ['dob.before' => __('messages.family_dob_before_member')]
+            : [];
+    }
+
     public function index()
     {
         $user = auth()->user();
@@ -44,19 +86,20 @@ class FamilyController extends Controller
             }
         }
 
-        if (in_array($request->relationship, ['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'Spouse', 'પત્ની', 'પતિ', 'વહુ', 'જમાઈ'])) {
+        if ($problem = $this->parentProblem($request, $user, null)) {
+            return redirect()->back()->withErrors(['relationship' => $problem])->withInput();
+        }
+
+        if (in_array($request->relationship, ['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'Spouse', 'પત્ની', 'પતિ', 'વહુ', 'જમાઈ', 'Father', 'Mother', 'પિતા', 'માતા'])) {
             $request->merge(['marital_status' => 'Married']);
         }
-        if (in_array($request->relationship, ['Husband', 'Son-in-law', 'Son', 'पति', 'પતિ', 'જમાઈ', 'દીકરો'])) {
+        if (in_array($request->relationship, ['Husband', 'Son-in-law', 'Son', 'पति', 'પતિ', 'જમાઈ', 'દીકરો', 'Father', 'પિતા'])) {
             $request->merge(['gender' => 'Male']);
-        } elseif (in_array($request->relationship, ['Wife', 'Daughter-in-law', 'Daughter', 'પત્ની', 'વહુ', 'દીકરી'])) {
+        } elseif (in_array($request->relationship, ['Wife', 'Daughter-in-law', 'Daughter', 'પત્ની', 'વહુ', 'દીકરી', 'Mother', 'માતા'])) {
             $request->merge(['gender' => 'Female']);
         }
 
-        $dobRules = ['nullable', 'date', 'before:today'];
-        if ($parentDob) {
-            $dobRules[] = 'after:' . $parentDob;
-        }
+        $dobRules = $this->dobRules($request, $parentDob);
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -72,6 +115,7 @@ class FamilyController extends Controller
             'blood_group' => 'nullable|string|max:10',
         ], [
             'dob.after' => __('messages.family_dob_after_member'),
+            ...$this->dobMessages($request),
         ]);
 
         auth()->user()->familyMembers()->create($request->all());
@@ -109,19 +153,20 @@ class FamilyController extends Controller
             }
         }
 
-        if (in_array($request->relationship, ['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'Spouse', 'પત્ની', 'પતિ', 'વહુ', 'જમાઈ'])) {
+        if ($problem = $this->parentProblem($request, $user, (int) $id)) {
+            return redirect()->back()->withErrors(['relationship' => $problem])->withInput()->with('edit_id', $id);
+        }
+
+        if (in_array($request->relationship, ['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'Spouse', 'પત્ની', 'પતિ', 'વહુ', 'જમાઈ', 'Father', 'Mother', 'પિતા', 'માતા'])) {
             $request->merge(['marital_status' => 'Married']);
         }
-        if (in_array($request->relationship, ['Husband', 'Son-in-law', 'Son', 'पति', 'પતિ', 'જમાઈ', 'દીકરો'])) {
+        if (in_array($request->relationship, ['Husband', 'Son-in-law', 'Son', 'पति', 'પતિ', 'જમાઈ', 'દીકરો', 'Father', 'પિતા'])) {
             $request->merge(['gender' => 'Male']);
-        } elseif (in_array($request->relationship, ['Wife', 'Daughter-in-law', 'Daughter', 'પત્ની', 'વહુ', 'દીકરી'])) {
+        } elseif (in_array($request->relationship, ['Wife', 'Daughter-in-law', 'Daughter', 'પત્ની', 'વહુ', 'દીકરી', 'Mother', 'માતા'])) {
             $request->merge(['gender' => 'Female']);
         }
 
-        $dobRules = ['nullable', 'date', 'before:today'];
-        if ($parentDob) {
-            $dobRules[] = 'after:' . $parentDob;
-        }
+        $dobRules = $this->dobRules($request, $parentDob);
 
         try {
             $request->validate([
@@ -138,6 +183,7 @@ class FamilyController extends Controller
                 'blood_group' => 'nullable|string|max:10',
             ], [
                 'dob.after' => __('messages.family_dob_after_member'),
+                ...$this->dobMessages($request),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()->withErrors($e->validator)->withInput()->with('edit_id', $id);

@@ -188,6 +188,7 @@ return [
     'rel_sister' => 'Sister (બહેન)',
     'rel_other' => 'Other (અન્ય)',
     'family_dob_after_member' => 'Family member birthdate must be after the main member\'s birthdate.',
+    'family_dob_before_member' => 'Father / Mother birthdate must be before the main member\'s birthdate.',
     'view_family_tree' => 'Preview Family Tree',
     'family_tree_title' => 'Family Tree Preview',
     'family_tree_subtitle' => 'Visual hierarchy of your registered family members',

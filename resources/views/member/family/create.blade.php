@@ -3,6 +3,13 @@
 @section('page_title', 'Add Family Member')
 
 @section('content')
+@php
+    // DOB picker limits: Father / Mother are older than the member, everyone else younger
+    $memberDob = auth()->user()->memberProfile?->dob;
+    $dobChildMin = $memberDob ? \Carbon\Carbon::parse($memberDob)->addDay()->format('Y-m-d') : '';
+    $dobChildMax = \Carbon\Carbon::yesterday()->format('Y-m-d');
+    $dobParentMax = $memberDob ? \Carbon\Carbon::parse($memberDob)->subDay()->format('Y-m-d') : $dobChildMax;
+@endphp
 <div class="max-w-xl bg-white border border-slate-100 rounded-2xl p-5 sm:p-6 shadow-sm">
     <h2 class="text-sm sm:text-base font-black text-slate-900 pb-2.5 border-b border-slate-100 flex items-center gap-2 mb-4">
         👨‍👩‍👧‍👦 {{ __('messages.add_family_member') }}
@@ -19,7 +26,26 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('member.family.store') }}" class="grid grid-cols-1 gap-4">
+    <form method="POST" action="{{ route('member.family.store') }}" class="grid grid-cols-1 gap-4"
+        x-data="{ 
+            rel: '{{ old('relationship') }}', 
+            gender: '{{ old('gender', 'Male') }}', 
+            marital_status: '{{ old('marital_status', 'Unmarried') }}',
+            isParentRel(value) {
+                return ['Father', 'Mother', 'પિતા', 'માતા'].includes(value);
+            },
+            onRelChange(val) {
+                this.rel = val;
+                if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'Spouse', 'પત્ની', 'પતિ', 'વહુ', 'જમાઈ', 'Father', 'Mother', 'પિતા', 'માતા'].includes(val)) {
+                    this.marital_status = 'Married';
+                }
+                if (['Husband', 'Son-in-law', 'Son', 'પતિ', 'જમાઈ', 'દીકરો', 'Father', 'પિતા'].includes(val)) {
+                    this.gender = 'Male';
+                } else if (['Wife', 'Daughter-in-law', 'Daughter', 'પત્ની', 'વહુ', 'દીકરી', 'Mother', 'માતા'].includes(val)) {
+                    this.gender = 'Female';
+                }
+            }
+        }">
         @csrf
         
         <div class="space-y-1.5">
@@ -27,28 +53,15 @@
             <input type="text" name="name" value="{{ old('name') }}" required placeholder="Enter Full Name" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
         </div>
 
-        <div x-data="{ 
-            rel: '{{ old('relationship') }}', 
-            gender: '{{ old('gender', 'Male') }}', 
-            marital_status: '{{ old('marital_status', 'Unmarried') }}',
-            onRelChange(val) {
-                this.rel = val;
-                if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'Spouse', 'પત્ની', 'પતિ', 'વહુ', 'જમાઈ'].includes(val)) {
-                    this.marital_status = 'Married';
-                }
-                if (['Husband', 'Son-in-law', 'Son', 'પતિ', 'જમાઈ', 'દીકરો'].includes(val)) {
-                    this.gender = 'Male';
-                } else if (['Wife', 'Daughter-in-law', 'Daughter', 'પત્ની', 'વહુ', 'દીકરી'].includes(val)) {
-                    this.gender = 'Female';
-                }
-            }
-        }" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-700 block">{{ __('messages.relationship') }} <span class="text-rose-500">*</span></label>
                 @php
                     $userGender = $profile->gender ?? 'Male';
                     $isFemaleMember = strtolower($userGender) === 'female';
                     $hasExistingSpouse = isset($family) && $family->contains(fn($m) => in_array($m->relationship, ['Wife', 'Husband', 'Spouse', 'પત્ની', 'પતિ']));
+                    $hasFather = isset($family) && $family->contains(fn($m) => in_array($m->relationship, ['Father', 'પિતા']));
+                    $hasMother = isset($family) && $family->contains(fn($m) => in_array($m->relationship, ['Mother', 'માતા']));
                 @endphp
                 <select name="relationship" required @change="onRelChange($event.target.value)" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
                     <option value="" disabled {{ old('relationship') ? '' : 'selected' }}>Select Relationship</option>
@@ -59,6 +72,12 @@
                             <option value="Wife" {{ old('relationship') == 'Wife' ? 'selected' : '' }}>{{ __('messages.rel_wife') }}</option>
                         @endif
                     @endif
+                    @unless($hasFather)
+                        <option value="Father" {{ old('relationship') == 'Father' ? 'selected' : '' }}>{{ __('messages.rel_father') }}</option>
+                    @endunless
+                    @unless($hasMother)
+                        <option value="Mother" {{ old('relationship') == 'Mother' ? 'selected' : '' }}>{{ __('messages.rel_mother') }}</option>
+                    @endunless
                     <option value="Son" {{ old('relationship') == 'Son' ? 'selected' : '' }}>{{ __('messages.rel_son') }}</option>
                     <option value="Daughter" {{ old('relationship') == 'Daughter' ? 'selected' : '' }}>{{ __('messages.rel_daughter') }}</option>
                     <option value="Daughter-in-law" {{ old('relationship') == 'Daughter-in-law' ? 'selected' : '' }}>{{ __('messages.rel_daughter_in_law') }}</option>
@@ -117,7 +136,7 @@
 
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-700 block">{{ __('messages.dob') }}</label>
-                <input type="date" name="dob" value="{{ old('dob') }}" min="{{ auth()->user()->memberProfile && auth()->user()->memberProfile->dob ? \Carbon\Carbon::parse(auth()->user()->memberProfile->dob)->addDay()->format('Y-m-d') : '' }}" max="{{ \Carbon\Carbon::yesterday()->format('Y-m-d') }}" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
+                <input type="date" name="dob" value="{{ old('dob') }}" :min="isParentRel(rel) ? '' : '{{ $dobChildMin }}'" :max="isParentRel(rel) ? '{{ $dobParentMax }}' : '{{ $dobChildMax }}'" class="w-full text-xs font-semibold h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none">
             </div>
         </div>
 

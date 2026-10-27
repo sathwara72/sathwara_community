@@ -1,6 +1,13 @@
 @extends('layouts.member')
 @section('page_title', __('messages.family_members'))
 @section('content')
+    @php
+        // DOB picker limits: Father / Mother are older than the member, everyone else younger
+        $memberDob = auth()->user()->memberProfile?->dob;
+        $dobChildMin = $memberDob ? \Carbon\Carbon::parse($memberDob)->addDay()->format('Y-m-d') : '';
+        $dobChildMax = \Carbon\Carbon::yesterday()->format('Y-m-d');
+        $dobParentMax = $memberDob ? \Carbon\Carbon::parse($memberDob)->subDay()->format('Y-m-d') : $dobChildMax;
+    @endphp
     <div x-data="{
             showAddModal: @json($errors->any() && !session()->has('edit_id')),
             showEditModal: @json($errors->any() && session()->has('edit_id')),
@@ -24,6 +31,9 @@
                 dob: '{{ old('dob') }}',
                 update_url: '{{ session('edit_id') ? route('member.family.update', session('edit_id')) : '' }}'
             },
+            isParentRel(value) {
+                return ['Father', 'Mother', 'પિતા', 'માતા'].includes(value);
+            },
             openEdit(memberItem) {
                 this.editMember = Object.assign({}, memberItem);
                 this.showEditModal = true;
@@ -38,24 +48,24 @@
                     }
                 });
                 this.$watch('addRelationship', value => {
-                    if (['Wife', 'Daughter-in-law', 'Daughter', 'Granddaughter (Son\'s Daughter)', 'Granddaughter (Daughter\'s Daughter)', 'પત્ની', 'દીકરી', 'વહુ', 'પૌત્રી', 'દોહિત્રી'].includes(value)) {
+                    if (['Wife', 'Daughter-in-law', 'Daughter', 'Granddaughter (Son\'s Daughter)', 'Granddaughter (Daughter\'s Daughter)', 'પત્ની', 'દીકરી', 'વહુ', 'પૌત્રી', 'દોહિત્રી', 'Mother', 'માતા'].includes(value)) {
                         this.addGender = 'Female';
-                    } else if (['Husband', 'Son', 'Son-in-law', 'Grandson (Son\'s Son)', 'Grandson (Daughter\'s Son)', 'पति', 'પતિ', 'દીકરો', 'જમાઈ', 'પૌત્ર', 'દોહિત્ર'].includes(value)) {
+                    } else if (['Husband', 'Son', 'Son-in-law', 'Grandson (Son\'s Son)', 'Grandson (Daughter\'s Son)', 'पति', 'પતિ', 'દીકરો', 'જમાઈ', 'પૌત્ર', 'દોહિત્ર', 'Father', 'પિતા'].includes(value)) {
                         this.addGender = 'Male';
                     }
 
-                    if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'પત્ની', 'पति', 'પતિ', 'વહુ', 'જમાઈ'].includes(value)) {
+                    if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'પત્ની', 'पति', 'પતિ', 'વહુ', 'જમાઈ', 'Father', 'Mother', 'પિતા', 'માતા'].includes(value)) {
                         this.addMaritalStatus = 'Married';
                     }
                 });
                 this.$watch('editMember.relationship', value => {
-                    if (['Wife', 'Daughter-in-law', 'Daughter', 'Granddaughter (Son\'s Daughter)', 'Granddaughter (Daughter\'s Daughter)', 'પત્ની', 'દીકરી', 'વહુ', 'પૌત્રી', 'દોહિત્રી'].includes(value)) {
+                    if (['Wife', 'Daughter-in-law', 'Daughter', 'Granddaughter (Son\'s Daughter)', 'Granddaughter (Daughter\'s Daughter)', 'પત્ની', 'દીકરી', 'વહુ', 'પૌત્રી', 'દોહિત્રી', 'Mother', 'માતા'].includes(value)) {
                         this.editMember.gender = 'Female';
-                    } else if (['Husband', 'Son', 'Son-in-law', 'Grandson (Son\'s Son)', 'Grandson (Daughter\'s Son)', 'पति', 'પતિ', 'દીકરો', 'જમાઈ', 'પૌત્ર', 'દોહિત્ર'].includes(value)) {
+                    } else if (['Husband', 'Son', 'Son-in-law', 'Grandson (Son\'s Son)', 'Grandson (Daughter\'s Son)', 'पति', 'પતિ', 'દીકરો', 'જમાઈ', 'પૌત્ર', 'દોહિત્ર', 'Father', 'પિતા'].includes(value)) {
                         this.editMember.gender = 'Male';
                     }
 
-                    if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'પત્ની', 'पति', 'પતિ', 'વહુ', 'જમાઈ'].includes(value)) {
+                    if (['Wife', 'Husband', 'Daughter-in-law', 'Son-in-law', 'પત્ની', 'पति', 'પતિ', 'વહુ', 'જમાઈ', 'Father', 'Mother', 'પિતા', 'માતા'].includes(value)) {
                         this.editMember.marital_status = 'Married';
                     }
                 });
@@ -278,6 +288,8 @@
                                         $userGender = $profile->gender ?? 'Male';
                                         $isFemaleMember = strtolower($userGender) === 'female';
                                         $hasExistingSpouse = $family->contains(fn($m) => in_array($m->relationship, ['Wife', 'Husband', 'Spouse', 'પત્ની', 'પતિ']));
+                                        $hasFather = $family->contains(fn($m) => in_array($m->relationship, ['Father', 'પિતા']));
+                                        $hasMother = $family->contains(fn($m) => in_array($m->relationship, ['Mother', 'માતા']));
                                     @endphp
                                     <select name="relationship" required x-model="addRelationship"
                                         class="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none h-10">
@@ -289,6 +301,12 @@
                                                 <option value="Wife">{{ __('messages.rel_wife') }}</option>
                                             @endif
                                         @endif
+                                        @unless($hasFather)
+                                            <option value="Father">{{ __('messages.rel_father') }}</option>
+                                        @endunless
+                                        @unless($hasMother)
+                                            <option value="Mother">{{ __('messages.rel_mother') }}</option>
+                                        @endunless
                                         <option value="Son">{{ __('messages.rel_son') }}</option>
                                         <option value="Daughter">{{ __('messages.rel_daughter') }}</option>
                                         <option value="Daughter-in-law">{{ __('messages.rel_daughter_in_law') }}</option>
@@ -365,8 +383,8 @@
                                     <label
                                         class="text-xs font-bold text-slate-700 block">{{ __('messages.dob') }}</label>
                                     <input type="date" name="dob" value="{{ old('dob') }}"
-                                        min="{{ auth()->user()->memberProfile && auth()->user()->memberProfile->dob ? \Carbon\Carbon::parse(auth()->user()->memberProfile->dob)->addDay()->format('Y-m-d') : '' }}"
-                                        max="{{ \Carbon\Carbon::yesterday()->format('Y-m-d') }}"
+                                        :min="isParentRel(addRelationship) ? '' : '{{ $dobChildMin }}'"
+                                        :max="isParentRel(addRelationship) ? '{{ $dobParentMax }}' : '{{ $dobChildMax }}'"
                                         @click="$event.target.showPicker?.()" @focus="$event.target.showPicker?.()"
                                         class="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none cursor-pointer h-10">
                                 </div>
@@ -500,6 +518,12 @@
                                                 x-show="!{{ $hasExistingSpouse ? 'true' : 'false' }} || ['Wife', 'Spouse', 'પત્ની'].includes(editMember.relationship)">
                                                 {{ __('messages.rel_wife') }}</option>
                                         @endif
+                                        <option value="Father"
+                                            x-show="!{{ $hasFather ? 'true' : 'false' }} || ['Father', 'પિતા'].includes(editMember.relationship)">
+                                            {{ __('messages.rel_father') }}</option>
+                                        <option value="Mother"
+                                            x-show="!{{ $hasMother ? 'true' : 'false' }} || ['Mother', 'માતા'].includes(editMember.relationship)">
+                                            {{ __('messages.rel_mother') }}</option>
                                         <option value="Son">{{ __('messages.rel_son') }}</option>
                                         <option value="Daughter">{{ __('messages.rel_daughter') }}</option>
                                         <option value="Daughter-in-law">{{ __('messages.rel_daughter_in_law') }}</option>
@@ -569,8 +593,8 @@
                                     <label
                                         class="text-xs font-bold text-slate-700 block">{{ __('messages.dob') }}</label>
                                     <input type="date" name="dob" x-model="editMember.dob"
-                                        min="{{ auth()->user()->memberProfile && auth()->user()->memberProfile->dob ? \Carbon\Carbon::parse(auth()->user()->memberProfile->dob)->addDay()->format('Y-m-d') : '' }}"
-                                        max="{{ \Carbon\Carbon::yesterday()->format('Y-m-d') }}"
+                                        :min="isParentRel(editMember.relationship) ? '' : '{{ $dobChildMin }}'"
+                                        :max="isParentRel(editMember.relationship) ? '{{ $dobParentMax }}' : '{{ $dobChildMax }}'"
                                         class="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-primary-500 focus:outline-none h-10">
                                 </div>
                             </div>
@@ -688,16 +712,49 @@
                         $daughters = $family->filter(fn($m) => in_array($m->relationship, ['Daughter', 'Daughter (દીકરી)', 'દીકરી']));
                         $children = $sons->concat($daughters);
                         $inlaws = $family->filter(fn($m) => in_array($m->relationship, ['Daughter-in-law', 'Son-in-law', 'વહુ', 'જમાઈ']));
+                        $parents = $family->filter(fn($m) => in_array($m->relationship, ['Father', 'પિતા']))
+                            ->concat($family->filter(fn($m) => in_array($m->relationship, ['Mother', 'માતા'])));
                         $grandchildren = $family->filter(fn($m) => in_array($m->relationship, ["Grandson (Son's Son)", "Granddaughter (Son's Daughter)", "Grandson (Daughter's Son)", "Granddaughter (Daughter's Daughter)", 'પૌત્ર', 'પૌત્રી', 'દોહિત્ર', 'દોહિત્રી']));
                         $others = $family->reject(
                             fn($m) =>
-                            in_array($m->relationship, ['Wife', 'Husband', 'Spouse', 'પત્ની', 'પતિ', 'Son', 'Daughter', 'Son (દીકરો)', 'Daughter (દીકરી)', 'દીકરો', 'દીકરી', 'Daughter-in-law', 'Son-in-law', 'વહુ', 'જમાઈ', "Grandson (Son's Son)", "Granddaughter (Son's Daughter)", "Grandson (Daughter's Son)", "Granddaughter (Daughter's Daughter)", 'પૌત્ર', 'પૌત્રી', 'દોહિત્ર', 'દોહિત્રી'])
+                            in_array($m->relationship, ['Wife', 'Husband', 'Spouse', 'પત્ની', 'પતિ', 'Son', 'Daughter', 'Son (દીકરો)', 'Daughter (દીકરી)', 'દીકરો', 'દીકરી', 'Daughter-in-law', 'Son-in-law', 'વહુ', 'જમાઈ', "Grandson (Son's Son)", "Granddaughter (Son's Daughter)", "Grandson (Daughter's Son)", "Granddaughter (Daughter's Daughter)", 'પૌત્ર', 'પૌત્રી', 'દોહિત્ર', 'દોહિત્રી', 'Father', 'Mother', 'પિતા', 'માતા'])
                         );
                     @endphp
 
                     <!-- SCROLLABLE CANVAS FOR CONNECTED TREE -->
                     <div class="overflow-x-auto overflow-y-auto flex-1 p-3 sm:p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
                         <div class="w-max min-w-full flex flex-col items-center py-2">
+
+                            <!-- PARENTS (above the member) -->
+                            @if($parents->count() > 0)
+                                <div class="flex flex-col items-center">
+                                    <div class="flex items-center justify-center space-x-2 sm:space-x-3">
+                                        @foreach($parents as $par)
+                                            @if(!$loop->first)
+                                                <div class="flex items-center space-x-1 px-1">
+                                                    <div style="width: 14px; height: 2.5px; background-color: #f43f5e;"></div>
+                                                    <span class="text-xs">💖</span>
+                                                    <div style="width: 14px; height: 2.5px; background-color: #f43f5e;"></div>
+                                                </div>
+                                            @endif
+                                            <div
+                                                class="bg-amber-50/90 border-2 border-amber-300 rounded-2xl px-3.5 py-2 text-center shadow-sm min-w-[130px] sm:min-w-[155px] max-w-[200px]">
+                                                <h4 class="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words flex items-center justify-center gap-1.5"
+                                                    title="{{ $par->name }}">
+                                                    <span>{{ in_array($par->relationship, ['Father', 'પિતા']) ? '👴' : '👵' }}</span>
+                                                    {{ $par->name }}
+                                                </h4>
+                                                <span
+                                                    class="text-[9px] font-bold text-amber-700 bg-white px-2 py-0.5 rounded-md border border-amber-200 inline-block mt-1 shadow-2xs">
+                                                    {{ $par->relationship }}
+                                                </span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <!-- Stem down to the member -->
+                                    <div style="width: 2.5px; height: 18px; background-color: #64748b;"></div>
+                                </div>
+                            @endif
 
                             <!-- PRIMARY MEMBER & SPOUSE -->
                             <div class="flex flex-col items-center">
