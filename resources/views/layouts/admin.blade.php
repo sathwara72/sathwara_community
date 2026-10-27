@@ -278,6 +278,7 @@
             font-size: 12.5px !important;
         }
     </style>
+    <script src="{{ asset('js/file-input-snapshot.js') }}?v={{ filemtime(public_path('js/file-input-snapshot.js')) }}"></script>
 </head>
 
 <body x-data="{ sidebarOpen: false }"

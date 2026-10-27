@@ -178,6 +178,7 @@
     </style>
     @stack('styles')
     <script src="{{ asset('js/payment-log.js') }}?v={{ filemtime(public_path('js/payment-log.js')) }}" data-url="{{ route('payment_attempts.store') }}"></script>
+    <script src="{{ asset('js/file-input-snapshot.js') }}?v={{ filemtime(public_path('js/file-input-snapshot.js')) }}"></script>
 </head>
 
 <body x-data="{ sidebarOpen: false }"
