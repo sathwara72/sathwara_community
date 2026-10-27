@@ -167,10 +167,65 @@
 
                 <!-- Footer Action Buttons -->
                 <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <span class="text-[10px] font-bold text-slate-400" x-text="autoResumeTimer ? 'Auto-resuming in 3s...' : 'Scan next pass anytime'"></span>
+                    <span class="text-[10px] font-bold text-slate-400">Tap OK on the popup to scan the next pass</span>
                     <button type="button" @click="resetScanResult()"
                         class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer">
                         Scan Next Pass ➔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan Result Popup (stays until OK is tapped, so the gate staff can see it on mobile) -->
+        <div x-show="showPopup" x-cloak x-transition.opacity
+             class="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div x-show="showPopup" x-transition.scale.90
+                 class="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden text-center">
+                <div class="px-6 pt-7 pb-5 space-y-3"
+                     :class="{
+                         'bg-emerald-50': lastResult?.status === 'checked_in',
+                         'bg-amber-50': lastResult?.status === 'already_used',
+                         'bg-rose-50': lastResult && lastResult.status !== 'checked_in' && lastResult.status !== 'already_used'
+                     }">
+                    <div class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-white shadow-md"
+                         :class="{
+                             'bg-emerald-600': lastResult?.status === 'checked_in',
+                             'bg-amber-500': lastResult?.status === 'already_used',
+                             'bg-rose-600': lastResult && lastResult.status !== 'checked_in' && lastResult.status !== 'already_used'
+                         }">
+                        <svg x-show="lastResult?.status === 'checked_in'" class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                        <svg x-show="lastResult?.status === 'already_used'" class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <svg x-show="lastResult && lastResult.status !== 'checked_in' && lastResult.status !== 'already_used'" class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </div>
+
+                    <h3 class="text-lg font-black uppercase tracking-wide"
+                        :class="{
+                            'text-emerald-800': lastResult?.status === 'checked_in',
+                            'text-amber-800': lastResult?.status === 'already_used',
+                            'text-rose-800': lastResult && lastResult.status !== 'checked_in' && lastResult.status !== 'already_used'
+                        }"
+                        x-text="lastResult?.status === 'checked_in' ? 'Scanned Successfully' : (lastResult?.status === 'already_used' ? 'Already Scanned' : (lastResult?.message || 'Invalid Pass'))"></h3>
+
+                    <template x-if="lastResult?.token">
+                        <div class="space-y-1">
+                            <p class="text-2xl font-black text-slate-900 leading-tight break-words" x-text="lastResult.token.attendee"></p>
+                            <p class="text-xs font-bold text-slate-500">
+                                Pass <span class="font-mono" x-text="lastResult.token.pass_code"></span>
+                                <template x-if="lastResult.token.mobile && lastResult.token.mobile !== '-'">
+                                    <span> · <span x-text="lastResult.token.mobile"></span></span>
+                                </template>
+                            </p>
+                        </div>
+                    </template>
+
+                    <p class="text-xs font-semibold text-slate-600 leading-relaxed"
+                       x-show="lastResult?.status !== 'checked_in'" x-text="lastResult?.detail"></p>
+                </div>
+
+                <div class="p-4 border-t border-slate-100">
+                    <button type="button" @click="closePopup()"
+                        class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-base rounded-2xl shadow-xs transition-all cursor-pointer">
+                        OK
                     </button>
                 </div>
             </div>
@@ -190,10 +245,13 @@
                 isScanning: false,
                 isVerifying: false,
                 manualCode: '',
+                lastCode: '',
                 lastResult: null,
                 totalPasses: {{ $totalPasses }},
                 checkedInCount: {{ $checkedInCount }},
-                autoResumeTimer: null,
+                showPopup: false,
+                lastDismissedCode: '',
+                lastDismissedAt: 0,
 
                 init() {
                     this.$nextTick(() => {
@@ -241,7 +299,9 @@
                 },
 
                 handleQrScan(scannedCode) {
-                    if (this.isVerifying) return;
+                    if (this.isVerifying || this.showPopup) return;
+                    // The camera keeps reading the same QR right after OK; ignore it for a moment
+                    if (scannedCode === this.lastDismissedCode && Date.now() - this.lastDismissedAt < 3000) return;
                     
                     // Temporarily pause camera scan during API verification
                     this.verifyPassCode(scannedCode);
@@ -254,6 +314,7 @@
 
                 verifyPassCode(code) {
                     this.isVerifying = true;
+                    this.lastCode = code;
 
                     fetch("{{ route('admin.events.verify_pass', $event->id) }}", {
                         method: "POST",
@@ -282,11 +343,7 @@
                             this.playTone(220, 0.6, 'sawtooth'); // Low red buzz error
                         }
 
-                        // Set auto reset timer to clear result after 3 seconds
-                        clearTimeout(this.autoResumeTimer);
-                        this.autoResumeTimer = setTimeout(() => {
-                            this.resetScanResult();
-                        }, 3500);
+                        this.openPopup(data.status);
                     })
                     .catch(err => {
                         this.isVerifying = false;
@@ -298,12 +355,25 @@
                             message: 'NETWORK / SERVER ERROR',
                             detail: 'Could not connect to verification server. Check network connection.'
                         };
+                        this.openPopup('invalid');
                     });
                 },
 
+                openPopup(status) {
+                    this.showPopup = true;
+                    try {
+                        navigator.vibrate?.(status === 'checked_in' ? 150 : [200, 100, 200]);
+                    } catch(e) {}
+                },
+
+                closePopup() {
+                    this.showPopup = false;
+                    this.lastDismissedCode = this.lastCode || '';
+                    this.lastDismissedAt = Date.now();
+                    this.resetScanResult();
+                },
+
                 resetScanResult() {
-                    clearTimeout(this.autoResumeTimer);
-                    this.autoResumeTimer = null;
                     this.lastResult = null;
                 },
 

@@ -67,6 +67,10 @@ return [
 
     'timezone' => 'UTC',
 
+    // Timezone the Mandal works in. Admin-entered deadlines (e.g. pass purchase
+    // last date & time) are stored as India wall-clock time and compared in it.
+    'local_timezone' => 'Asia/Kolkata',
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

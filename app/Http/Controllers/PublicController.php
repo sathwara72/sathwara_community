@@ -294,8 +294,8 @@ class PublicController extends Controller
             }
         } else {
             // Pass purchase deadline
-            if (!empty($event->registration_end_date) && now()->toDateString() > \Carbon\Carbon::parse($event->registration_end_date)->toDateString()) {
-                return redirect()->back()->with('error', 'Pass purchase for this event closed on ' . date('d-M-Y', strtotime($event->registration_end_date)) . '.');
+            if ($event->isPassPurchaseClosed()) {
+                return redirect()->back()->with('error', 'Pass purchase for this event closed on ' . $event->passPurchaseDeadlineLabel() . '.');
             }
         }
 
@@ -940,8 +940,8 @@ class PublicController extends Controller
         $registration = EventRegistration::where('user_id', auth()->id())->findOrFail($id);
         $event = $registration->event;
 
-        if (!empty($event->registration_end_date) && now()->toDateString() > \Carbon\Carbon::parse($event->registration_end_date)->toDateString()) {
-            return redirect()->back()->with('error', 'The last date for registration (' . date('d-M-Y', strtotime($event->registration_end_date)) . ') has passed. You cannot delete this registration.');
+        if ($event->isPassPurchaseClosed()) {
+            return redirect()->back()->with('error', 'The last date for registration (' . $event->passPurchaseDeadlineLabel() . ') has passed. You cannot delete this registration.');
         }
 
         $registration->delete();
@@ -955,6 +955,13 @@ class PublicController extends Controller
     public function registerSponsor(Request $request, $id)
     {
         $event = Event::published()->findOrFail($id);
+
+        if ($event->isSponsorshipClosed()) {
+            return redirect()->back()
+                ->with('error', app()->getLocale() === 'gu'
+                    ? 'કાર્યક્રમની તારીખ પસાર થઈ ગઈ છે, હવે સ્પોન્સરશિપ સ્વીકારવામાં આવતી નથી.'
+                    : 'This event is over, sponsorship is no longer accepted.');
+        }
 
         $validated = $request->validate([
             'sponsorship_type_id' => 'nullable|exists:sponsorship_types,id',
@@ -1020,6 +1027,7 @@ class PublicController extends Controller
             'address' => $validated['address'] ?? null,
             'notes' => $validated['notes'] ?? null,
             'payment_status' => $paymentStatus,
+            'payment_mode' => !empty($paymentId) ? 'online' : null,
             'payment_id' => $paymentId,
             'status' => 'pending',
         ]);

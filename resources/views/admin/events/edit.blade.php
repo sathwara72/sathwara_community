@@ -117,10 +117,10 @@
             <!-- Pass Purchase Last Date (Mandatory for every event type) -->
             <div class="space-y-0.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
-                    <span>{{ __('messages.pass_purchase_last_date') }} <span class="text-rose-500">*</span></span>
+                    <span>{{ __('messages.pass_purchase_last_date') }} &amp; Time (IST) <span class="text-rose-500">*</span></span>
                     <span class="text-[9px] text-rose-500 font-bold">({{ __('messages.last_date_deadline') }})</span>
                 </label>
-                <input type="date" name="registration_end_date" value="{{ old('registration_end_date', $event->registration_end_date ? $event->registration_end_date->format('Y-m-d') : '') }}" required
+                <input type="datetime-local" name="registration_end_date" value="{{ old('registration_end_date', $event->registration_end_date ? $event->registration_end_date->format('Y-m-d\TH:i') : '') }}" required
                        @click="$event.target.showPicker?.()"
                        @focus="$event.target.showPicker?.()"
                        class="w-full md:w-1/2 text-xs font-semibold px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:border-primary-500">

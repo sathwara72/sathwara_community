@@ -1,6 +1,6 @@
 @php
     $guestFee = (float) ($event->pass_fee ?? 0);
-    $guestPassesClosed = !empty($event->registration_end_date) && now()->toDateString() > $event->registration_end_date->toDateString();
+    $guestPassesClosed = $event->isPassPurchaseClosed();
     $guestRemaining = \App\Services\GuestPassService::remainingPasses($event);
     $guestMaxPersons = $guestRemaining === null
         ? (int) config('guest_pass.max_persons_per_purchase')
@@ -37,7 +37,7 @@
 
     @if($guestPassesClosed)
         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold text-center">
-            Pass purchase for this event closed on {{ $event->registration_end_date->format('d-M-Y') }}.
+            Pass purchase for this event closed on {{ $event->passPurchaseDeadlineLabel() }}.
         </div>
     @elseif($guestRemaining === 0)
         <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-sm font-bold text-center">

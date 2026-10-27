@@ -37,7 +37,7 @@ class Event extends Model
 
     protected $casts = [
         'published_date' => 'date',
-        'registration_end_date' => 'date',
+        'registration_end_date' => 'datetime', // India time (config app.local_timezone)
         'registration_option' => 'boolean',
         'has_registration_form' => 'boolean',
         'form_start_date' => 'date',
@@ -69,18 +69,42 @@ class Event extends Model
         return $this->pass_purchase_access === 'anyone';
     }
 
-    // Pass purchase is closed once the day after registration_end_date begins
+    // Today's date in India, as Y-m-d
+    public static function localToday(): string
+    {
+        return now(config('app.local_timezone'))->toDateString();
+    }
+
+    // Pass purchase is closed once the last date & time (India time) has passed
     public function isPassPurchaseClosed(): bool
     {
         return !empty($this->registration_end_date)
-            && now()->toDateString() > $this->registration_end_date->toDateString();
+            && $this->registration_end_date->copy()->shiftTimezone(config('app.local_timezone'))->isPast();
+    }
+
+    // Pass purchase last date & time for display, e.g. "25-Oct-2026 06:00 PM"
+    public function passPurchaseDeadlineLabel(): string
+    {
+        return $this->registration_end_date ? $this->registration_end_date->format('d-M-Y h:i A') : '';
     }
 
     // Form fill-up is closed once the day after form_end_date begins
     public function isFormFillupClosed(): bool
     {
         return !empty($this->form_end_date)
-            && now()->toDateString() > \Carbon\Carbon::parse($this->form_end_date)->toDateString();
+            && self::localToday() > \Carbon\Carbon::parse($this->form_end_date)->toDateString();
+    }
+
+    // The event day is over (India time)
+    public function isDatePassed(): bool
+    {
+        return !empty($this->date) && self::localToday() > \Carbon\Carbon::parse($this->date)->toDateString();
+    }
+
+    // Sponsorship can be bought up to and including the event day
+    public function isSponsorshipClosed(): bool
+    {
+        return $this->isDatePassed();
     }
 
     public function registrations()

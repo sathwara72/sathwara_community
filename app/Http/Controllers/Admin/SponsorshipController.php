@@ -118,6 +118,7 @@ class SponsorshipController extends Controller
             'address' => 'nullable|string|max:500',
             'notes' => 'nullable|string|max:1000',
             'payment_status' => 'required|in:pending,received,failed',
+            'payment_mode' => 'nullable|in:online,cash',
             'status' => 'required|in:pending,approved,rejected',
         ]);
 
@@ -149,6 +150,7 @@ class SponsorshipController extends Controller
             'address' => $validated['address'] ?? null,
             'notes' => $validated['notes'] ?? null,
             'payment_status' => $validated['payment_status'],
+            'payment_mode' => $validated['payment_mode'] ?? null,
             'status' => $validated['status'],
         ]);
 
@@ -188,6 +190,7 @@ class SponsorshipController extends Controller
             'address' => 'nullable|string|max:500',
             'notes' => 'nullable|string|max:1000',
             'payment_status' => 'required|in:pending,received,failed',
+            'payment_mode' => 'nullable|in:online,cash',
             'status' => 'required|in:pending,approved,rejected',
         ]);
 
@@ -285,6 +288,7 @@ class SponsorshipController extends Controller
                 'City / Area',
                 'Address',
                 'Payment Status',
+                'Payment Mode',
                 'Transaction ID',
                 'Approval Status',
                 'Notes',
@@ -304,6 +308,7 @@ class SponsorshipController extends Controller
                     $s->city ?? '-',
                     $s->address ?? '-',
                     ucfirst($s->payment_status),
+                    $s->payment_mode ? ucfirst($s->payment_mode) : '-',
                     $s->transactions->pluck('transaction_no')->implode(', '),
                     ucfirst($s->status),
                     $s->notes ?? '-',

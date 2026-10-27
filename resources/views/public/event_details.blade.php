@@ -22,6 +22,12 @@
             margin-bottom: 0.5rem !important;
             color: #0f172a !important;
         }
+
+        /* Pass purchase widget: right below the header on mobile, before the description */
+        #event-registration { scroll-margin-top: 6rem; }
+        @media (max-width: 1023px) {
+            #event-registration { order: -1; }
+        }
     </style>
 
     <!-- Event Header Banner (Top Hero Section) -->
@@ -55,7 +61,7 @@
                         <span class="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black bg-primary-500/20 text-primary-300 border border-primary-500/30 uppercase tracking-wider">
                             {{ __('messages.community_gathering') }}
                         </span>
-                        @if($event->date < now()->toDateString())
+                        @if($event->isDatePassed())
                             <span class="text-xs font-black text-slate-200 bg-slate-800 px-3.5 py-1 rounded-full border border-slate-700 uppercase tracking-wider shadow-xs">{{ __('messages.passed') }}</span>
                         @else
                             <span class="text-xs font-black text-white bg-emerald-600 px-3.5 py-1 rounded-full border border-emerald-500 uppercase tracking-wider shadow-xs">{{ __('messages.upcoming') }}</span>
@@ -97,10 +103,18 @@
                         @if(!empty($event->registration_end_date))
                             <div class="inline-flex items-center gap-2 text-rose-200 font-extrabold bg-rose-950 px-4 py-2.5 rounded-xl border border-rose-800 whitespace-nowrap shadow-xs">
                                 <svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <span>{{ __('messages.pass_purchase_last_date') }}: {{ date('d-M-Y', strtotime($event->registration_end_date)) }}</span>
+                                <span>{{ __('messages.pass_purchase_last_date') }}: {{ $event->passPurchaseDeadlineLabel() }}</span>
                             </div>
                         @endif
                     </div>
+
+                    @if(!$event->isDatePassed() && $event->status !== 'cancelled' && !$event->isPassPurchaseClosed())
+                        <a href="#event-registration"
+                           class="inline-flex items-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-500 active:scale-95 text-white text-sm font-extrabold rounded-xl shadow-md shadow-primary-500/20 transition-all">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                            <span>{{ __('messages.purchase_pass') }}</span>
+                        </a>
+                    @endif
                 </div>
 
                 <!-- Right Side Small Image -->
@@ -427,7 +441,12 @@
                                         </div>
 
                                         <div class="pt-4 mt-2 border-t border-amber-100">
-                                            @if($st->is_full)
+                                            @if($event->isSponsorshipClosed())
+                                                <button type="button" disabled
+                                                    class="w-full py-2.5 bg-slate-200 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed text-center">
+                                                    {{ __('messages.sponsorship_closed') }}
+                                                </button>
+                                            @elseif($st->is_full)
                                                 <button type="button" disabled
                                                     class="w-full py-2.5 bg-slate-200 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed text-center">
                                                     {{ __('messages.slots_full') }}
@@ -498,7 +517,7 @@
                 </div>
 
                 <!-- Right: Registration Widget (5 cols - Fixed/Sticky on Scroll) -->
-                <div class="lg:col-span-5 lg:sticky self-start z-20" style="position: -webkit-sticky; position: sticky; top: 6rem;">
+                <div id="event-registration" class="lg:col-span-5 lg:sticky lg:top-24 self-start z-20">
                     <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-md space-y-4">
                         <div class="border-b border-slate-100 pb-3 flex items-center justify-between gap-2 flex-wrap">
                             <h3 class="text-base font-black text-slate-900">
@@ -525,7 +544,7 @@
                         </div>
 
                         <div class="space-y-4">
-                            @if($event->date < now()->toDateString())
+                            @if($event->isDatePassed())
                                 <!-- Finished Event -->
                                 <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold text-center">
                                     {{ __('messages.event_concluded') }}
@@ -548,7 +567,7 @@
                                     @if($passPurchaseClosed && !$hasPaidPass)
                                         <!-- Pass purchase last date has passed -->
                                         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-sm font-bold text-center">
-                                            {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
+                                            {{ __('messages.pass_purchase_closed_on', ['date' => $event->passPurchaseDeadlineLabel()]) }}
                                         </div>
                                     @elseif(auth()->guest() && $event->allowsGuestPassPurchase())
                                         @include('public.partials.guest_pass_purchase', ['event' => $event])
@@ -644,7 +663,7 @@
                                                 </div>
                                                 @if($passPurchaseClosed)
                                                     <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold text-center">
-                                                        {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
+                                                        {{ __('messages.pass_purchase_closed_on', ['date' => $event->passPurchaseDeadlineLabel()]) }}
                                                     </div>
                                                 @endif
                                             @else

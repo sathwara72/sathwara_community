@@ -26,7 +26,7 @@
                     class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden flex flex-col md:flex-row md:items-stretch relative">
                     <!-- Status & Event Type Badges (Overlaid on card) -->
                     <div class="absolute top-3 left-6 z-20 flex items-center gap-1.5">
-                        @if($event->date < now()->toDateString())
+                        @if($event->isDatePassed())
                             <span
                                 class="text-[9px] font-extrabold text-slate-500 bg-white/95 backdrop-blur-sm border border-slate-200 px-2.5 py-1 rounded-full uppercase tracking-wider">Passed</span>
                         @elseif($event->status === 'cancelled')
@@ -175,7 +175,7 @@
                                         <span
                                             class="text-[9px] text-rose-500 block font-extrabold uppercase tracking-wider leading-none">{{ __('messages.pass_purchase_last_date') }}</span>
                                         <span
-                                            class="text-rose-700 font-bold">{{ date('d-M-Y', strtotime($event->registration_end_date)) }}</span>
+                                            class="text-rose-700 font-bold">{{ $event->passPurchaseDeadlineLabel() }}</span>
                                     </div>
                                 </div>
                             @endif
@@ -451,7 +451,7 @@
                     <!-- Ticket Bottom Section -->
                     <div class="px-4 pt-1 space-y-3">
                         <div class="space-y-3">
-                            @if($event->date < now()->toDateString())
+                            @if($event->isDatePassed())
                                 <!-- Concluded -->
                                 <div
                                     class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold text-center">
@@ -512,7 +512,7 @@
 
                                         @if($event->isPassPurchaseClosed())
                                             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold text-center">
-                                                {{ __('messages.pass_purchase_closed_on', ['date' => $event->registration_end_date->format('d-M-Y')]) }}
+                                                {{ __('messages.pass_purchase_closed_on', ['date' => $event->passPurchaseDeadlineLabel()]) }}
                                             </div>
                                         @elseif($isFull)
                                             <div class="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold text-center flex items-center justify-center gap-1">

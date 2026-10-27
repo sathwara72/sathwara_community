@@ -271,8 +271,8 @@ class GuestPassController extends Controller
             return $this->error('This event is only open to logged-in members.', 403);
         }
 
-        if (!empty($event->registration_end_date) && now()->toDateString() > $event->registration_end_date->toDateString()) {
-            return $this->error('Pass purchase for this event closed on ' . $event->registration_end_date->format('d-M-Y') . '.', 422);
+        if ($event->isPassPurchaseClosed()) {
+            return $this->error('Pass purchase for this event closed on ' . $event->passPurchaseDeadlineLabel() . '.', 422);
         }
 
         return $event;

@@ -1011,7 +1011,7 @@ class EventController extends Controller
                 'attendee' => $reg->form_data['full_name'] ?? ($reg->user->name ?? 'Guest Attendee'),
                 'mobile' => $reg->form_data['mobile'] ?? ($reg->user->phone ?? '-'),
                 'is_checked_in' => $t->is_checked_in,
-                'checked_in_at' => $t->checked_in_at ? $t->checked_in_at->format('d M Y, h:i A') : null,
+                'checked_in_at' => $t->checked_in_at ? $t->checked_in_at->copy()->setTimezone(config('app.local_timezone'))->format('d M Y, h:i A') : null,
             ];
         }
 

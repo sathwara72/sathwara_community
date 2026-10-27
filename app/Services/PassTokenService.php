@@ -86,7 +86,7 @@ class PassTokenService
         }
 
         if ($token->is_checked_in) {
-            $checkedInAtStr = $token->checked_in_at ? $token->checked_in_at->format('d M, h:i A') : 'earlier';
+            $checkedInAtStr = $token->checked_in_at ? $token->checked_in_at->copy()->setTimezone(config('app.local_timezone'))->format('d M, h:i A') : 'earlier';
             $checkerName = $token->checkedInUser ? $token->checkedInUser->name : 'Gate Scanner';
 
             return [

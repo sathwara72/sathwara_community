@@ -1059,6 +1059,7 @@
                                     'address' => $s->address,
                                     'notes' => $s->notes,
                                     'payment_status' => $s->payment_status,
+                                    'payment_mode' => $s->payment_mode ?? 'cash',
                                     'transaction_nos' => $s->transactions->pluck('transaction_no')->implode(', '),
                                     'status' => $s->status,
                                     'created_at' => $s->created_at ? $s->created_at->format('d-M-Y h:i A') : '-',
@@ -1135,6 +1136,10 @@
                                                     <svg class="w-2.5 h-2.5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
                                                     <span>{{ $s->mobile }}</span>
                                                 </a>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-slate-400 font-bold text-[9px]">{{ __('messages.payment_mode') }}:</span>
+                                                <span class="font-bold text-slate-700">{{ ($s->payment_mode ?? 'cash') === 'online' ? __('messages.payment_mode_online') : __('messages.payment_mode_cash') }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1956,6 +1961,17 @@
 
                             <div>
                                 <label class="text-[11px] font-bold text-slate-700 block mb-1">
+                                    {{ __('messages.payment_mode') }}
+                                </label>
+                                <select name="payment_mode" x-model="editingSponsor.payment_mode"
+                                    class="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+                                    <option value="cash">{{ __('messages.payment_mode_cash') }}</option>
+                                    <option value="online">{{ __('messages.payment_mode_online') }}</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-700 block mb-1">
                                     {{ __('messages.status') }}
                                 </label>
                                 <select name="status" x-model="editingSponsor.status"
@@ -2100,6 +2116,17 @@
 
                             <div>
                                 <label class="text-[11px] font-bold text-slate-700 block mb-1">
+                                    {{ __('messages.payment_mode') }}
+                                </label>
+                                <select name="payment_mode" x-model="editingSponsor.payment_mode"
+                                    class="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+                                    <option value="cash">{{ __('messages.payment_mode_cash') }}</option>
+                                    <option value="online">{{ __('messages.payment_mode_online') }}</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-700 block mb-1">
                                     {{ __('messages.status') }}
                                 </label>
                                 <select name="status" x-model="editingSponsor.status"
@@ -2188,6 +2215,11 @@
                                 <span class="font-black block mt-0.5 truncate"
                                       :class="viewingSponsor.payment_status === 'received' ? 'text-emerald-700' : (viewingSponsor.payment_status === 'failed' ? 'text-rose-700' : 'text-amber-700')"
                                       x-text="viewingSponsor.payment_status === 'received' ? '{{ __('messages.payment_received') }}' : (viewingSponsor.payment_status === 'failed' ? '{{ __('messages.payment_failed') }}' : '{{ __('messages.payment_pending') }}')"></span>
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-0 overflow-hidden">
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">{{ __('messages.payment_mode') }}</span>
+                                <span class="font-black text-slate-800 block mt-0.5 truncate"
+                                      x-text="viewingSponsor.payment_mode === 'online' ? '{{ __('messages.payment_mode_online') }}' : '{{ __('messages.payment_mode_cash') }}'"></span>
                             </div>
                             <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 min-w-0 overflow-hidden" x-show="viewingSponsor.transaction_nos">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Transaction ID</span>
@@ -2360,7 +2392,7 @@
                 editingType: { id: '', title: '', amount: '', max_sponsors: 0, description: '', status: true },
                 showAddSponsorModal: false,
                 showEditSponsorModal: false,
-                editingSponsor: { id: '', name: '', contact_person: '', mobile: '', email: '', sponsorship_type_id: '', amount: '', city: '', address: '', notes: '', payment_status: 'pending', status: 'pending' },
+                editingSponsor: { id: '', name: '', contact_person: '', mobile: '', email: '', sponsorship_type_id: '', amount: '', city: '', address: '', notes: '', payment_status: 'pending', payment_mode: 'cash', status: 'pending' },
                 showViewSponsorModal: false,
                 viewingSponsor: {},
 
@@ -2373,6 +2405,7 @@
                         sponsorship_type_id: typeId || '',
                         amount: '',
                         payment_status: 'pending',
+                        payment_mode: 'cash',
                         status: 'approved'
                     };
                     this.showAddSponsorModal = true;

@@ -23,6 +23,7 @@ class EventSponsor extends Model
         'address',
         'notes',
         'payment_status',
+        'payment_mode',
         'payment_id',
         'status',
     ];

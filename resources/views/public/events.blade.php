@@ -117,7 +117,7 @@
                             @if(!empty($event->registration_end_date) && ($event->event_type ?? 'normal') !== 'normal')
                                 <span class="inline-flex items-center gap-1 text-xs font-extrabold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100 whitespace-nowrap">
                                     <svg class="w-3 h-3 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    <span>{{ __('messages.last_date') }}: {{ date('d-M-Y', strtotime($event->registration_end_date)) }}</span>
+                                    <span>{{ __('messages.last_date') }}: {{ $event->passPurchaseDeadlineLabel() }}</span>
                                 </span>
                             @endif
                         </div>
