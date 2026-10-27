@@ -242,6 +242,7 @@
             scrollbar-width: none !important;
         }
     </style>
+    <script src="{{ asset('js/payment-log.js') }}?v={{ filemtime(public_path('js/payment-log.js')) }}" data-url="{{ route('payment_attempts.store') }}"></script>
 </head>
 
 <body x-data="{ sidebarOpen: false }"

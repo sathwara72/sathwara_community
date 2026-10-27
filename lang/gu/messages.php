@@ -1344,7 +1344,6 @@ return [
     'delete_sponsor_confirm' => 'શું તમે ખરેખર આ સ્પોન્સરને ડિલીટ કરવા માંગો છો?',
     'slots_available' => 'ઉપલબ્ધ સ્લોટ',
     'slots_remaining' => ':max માંથી :count સ્લોટ બાકી',
-    'sponsorship_closed' => 'સ્પોન્સરશિપ બંધ',
     'slots_full' => 'સ્લોટ પૂર્ણ',
     'our_sponsors' => 'આપણા ગૌરવવંતા સ્પોન્સર્સ',
     'sponsor_details' => 'સ્પોન્સરની વિગતો',

@@ -486,7 +486,7 @@
         };
 
         if (window.Razorpay) {
-            const rzp = new Razorpay(options);
+            const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'business_renewal' }) : new Razorpay(options));
             rzp.open();
         } else {
             alert('Razorpay gateway could not be loaded. Please refresh the page or use "Generate Payment Link".');

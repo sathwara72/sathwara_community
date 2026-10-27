@@ -42,6 +42,8 @@ Route::prefix('/events/{id}/guest-pass')->name('events.guest_pass.')->group(func
     Route::post('/order', [GuestPassController::class, 'createOrder'])->name('order')->middleware('throttle:10,10');
     Route::post('/complete', [GuestPassController::class, 'complete'])->name('complete')->middleware('throttle:10,10');
 });
+// Payment log: the browser reports each Razorpay popup (opened / cancelled / failed / paid)
+Route::post('/payment-attempts', [\App\Http\Controllers\PaymentAttemptController::class, 'store'])->name('payment_attempts.store')->middleware('throttle:60,1');
 Route::get('/updates', [PublicController::class, 'updates'])->name('updates');
 Route::get('/updates/{id}', [PublicController::class, 'updateDetails'])->name('update.details');
 Route::get('/gallery', [PublicController::class, 'gallery'])->name('gallery');
@@ -320,6 +322,7 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
     Route::middleware(['permission_check:transactions_view'])->group(function () {
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('transactions.index');
         Route::get('/transactions/export', [\App\Http\Controllers\Admin\TransactionController::class, 'exportCsv'])->name('transactions.export');
+        Route::get('/payment-attempts', [\App\Http\Controllers\Admin\PaymentAttemptController::class, 'index'])->name('payment_attempts.index');
     });
 
     // About Us page content (its own permission; does not open the rest of Settings)

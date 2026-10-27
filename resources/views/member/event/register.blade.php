@@ -2567,7 +2567,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         if (window.Razorpay) {
-            const rzp = new Razorpay(options);
+            const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'yuva_melo_fee' }) : new Razorpay(options));
             rzp.on('payment.failed', function (response) {
                 showFormError("Payment Failed: " + (response.error.description || "Could not complete transaction."), null, null);
             });

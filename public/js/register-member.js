@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (window.Razorpay) {
                 sessionStorage.setItem('mem_rzp_inprogress', '1');
-                const rzp = new Razorpay(options);
+                const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'membership' }) : new Razorpay(options));
                 rzp.on('payment.failed', function (response) {
                     sessionStorage.removeItem('mem_rzp_inprogress');
                     if (submitBtn) {

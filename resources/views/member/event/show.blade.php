@@ -730,7 +730,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         if (window.Razorpay) {
-            const rzp = new Razorpay(options);
+            const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'event_pass' }) : new Razorpay(options));
             rzp.on('payment.failed', function (response) {
                 alert(response.error?.description || 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.');
             });

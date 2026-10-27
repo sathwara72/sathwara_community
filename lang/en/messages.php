@@ -1344,7 +1344,6 @@ return [
     'delete_sponsor_confirm' => 'Are you sure you want to delete this sponsor?',
     'slots_available' => 'Slots Available',
     'slots_remaining' => ':count of :max Slots Remaining',
-    'sponsorship_closed' => 'Sponsorship Closed',
     'slots_full' => 'Slots Full',
     'our_sponsors' => 'Our Proud Sponsors',
     'sponsor_details' => 'Sponsor Details',

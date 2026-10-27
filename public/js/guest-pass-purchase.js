@@ -1,4 +1,8 @@
 // Pass purchase without login (Alpine component used by public/partials/guest_pass_purchase).
+function checkout(options) {
+    return window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'guest_event_pass' }) : new Razorpay(options);
+}
+
 window.guestPassPurchase = function (cfg) {
     return {
         fee: cfg.fee,
@@ -85,7 +89,7 @@ window.guestPassPurchase = function (cfg) {
                     throw new Error('Payment gateway failed to load. Please refresh and try again.');
                 }
 
-                const rzp = new Razorpay({
+                const rzp = checkout({
                     key: order.key,
                     order_id: order.order_id,
                     amount: order.amount,

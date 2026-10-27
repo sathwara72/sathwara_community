@@ -383,8 +383,8 @@
                         </div>
                     @endif
 
-                    <!-- Sponsorship Opportunities / Packages Section -->
-                    @if($sponsorshipTypes->isNotEmpty())
+                    <!-- Sponsorship Opportunities / Packages Section (hidden once the event is over) -->
+                    @if($sponsorshipTypes->isNotEmpty() && !$event->isSponsorshipClosed())
                         <div class="space-y-6 pt-6 border-t border-slate-100">
                             <div class="flex items-center justify-between gap-3 flex-wrap">
                                 <div>
@@ -441,12 +441,7 @@
                                         </div>
 
                                         <div class="pt-4 mt-2 border-t border-amber-100">
-                                            @if($event->isSponsorshipClosed())
-                                                <button type="button" disabled
-                                                    class="w-full py-2.5 bg-slate-200 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed text-center">
-                                                    {{ __('messages.sponsorship_closed') }}
-                                                </button>
-                                            @elseif($st->is_full)
+                                            @if($st->is_full)
                                                 <button type="button" disabled
                                                     class="w-full py-2.5 bg-slate-200 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed text-center">
                                                     {{ __('messages.slots_full') }}
@@ -1167,7 +1162,7 @@ function submitSponsorFormWithRazorpay() {
     };
 
     if (window.Razorpay) {
-        const rzp = new Razorpay(options);
+        const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'sponsorship' }) : new Razorpay(options));
         rzp.on('payment.failed', function (response) {
             alert(response.error?.description || "{{ $isGu ? 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment failed. Please try again.' }}");
         });
@@ -1253,7 +1248,7 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             if (window.Razorpay) {
-                const rzp = new Razorpay(options);
+                const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'event_pass' }) : new Razorpay(options));
                 rzp.on('payment.failed', function (response) {
                     alert(response.error?.description || "{{ $isGu ? 'પેમેન્ટ અસફળ રહ્યું. કૃપા કરીને ફરી પ્રયાસ કરો.' : 'Payment failed. Please try again.' }}");
                 });

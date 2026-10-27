@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Models\PaymentAttempt;
 use App\Models\Setting;
 use App\Services\GuestPassService;
 use App\Services\PassTokenService;
@@ -172,6 +173,7 @@ class GuestPassController extends Controller
         $paymentId = $request->input('razorpay_payment_id');
 
         if (!$this->guestPasses->isValidSignature($orderId, $paymentId, $request->input('razorpay_signature'))) {
+            PaymentAttempt::recordOutcome($paymentId, 'verification_failed', ['error' => 'Invalid Razorpay signature', 'razorpay_order_id' => $orderId]);
             return $this->error('Payment could not be verified.', 422);
         }
 
@@ -179,10 +181,12 @@ class GuestPassController extends Controller
         if (!$order || !GuestPassService::isGuestOrder($order)
             || (int) ($order['notes']['event_id'] ?? 0) !== (int) $event->id
             || ($order['notes']['email'] ?? null) !== $verified['email']) {
+            PaymentAttempt::recordOutcome($paymentId, 'verification_failed', ['error' => 'Order not found or does not match the booking', 'razorpay_order_id' => $orderId]);
             return $this->error('This payment does not match your booking.', 422);
         }
 
         if (($order['status'] ?? null) !== 'paid') {
+            PaymentAttempt::recordOutcome($paymentId, 'verified', ['razorpay_order_id' => $orderId]);
             // Razorpay has not settled it yet; the order.paid webhook will issue the pass and email it.
             $message = 'Your payment is being confirmed. Your pass will be emailed to ' . $verified['email'] . ' shortly.';
             session()->flash('success', $message);
@@ -197,6 +201,7 @@ class GuestPassController extends Controller
 
         [$registration] = $this->guestPasses->fulfillPaidOrder($order, $paymentId);
         if (!$registration) {
+            PaymentAttempt::recordOutcome($paymentId, 'verification_failed', ['error' => 'Paid, but the pass could not be issued', 'razorpay_order_id' => $orderId]);
             return $this->error('We received your payment but could not issue the pass. Please contact the organisers with payment ID ' . $paymentId . '.', 500);
         }
 

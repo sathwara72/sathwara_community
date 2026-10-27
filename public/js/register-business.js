@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function launchRazorpay() {
             sessionStorage.setItem('biz_rzp_inprogress', '1');
-            const rzp = new Razorpay(options);
+            const rzp = (window.PaymentLog ? PaymentLog.razorpay(options, { purpose: 'business_registration' }) : new Razorpay(options));
             rzp.on('payment.failed', function () {
                 sessionStorage.removeItem('biz_rzp_inprogress');
                 resetSubmitBtn();

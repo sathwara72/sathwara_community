@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\PaymentAttempt;
 use App\Models\Setting;
 use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,25 @@ class RazorpayVerifier
      * @return array{valid: bool, error: ?string}
      */
     public function verify(?string $paymentId, float $expectedAmount): array
+    {
+        $result = $this->check($paymentId, $expectedAmount);
+
+        // Payment log: the outcome of the server check, against the attempt the browser logged
+        if (!empty($paymentId) && $expectedAmount > 0) {
+            PaymentAttempt::recordOutcome(
+                $paymentId,
+                $result['valid'] ? 'verified' : 'verification_failed',
+                $result['valid'] ? [] : ['error' => $result['error']]
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{valid: bool, error: ?string}
+     */
+    private function check(?string $paymentId, float $expectedAmount): array
     {
         if ($expectedAmount <= 0) {
             return ['valid' => true, 'error' => null];
@@ -118,7 +138,7 @@ class RazorpayVerifier
         }
 
         try {
-            return Transaction::create([
+            $transaction = Transaction::create([
                 'payment_id' => $paymentId,
                 'method' => 'razorpay',
                 'purpose' => $purpose,
@@ -131,8 +151,58 @@ class RazorpayVerifier
             ]);
         } catch (UniqueConstraintViolationException $e) {
             Log::warning("Payment {$paymentId} was already recorded", ['purpose' => $purpose]);
-            return Transaction::where('payment_id', $paymentId)->first();
+            $transaction = Transaction::where('payment_id', $paymentId)->first();
         }
+
+        PaymentAttempt::recordOutcome($paymentId, 'completed', [
+            'transaction_id' => $transaction?->id,
+            'purpose' => $purpose,
+            'amount' => $amount,
+            'payer_name' => $payerName,
+            'payer_contact' => $payerContact,
+        ]);
+
+        return $transaction;
+    }
+
+    /**
+     * Look a payment up on Razorpay for the admin (read-only).
+     *
+     * @return array<string, mixed>|null null when Razorpay could not be reached or does not know it
+     */
+    public function fetchPayment(string $paymentId): ?array
+    {
+        return $this->getJson('payments/' . urlencode($paymentId));
+    }
+
+    /**
+     * All payments made against a Razorpay order (guest pass purchases use orders).
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function fetchOrderPayments(string $orderId): ?array
+    {
+        $data = $this->getJson('orders/' . urlencode($orderId) . '/payments');
+
+        return $data === null ? null : ($data['items'] ?? []);
+    }
+
+    private function getJson(string $path): ?array
+    {
+        if (!$this->configured()) {
+            return null;
+        }
+
+        try {
+            $response = Http::withBasicAuth($this->keyId(), $this->keySecret())
+                ->timeout(10)
+                ->get('https://api.razorpay.com/v1/' . $path);
+        } catch (\Throwable $e) {
+            Log::error('Razorpay lookup exception: ' . $e->getMessage());
+            return null;
+        }
+
+        return $response->successful() ? $response->json() : null;
     }
 
     public function isUsed(string $paymentId): bool
