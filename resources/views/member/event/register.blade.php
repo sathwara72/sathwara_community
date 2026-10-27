@@ -317,9 +317,10 @@
                         request('tab') ? request('tab') :
                         ((session('success') && isset($registrations) && $registrations->count() > 0) ? 'submitted' :
                         ((isset($registrations) && $registrations->count() > 0
-                            && (!($event->has_registration_form ?? $event->registration_option)
+                            && ($registrations->contains('status', \App\Models\EventRegistration::STATUS_CORRECTION)
+                                || !($event->has_registration_form ?? $event->registration_option)
                                 || (!empty($event->form_end_date)
-                                    && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString()))) ? 'submitted' : 'form'))
+                                    && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString())))) ? 'submitted' : 'form'))
                     ),
                     yuvaTab: 1,
                     showDetailsModal: false,
@@ -665,6 +666,8 @@
                 $formNotYetOpen = !$isRegistrationFormDisabled && !empty($event->form_start_date) && $today < \Carbon\Carbon::parse($event->form_start_date)->toDateString();
                 $formPastDeadline = !$isRegistrationFormDisabled && !empty($event->form_end_date) && $today > \Carbon\Carbon::parse($event->form_end_date)->toDateString();
                 $isRegistrationClosed = $isRegistrationFormDisabled || $formNotYetOpen || $formPastDeadline;
+                // Submissions the office asked to correct can be edited even when the form is closed
+                $hasCorrectionRequest = isset($registrations) && $registrations->contains('status', \App\Models\EventRegistration::STATUS_CORRECTION);
             @endphp
 
             <!-- DEFAULT / CLOSED NOTICE BANNER -->
@@ -712,7 +715,7 @@
 
             @if($isRegistrationClosed)
                 <!-- REGISTRATION CLOSED CARD WITH DYNAMIC ANIMATIONS -->
-                <div
+                <div @if($hasCorrectionRequest) x-show="!isEditing" @endif
                     class="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 text-center shadow-2xs space-y-4 flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 hover:shadow-md">
                     <!-- Ambient background floating glow animation -->
                     <div
@@ -778,9 +781,10 @@
 
 
                 </div>
-            @else
-                <!-- MAIN FORM CARD CONTAINER -->
-                <div id="registrationFormCard"
+            @endif
+            @if(!$isRegistrationClosed || $hasCorrectionRequest)
+                <!-- MAIN FORM CARD CONTAINER (when closed: only while correcting a flagged submission) -->
+                <div id="registrationFormCard" @if($isRegistrationClosed) x-show="isEditing" x-cloak @endif
                     class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden w-full transition-all">
                     <div class="p-4 sm:p-6 space-y-4">
 
@@ -1856,11 +1860,29 @@
                                                     {{ $fd['full_name'] ?? $fd['student_name'] ?? __('messages.registration') }}
                                                 </h4>
                                             </div>
-                                            <span
-                                                class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                                                {{ __('messages.submitted') }}
-                                            </span>
+                                            @if($reg->status === \App\Models\EventRegistration::STATUS_CORRECTION)
+                                                <span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300 uppercase shrink-0">⚠ {{ __('messages.review_correction_required') }}</span>
+                                            @elseif($reg->status === \App\Models\EventRegistration::STATUS_RESUBMITTED)
+                                                <span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-300 uppercase shrink-0">↻ {{ __('messages.review_resubmitted') }}</span>
+                                            @elseif($reg->status === \App\Models\EventRegistration::STATUS_REJECTED)
+                                                <span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-300 uppercase shrink-0">✕ {{ __('messages.review_rejected') }}</span>
+                                            @else
+                                                <span
+                                                    class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                                                    {{ __('messages.submitted') }}
+                                                </span>
+                                            @endif
                                         </div>
+
+                                        @if($reg->admin_note && in_array($reg->status, [\App\Models\EventRegistration::STATUS_CORRECTION, \App\Models\EventRegistration::STATUS_REJECTED], true))
+                                            <div class="p-2.5 rounded-lg text-[11px] font-semibold leading-relaxed {{ $reg->status === \App\Models\EventRegistration::STATUS_REJECTED ? 'bg-rose-50 border border-rose-200 text-rose-900' : 'bg-amber-50 border border-amber-200 text-amber-900' }}">
+                                                <span class="block text-[9px] font-black uppercase tracking-wider opacity-70">{{ __('messages.review_note_from_office') }}</span>
+                                                {{ $reg->admin_note }}
+                                                @if($reg->status === \App\Models\EventRegistration::STATUS_CORRECTION)
+                                                    <span class="block mt-1 text-[10px] font-bold">{{ __('messages.review_correct_now') }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
 
                                         <!-- Card Body Snippet -->
                                         <div class="space-y-2 text-[11px] text-slate-600">
@@ -1946,19 +1968,27 @@
                                                 <span class="text-[10px] text-slate-400 font-medium italic">{{ __('messages.no_marksheet') }}</span>
                                             @endif
 
-                                            @if(!$isDeadlinePassed)
+                                            @php
+                                                $canEdit = $reg->status !== \App\Models\EventRegistration::STATUS_REJECTED && (!$isDeadlinePassed || $reg->status === \App\Models\EventRegistration::STATUS_CORRECTION);
+                                                $canDelete = !$isDeadlinePassed;
+                                            @endphp
+                                            @if($canEdit || $canDelete)
                                                 <div class="flex items-center gap-1.5 shrink-0" @click.stop>
+                                                    @if($canEdit)
                                                     <button type="button"
                                                         @click.stop="editRegistration({{ json_encode(['id' => $reg->id, 'form_data' => $fd]) }})"
                                                         class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 active:scale-95 text-amber-800 font-extrabold text-[11px] rounded-lg border border-amber-200/80 transition-all flex items-center gap-1 cursor-pointer shadow-2xs">
                                                         ✏️ {{ __('messages.edit') }}
                                                     </button>
+                                                    @endif
 
+                                                    @if($canDelete)
                                                     <button type="button"
                                                         @click.stop="$dispatch('confirm-delete', { action: '{{ route('member.events.registrations.destroy', $reg->id) }}', message: '{{ __('messages.confirm_delete_registration') }}' })"
                                                         class="px-2 py-1 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 font-extrabold text-[11px] rounded-lg border border-rose-200/80 transition-all flex items-center gap-1 cursor-pointer shadow-2xs">
                                                         🗑️ {{ __('messages.delete') }}
                                                     </button>
+                                                    @endif
                                                 </div>
                                             @else
                                                 <span

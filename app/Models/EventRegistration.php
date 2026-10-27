@@ -17,6 +17,8 @@ class EventRegistration extends Model
         'registration_type',
         'user_id',
         'status',
+        'admin_note',
+        'reviewed_at',
         'form_data',
         'is_selected',
         'payment_id',
@@ -31,7 +33,13 @@ class EventRegistration extends Model
         'yuva_melo_number' => 'integer',
         'form_data' => 'array',
         'is_selected' => 'boolean',
+        'reviewed_at' => 'datetime',
     ];
+
+    // Review statuses an admin can set on a submission (besides 'approved')
+    public const STATUS_CORRECTION = 'correction_required'; // member must fix and resubmit
+    public const STATUS_RESUBMITTED = 'resubmitted';        // member fixed it; admin to check again
+    public const STATUS_REJECTED = 'rejected';              // final, not ranked
 
     /**
      * Get the active event-wise reference number based on type

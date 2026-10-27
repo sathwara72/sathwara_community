@@ -8,7 +8,10 @@ use App\Models\Gallery;
 use App\Models\EventRegistration;
 use App\Models\SponsorshipType;
 use App\Models\EventSponsor;
+use App\Mail\SubmissionReviewMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class EventController extends Controller
@@ -641,6 +644,81 @@ class EventController extends Controller
     }
 
     /**
+     * Review a submission: ask the member to correct it (e.g. marks that don't match the marksheet),
+     * reject it, or approve it again. The member sees the note and is emailed.
+     */
+    public function reviewRegistration(Request $request, $id)
+    {
+        $registration = EventRegistration::with(['user', 'event'])->findOrFail($id);
+
+        $data = $request->validate([
+            'decision' => 'required|in:correction,reject,approve',
+            'note' => 'required_unless:decision,approve|nullable|string|max:1000',
+        ], [
+            'note.required_unless' => 'Please write what is wrong, so the member knows what to fix.',
+        ]);
+
+        $fd = $registration->form_data ?? [];
+        $studentName = $fd['student_name'] ?? $fd['full_name'] ?? ($registration->user->name ?? 'Participant');
+
+        if ($data['decision'] === 'approve') {
+            $registration->update(['status' => 'approved', 'admin_note' => null, 'reviewed_at' => now()]);
+            return redirect()->back()->with('success', "{$studentName}: submission approved.");
+        }
+
+        $status = $data['decision'] === 'reject' ? EventRegistration::STATUS_REJECTED : EventRegistration::STATUS_CORRECTION;
+        $registration->update(['status' => $status, 'admin_note' => trim($data['note']), 'reviewed_at' => now()]);
+
+        $emailed = false;
+        $email = $registration->user->email ?? ($fd['email'] ?? null);
+        if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            try {
+                Mail::to($email)->send(new SubmissionReviewMail(
+                    $status,
+                    $registration->user->name ?? $studentName,
+                    $registration->event->title ?? 'Event',
+                    $studentName,
+                    $registration->admin_note,
+                    route('member.events.register_form', $registration->event_id)
+                ));
+                $emailed = true;
+            } catch (\Throwable $e) {
+                Log::warning('Submission review email failed: ' . $e->getMessage(), ['registration_id' => $registration->id]);
+            }
+        }
+
+        $message = $status === EventRegistration::STATUS_REJECTED
+            ? "{$studentName}: submission rejected."
+            : "{$studentName}: member asked to correct the submission.";
+
+        return redirect()->back()->with('success', $message . ($emailed ? ' The member has been emailed.' : ' No email sent (no valid email on file); the member will see the note on their submission.'));
+    }
+
+    /**
+     * Delete an Event Registration (e.g. an Inam submission filled twice), with its uploaded marksheet
+     */
+    public function destroyRegistration($id)
+    {
+        $registration = EventRegistration::findOrFail($id);
+        $eventId = $registration->event_id;
+
+        // The marksheet is stored as a full URL to the public disk: ".../storage/marksheets/x.pdf"
+        $marksheetUrl = (string) ($registration->form_data['marksheet_url'] ?? '');
+        $marksheetPath = str_contains($marksheetUrl, '/storage/marksheets/')
+            ? 'marksheets/' . basename(parse_url($marksheetUrl, PHP_URL_PATH))
+            : null;
+
+        $registration->delete();
+
+        if ($marksheetPath && Storage::disk('public')->exists($marksheetPath)) {
+            Storage::disk('public')->delete($marksheetPath);
+        }
+
+        return redirect()->back(fallback: route('admin.events.show', $eventId))
+            ->with('success', 'Submission deleted successfully.');
+    }
+
+    /**
      * Export Inam Vitaran Student Submissions CSV
      */
     public function exportInamSubmissionsCsv(Request $request, $id)
@@ -654,8 +732,9 @@ class EventController extends Controller
         $standardFilter = $request->query('standard', 'all');
         $search = trim((string)$request->query('search', ''));
 
+        // Rejected submissions are not ranked, so they are left out of the list
         $registrations = $allRegistrations->filter(function($r) {
-            return !empty($r->form_data['student_name']);
+            return !empty($r->form_data['student_name']) && $r->status !== EventRegistration::STATUS_REJECTED;
         });
 
         // Compute numeric percentage & standard
@@ -750,6 +829,7 @@ class EventController extends Controller
                 'Contact No',
                 'Marksheet URL',
                 'Submission Date',
+                'Review',
             ]);
 
             $sr = 0;
@@ -777,6 +857,11 @@ class EventController extends Controller
                     $phone,
                     $marksheetUrl,
                     $submissionDate,
+                    match ($r->status) {
+                        EventRegistration::STATUS_CORRECTION => 'Correction asked: ' . $r->admin_note,
+                        EventRegistration::STATUS_RESUBMITTED => 'Updated by member, check again',
+                        default => '',
+                    },
                 ]);
             }
 

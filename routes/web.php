@@ -230,6 +230,8 @@ Route::middleware(['auth', 'role:Administrator|Sub Admin'])->prefix('admin')->na
         Route::post('/events/registrations/{id}/toggle-select', [AdminEvent::class, 'toggleSelectRegistration'])->name('events.registrations.toggle_select');
         Route::post('/events/registrations/{id}/approve', [AdminEvent::class, 'approveRegistration'])->name('events.registrations.approve');
         Route::post('/events/registrations/{id}/reject', [AdminEvent::class, 'rejectRegistration'])->name('events.registrations.reject');
+        Route::delete('/events/registrations/{id}', [AdminEvent::class, 'destroyRegistration'])->name('events.registrations.destroy');
+        Route::post('/events/registrations/{id}/review', [AdminEvent::class, 'reviewRegistration'])->name('events.registrations.review');
         Route::get('/events/{id}/gallery', [AdminEvent::class, 'gallery'])->name('events.gallery');
         Route::post('/events/{id}/gallery', [AdminEvent::class, 'uploadGallery'])->name('events.gallery.upload');
         Route::delete('/events/gallery/{id}', [AdminEvent::class, 'deleteGalleryPhoto'])->name('events.gallery.destroy');

@@ -276,7 +276,15 @@ class PublicController extends Controller
             $user = auth()->user();
         }
 
-        if ($event->event_type !== 'normal' && !($event->has_registration_form || $event->registration_option)) {
+        // A submission the office asked to correct can still be edited after the form has closed
+        $correctionEdit = $user && $request->filled('registration_id')
+            && EventRegistration::where('event_id', $event->id)
+                ->where('user_id', $user->id)
+                ->where('status', EventRegistration::STATUS_CORRECTION)
+                ->whereKey($request->input('registration_id'))
+                ->exists();
+
+        if (!$correctionEdit && $event->event_type !== 'normal' && !($event->has_registration_form || $event->registration_option)) {
             return redirect()->back()->with('error', 'Registration is not required for this event.');
         }
 
@@ -286,10 +294,10 @@ class PublicController extends Controller
         if ($isStudentForm || $isYuvaMeloCandidateForm) {
             // Form fillup window: form_start_date - form_end_date
             $today = now()->toDateString();
-            if (!empty($event->form_start_date) && $today < \Carbon\Carbon::parse($event->form_start_date)->toDateString()) {
+            if (!$correctionEdit && !empty($event->form_start_date) && $today < \Carbon\Carbon::parse($event->form_start_date)->toDateString()) {
                 return redirect()->back()->with('error', 'Form submission has not started yet. It opens on ' . date('d-M-Y', strtotime($event->form_start_date)) . '.');
             }
-            if (!empty($event->form_end_date) && $today > \Carbon\Carbon::parse($event->form_end_date)->toDateString()) {
+            if (!$correctionEdit && !empty($event->form_end_date) && $today > \Carbon\Carbon::parse($event->form_end_date)->toDateString()) {
                 return redirect()->back()->with('error', 'Form submission closed on ' . date('d-M-Y', strtotime($event->form_end_date)) . '.');
             }
         } else {
@@ -497,9 +505,12 @@ class PublicController extends Controller
 
         // Check if matching registration exists for this specific student/participant or user
         $existingRegistration = null;
-        if ($request->filled('registration_id')) {
-            $existingRegistration = EventRegistration::where('event_id', $event->id)->find($request->input('registration_id'));
+        if ($user && $request->filled('registration_id')) {
+            $existingRegistration = EventRegistration::where('event_id', $event->id)
+                ->where('user_id', $user->id)
+                ->find($request->input('registration_id'));
         }
+
         if (!$existingRegistration && $user) {
             if (!empty($formData['student_name'])) {
                 $registrations = EventRegistration::where('event_id', $event->id)
@@ -524,6 +535,17 @@ class PublicController extends Controller
                     ->first();
             }
         }
+
+        if ($existingRegistration && $existingRegistration->status === EventRegistration::STATUS_REJECTED) {
+            return redirect()->back()->withInput()->with('error', 'This submission was rejected by the office'
+                . ($existingRegistration->admin_note ? ': ' . $existingRegistration->admin_note : '.')
+                . ' It cannot be changed.');
+        }
+
+        // After a correction request, the update goes back to the office to check again
+        $updatedStatus = $existingRegistration && in_array($existingRegistration->status, [EventRegistration::STATUS_CORRECTION, EventRegistration::STATUS_RESUBMITTED], true)
+            ? EventRegistration::STATUS_RESUBMITTED
+            : 'approved';
 
         // A marksheet is compulsory: a new upload, or the one already on the submission being edited
         if ($isStudentForm && empty($formData['marksheet_url']) && empty($existingRegistration?->form_data['marksheet_url'])) {
@@ -595,9 +617,11 @@ class PublicController extends Controller
             if ($isStudentForm) {
                 $existingRegistration->update([
                     'form_data' => array_merge($existingRegistration->form_data ?? [], $formData),
-                    'status' => 'approved',
+                    'status' => $updatedStatus,
                 ]);
-                return $redirectTarget->with('success', 'Student registration details updated successfully.');
+                return $redirectTarget->with('success', $updatedStatus === EventRegistration::STATUS_RESUBMITTED
+                    ? 'Corrected details submitted. The office will check them again.'
+                    : 'Student registration details updated successfully.');
             }
 
             if ($isYuvaMeloCandidateForm) {
@@ -606,7 +630,7 @@ class PublicController extends Controller
                     'payment_id' => $paymentId ?: $existingRegistration->payment_id,
                     'payment_status' => ($paymentStatus === 'paid' || $existingRegistration->payment_status === 'paid') ? 'paid' : 'unpaid',
                     'payment_amount' => $totalAmount > 0 ? $totalAmount : $existingRegistration->payment_amount,
-                    'status' => 'approved',
+                    'status' => $updatedStatus,
                 ]);
                 app(RazorpayVerifier::class)->record($paymentId, 'yuva_melo_fee', $amountDue, $existingRegistration, $formData['full_name'] ?? ($user->name ?? null), $formData['mobile_no'] ?? null);
                 $this->sendYuvaMeloFeeReceipt($event, $existingRegistration, $user, $amountDue, $paymentId);

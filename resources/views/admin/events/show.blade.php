@@ -342,7 +342,8 @@
                 $top3InStdIds = [];
 
                 foreach ($groupedByStandard as $stdName => $studentsInStd) {
-                    $sortedStd = $studentsInStd->sortByDesc('calc_pct')->values();
+                    // Rejected submissions are listed but never ranked
+                    $sortedStd = $studentsInStd->where('status', '!=', \App\Models\EventRegistration::STATUS_REJECTED)->sortByDesc('calc_pct')->values();
                     foreach ($sortedStd as $idx => $student) {
                         $rank = $idx + 1;
                         $stdRanksMap[$student->id] = $rank;
@@ -449,8 +450,11 @@
                 <div class="space-y-6">
                     @forelse($groupedByStandard as $stdName => $stdStudents)
                         @php
-                            $sortedStdStudents = $stdStudents->sortByDesc('calc_pct')->values();
-                            $topScore = $sortedStdStudents->first()->calc_pct ?? 0;
+                            $sortedStdStudents = $stdStudents->sortBy([
+                                fn ($a, $b) => ($a->status === \App\Models\EventRegistration::STATUS_REJECTED) <=> ($b->status === \App\Models\EventRegistration::STATUS_REJECTED),
+                                fn ($a, $b) => $b->calc_pct <=> $a->calc_pct,
+                            ])->values();
+                            $topScore = $sortedStdStudents->firstWhere('status', '!=', \App\Models\EventRegistration::STATUS_REJECTED)->calc_pct ?? 0;
                         @endphp
                         <div x-show="selectedStandard === 'all' || selectedStandard === '{{ addslashes($stdName) }}'"
                             class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 space-y-3.5">
@@ -501,6 +505,7 @@
                                             <th class="py-2.5 px-2">{{ __('messages.school_college') }}</th>
                                             <th class="py-2.5 px-2">{{ __('messages.contact') }}</th>
                                             <th class="py-2.5 px-2 text-center w-28">{{ __('messages.marksheet') }}</th>
+                                            <th class="py-2.5 px-2 text-center w-28"></th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -512,7 +517,8 @@
                                                 $userPhone = $fd['mobile_no'] ?? $fd['mobile'] ?? ($reg->user ? ($reg->user->memberProfile->phone ?? null) : null);
                                                 $userCity = $fd['city'] ?? $fd['native_place'] ?? '-';
                                                 $schoolName = $fd['school_college'] ?? '-';
-                                                $stdRank = $stdRanksMap[$reg->id] ?? ($index + 1);
+                                                $stdRank = $stdRanksMap[$reg->id] ?? null; // null: rejected, not ranked
+                                                $reviewStatus = $reg->status;
                                                 $pctStr = !empty($fd['percentage']) ? (str_contains((string) $fd['percentage'], '%') ? $fd['percentage'] : $fd['percentage'] . '%') : ($reg->calc_pct > 0 ? $reg->calc_pct . '%' : '-');
                                                 $marksStr = (!empty($fd['received_marks']) && !empty($fd['total_marks'])) ? ($fd['received_marks'] . ' / ' . $fd['total_marks']) : null;
                                                 $marksheetUrl = $fd['marksheet_url'] ?? $fd['marksheet'] ?? $fd['result_photo'] ?? $fd['result_url'] ?? null;
@@ -527,11 +533,13 @@
                                                                      '{{ addslashes(strtolower($schoolName)) }}'.includes(search.toLowerCase()) || 
                                                                      '{{ addslashes(strtolower($pctStr)) }}'.includes(search.toLowerCase())) &&
                                                                     (topRankFilter === 'all' || (topRankFilter === 'top5' && {{ in_array($reg->id, $top5InStdIds) ? 'true' : 'false' }}) || (topRankFilter === 'top3' && {{ in_array($reg->id, $top3InStdIds) ? 'true' : 'false' }}))"
-                                                class="hover:bg-amber-50/40 transition-colors {{ $stdRank === 1 ? 'bg-amber-50/20' : ($stdRank === 2 ? 'bg-slate-50/30' : '') }}">
+                                                class="hover:bg-amber-50/40 transition-colors {{ $reviewStatus === \App\Models\EventRegistration::STATUS_REJECTED ? 'opacity-60' : ($stdRank === 1 ? 'bg-amber-50/20' : ($stdRank === 2 ? 'bg-slate-50/30' : '')) }}">
 
                                                 <!-- Rank Badge Column -->
                                                 <td class="py-2 px-2 text-center whitespace-nowrap">
-                                                    @if($stdRank === 1)
+                                                    @if($stdRank === null)
+                                                        <span class="text-[10px] font-bold text-slate-400">—</span>
+                                                    @elseif($stdRank === 1)
                                                         <span
                                                             class="inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
                                                             🥇 {{ __('messages.rank_1') }}
@@ -570,7 +578,11 @@
                                                         @if($missing)
                                                             <span class="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-black uppercase tracking-wider" title="Missing: {{ implode(', ', $missing) }}">Incomplete: {{ implode(', ', $missing) }}</span>
                                                         @endif
+                                                        @include('admin.events.partials.review_badge', ['reg' => $reg])
                                                     </div>
+                                                    @if($reg->admin_note && in_array($reviewStatus, [\App\Models\EventRegistration::STATUS_CORRECTION, \App\Models\EventRegistration::STATUS_RESUBMITTED, \App\Models\EventRegistration::STATUS_REJECTED]))
+                                                        <p class="mt-1 text-[10px] font-semibold text-slate-500 max-w-[260px] leading-snug">📝 {{ $reg->admin_note }}</p>
+                                                    @endif
                                                 </td>
 
                                                 <!-- Father Name -->
@@ -613,6 +625,33 @@
                                                         <span
                                                             class="text-slate-400 font-medium text-[10px]">{{ __('messages.no_file') }}</span>
                                                     @endif
+                                                </td>
+
+                                                <!-- Review (wrong marks etc.) & Delete (e.g. the same student submitted twice) -->
+                                                <td class="py-2 px-2 text-center whitespace-nowrap space-x-1">
+                                                    @if($reviewStatus !== 'approved')
+                                                        <form method="POST" action="{{ route('admin.events.registrations.review', $reg->id) }}" class="inline">
+                                                            @csrf
+                                                            <input type="hidden" name="decision" value="approve">
+                                                            <button type="submit" title="Approve (marks are correct now)"
+                                                                class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors cursor-pointer font-black text-xs">✓</button>
+                                                        </form>
+                                                    @endif
+                                                    <button type="button" title="Report a problem (ask to correct / reject)"
+                                                        @click="$dispatch('review-submission', {{ \Illuminate\Support\Js::from([
+                                                            'action' => route('admin.events.registrations.review', $reg->id),
+                                                            'name' => $userName,
+                                                            'marks' => ($marksStr ? $marksStr . ' = ' : '') . $pctStr,
+                                                            'note' => $reg->admin_note,
+                                                        ]) }})"
+                                                        class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors cursor-pointer">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg>
+                                                    </button>
+                                                    <button type="button" title="Delete submission"
+                                                        @click="$dispatch('confirm-delete', { action: '{{ route('admin.events.registrations.destroy', $reg->id) }}', message: {{ \Illuminate\Support\Js::from('Delete the submission of ' . $userName . ' (' . $pctStr . ')? This cannot be undone.') }} })"
+                                                        class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -2589,4 +2628,54 @@
             };
         }
     </script>
+
+    <!-- Report a problem with a submission: ask the member to correct it, or reject it -->
+    <div x-data="{ open: false, action: '', name: '', marks: '', decision: 'correction', note: '' }"
+         @review-submission.window="open = true; action = $event.detail.action; name = $event.detail.name; marks = $event.detail.marks; note = $event.detail.note || ''; decision = 'correction'"
+         @keydown.escape.window="open = false"
+         x-show="open" x-cloak class="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <form method="POST" :action="action" @click.outside="open = false"
+              class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-3.5">
+            @csrf
+            <div>
+                <h3 class="text-sm font-black text-slate-900">Report a problem</h3>
+                <p class="text-xs text-slate-500 font-semibold mt-0.5"><span x-text="name"></span> · <span x-text="marks"></span></p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <label class="cursor-pointer rounded-xl border p-2.5 text-xs font-bold transition-colors"
+                       :class="decision === 'correction' ? 'border-amber-400 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600'">
+                    <input type="radio" name="decision" value="correction" x-model="decision" class="sr-only">
+                    ✏️ Ask member to correct
+                    <span class="block text-[10px] font-medium mt-0.5 opacity-80">They can edit and resubmit, even after the last date</span>
+                </label>
+                <label class="cursor-pointer rounded-xl border p-2.5 text-xs font-bold transition-colors"
+                       :class="decision === 'reject' ? 'border-rose-400 bg-rose-50 text-rose-900' : 'border-slate-200 text-slate-600'">
+                    <input type="radio" name="decision" value="reject" x-model="decision" class="sr-only">
+                    ✕ Reject
+                    <span class="block text-[10px] font-medium mt-0.5 opacity-80">Final: removed from ranking, cannot be edited</span>
+                </label>
+            </div>
+
+            <div class="space-y-1">
+                <label class="text-[11px] font-bold text-slate-700">What is wrong? <span class="text-rose-500">*</span> <span class="font-medium text-slate-400">(the member sees this)</span></label>
+                <textarea name="note" x-model="note" rows="3" required maxlength="1000"
+                          class="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-primary-500"></textarea>
+                <div class="flex flex-wrap gap-1">
+                    <template x-for="hint in ['Obtained marks do not match the marksheet.', 'Total marks do not match the marksheet.', 'Marksheet is not clear, please upload a clearer photo.', 'Wrong standard / course selected.']" :key="hint">
+                        <button type="button" @click="note = hint"
+                                class="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-semibold text-slate-600" x-text="hint"></button>
+                    </template>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button" @click="open = false" class="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-900">Cancel</button>
+                <button type="submit"
+                        class="px-4 py-2 text-white font-extrabold text-xs rounded-xl"
+                        :class="decision === 'reject' ? 'bg-rose-600 hover:bg-rose-500' : 'bg-amber-600 hover:bg-amber-500'"
+                        x-text="decision === 'reject' ? 'Reject submission' : 'Send correction request'"></button>
+            </div>
+        </form>
+    </div>
 @endsection
