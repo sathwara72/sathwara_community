@@ -18,6 +18,9 @@
         ? 'આ ફાઇલ વાંચી શકાઈ નથી. કૃપા કરીને ફાઇલ પહેલા ફોનમાં ડાઉનલોડ / સેવ કરો અને પછી ફરી પસંદ કરો.'
         : 'This file could not be read. Please download / save it to your phone first, then select it again.';
 
+    // Copies still being read (a Drive file is downloaded first, which can take a few seconds)
+    const pending = new Map();
+
     document.addEventListener('change', function (e) {
         const input = e.target;
         if (!(input instanceof HTMLInputElement) || input.type !== 'file' || input.multiple
@@ -31,7 +34,7 @@
             return;
         }
 
-        picked.arrayBuffer().then(function (buffer) {
+        const copying = picked.arrayBuffer().then(function (buffer) {
             // The user may have picked another file meanwhile
             if (input.files[0] !== picked) {
                 return;
@@ -48,6 +51,43 @@
                 input.dispatchEvent(new Event('change', { bubbles: true }));
             }
             alert(unreadable);
+        }).finally(function () {
+            if (pending.get(input) === copying) {
+                pending.delete(input);
+            }
         });
+        pending.set(input, copying);
     }, true);
+
+    // A submit while a copy is still being read would send the original file: wait for the copy,
+    // then submit again. Runs after the page's own submit handlers and respects their preventDefault.
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (e.defaultPrevented || !(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const waits = [];
+        pending.forEach(function (copying, input) {
+            if (input.form === form) {
+                waits.push(copying);
+            }
+        });
+        if (!waits.length) {
+            return;
+        }
+
+        e.preventDefault();
+        const submitter = e.submitter || null;
+        if (submitter) submitter.disabled = true;
+        Promise.all(waits).then(function () {
+            if (submitter) submitter.disabled = false;
+            // requestSubmit re-runs the form's validation, so a required file that was cleared is caught
+            if (form.requestSubmit) {
+                form.requestSubmit(submitter && submitter.form === form ? submitter : undefined);
+            } else {
+                form.submit();
+            }
+        });
+    });
 })();
