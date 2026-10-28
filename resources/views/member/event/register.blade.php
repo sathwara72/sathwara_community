@@ -34,6 +34,18 @@
                     $initialSiblingsArr[] = ['relation' => 'Younger Sister', 'details' => $fd['younger_sister'], 'married' => $fd['younger_sister_married'] ?? 'No'];
             }
         @endphp
+        @php
+            // Open "Submitted" first after saving, when the form is closed, or when the office asked for a correction
+            $hasSubmissions = isset($registrations) && $registrations->count() > 0;
+            $defaultPageTab = request('tab') ?: (
+                $hasSubmissions && (
+                    session('success')
+                    || $registrations->contains('status', \App\Models\EventRegistration::STATUS_CORRECTION)
+                    || !($event->has_registration_form ?? $event->registration_option)
+                    || (!empty($event->form_end_date) && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString())
+                ) ? 'submitted' : 'form'
+            );
+        @endphp
 
         <script>
             function eventRegistrationData() {
@@ -313,15 +325,7 @@
                     editingRegistrationId: null,
                     previewLang: @json(app()->getLocale() === 'gu' ? 'gu' : 'en'),
                     marksheetUrl: '',
-                    mainPageTab: @json(
-                        request('tab') ? request('tab') :
-                        ((session('success') && isset($registrations) && $registrations->count() > 0) ? 'submitted' :
-                        ((isset($registrations) && $registrations->count() > 0
-                            && ($registrations->contains('status', \App\Models\EventRegistration::STATUS_CORRECTION)
-                                || !($event->has_registration_form ?? $event->registration_option)
-                                || (!empty($event->form_end_date)
-                                    && now()->toDateString() > \Carbon\Carbon::parse($event->form_end_date)->toDateString())))) ? 'submitted' : 'form'))
-                    ),
+                    mainPageTab: @json($defaultPageTab),
                     yuvaTab: 1,
                     showDetailsModal: false,
                     showSiblingModal: false,
